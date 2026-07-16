@@ -1,0 +1,25 @@
+# Swift Package Manager
+.build/
+build/.swift-build/
+.swiftpm/
+Package.resolved.lock
+
+# Xcode
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+.DS_Store
+
+# Build artifacts — DMG/ZIP/SHA256SUMS go to GitHub Releases, not git.
+build/
+
+# Editor
+.vscode/
+.idea/
+
+# Local scratch
+scratchpad/
+*.swp
+
+# Node/tools (not used but future-proof)
+node_modules/
