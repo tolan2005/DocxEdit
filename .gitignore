@@ -1,0 +1,12 @@
+# Public DocxEdit repository — everything except README.md is excluded from git.
+# Source code, tests, scripts, changelogs and other docs live only in the
+# maintainer's local working tree. Public distribution goes through GitHub
+# Releases (DMG + SHA256SUMS attached to each release).
+
+# Whitelist approach: ignore everything, then re-include the few tracked files.
+/*
+!/.gitignore
+!/README.md
+
+# macOS junk (defensive; already covered by /* but explicit).
+.DS_Store
