@@ -1,6 +1,6 @@
 # DocxEdit
 
-> **Version:** 1.1.0
+> **Version:** 1.5.0
 > **Platform:** macOS 14 Sonoma+ (arm64)
 > **Downloads:** <https://github.com/tolan2005/DocxEdit/releases>
 
@@ -23,6 +23,7 @@ shasum -a 256 -c SHA256SUMS
 ## Highlights
 
 - **DOCX first.** Real OOXML round-trip — styles, lists, tables, images, hyperlinks, comments, footnotes, cross-references, track changes, page numbers, headers/footers, TOC.
+- **Markdown editor mode.** Typora-style WYSIWYG for `.md` files: headings, bold/italic/strikethrough, inline + fenced code, blockquotes, horizontal rules, nested lists, GFM tables (pretty-printed), links, images. Toolbar automatically reduces to Markdown-compatible tools; ⌘S saves `.md`; export to DOCX/PDF/RTF anytime. ⇧⌘N — new Markdown document.
 - **Full-featured editor.** Ribbon with tabs (Home / Insert / Layout / Review / View), WYSIWYG page view with real A4/Letter sheets + shadows, real pagination, printing.
 - **Formatting.** Bold / italic / underline / strikethrough / sub-super, character styles, paragraph styles (Normal + Headings 1–6), fonts, colors, highlight palette, alignment, indents, line spacing, format painter.
 - **Structure.** Multilevel lists, tables (merge/split, borders, shading, header rows), inline images (PNG/JPEG/HEIC/SVG, rotate/crop/wrap around text), hyperlinks (⌘K + Cmd-click), bookmarks, cross-references, footnotes, section breaks, headers & footers with placeholders.
