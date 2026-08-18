@@ -675,6 +675,9 @@ struct RibbonView: View {
             if isVisible("view.panels") {
             group("Панели") {
                 HStack(spacing: 2) {
+                    fmt("list.bullet.indent", controller.showsNavigatorSidebar, "Навигация по заголовкам") {
+                        controller.toggleNavigatorSidebar()
+                    }
                     fmt("paintpalette", controller.showsStylesSidebar, "Панель стилей") {
                         controller.toggleStylesSidebar()
                     }

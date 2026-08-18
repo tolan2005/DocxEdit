@@ -128,9 +128,17 @@ if gh release view "$TAG" >/dev/null 2>&1; then
   run gh release edit "$TAG" --title "$TITLE" --notes-file "$NOTES_FILE" ${PRERELEASE:+--prerelease}
 else
   echo "→ Создаю релиз $TAG"
+  # v1.5.11+: релизные теги с полной историей кода живут в приватном
+  # src-remote; в публичном репо тег создаём на его default-ветке (README),
+  # чтобы не публиковать исходники.
+  TARGET_ARGS=()
+  if ! git ls-remote --tags origin 2>/dev/null | grep -q "refs/tags/$TAG"; then
+    TARGET_ARGS=(--target "$(git rev-parse origin/main 2>/dev/null || echo main)")
+  fi
   run gh release create "$TAG" "$DMG" "$ZIP" "$SUMS" \
     --title "$TITLE" \
     --notes-file "$NOTES_FILE" \
+    ${TARGET_ARGS[@]+"${TARGET_ARGS[@]}"} \
     ${PRERELEASE}
 fi
 
@@ -145,6 +153,12 @@ trap 'rm -f "$NOTES_FILE" "$ROTATION_LIST"' EXIT
 gh release list --limit 100 --json tagName,isDraft,createdAt \
   --jq 'sort_by(.createdAt) | reverse | .[] | select(.isDraft == false) | .tagName' \
   > "$ROTATION_LIST" 2>/dev/null || true
+
+# v1.5.11: только что опубликованный тег исключаем из ротации — у релизов,
+# созданных через --target на README-ветку, createdAt у GitHub может быть
+# старее существующих (дата тега), и ротация сносила свежий релиз.
+grep -vx "$TAG" "$ROTATION_LIST" > "$ROTATION_LIST.tmp" 2>/dev/null || true
+mv "$ROTATION_LIST.tmp" "$ROTATION_LIST"
 
 TOTAL=$(wc -l < "$ROTATION_LIST" | tr -d ' ')
 if (( TOTAL <= KEEP )); then

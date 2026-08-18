@@ -76,6 +76,15 @@ final class DocumentController: ObservableObject {
     @Published var footnotesSidebarWidth: CGFloat = 240
     static let sidebarWidthRange: ClosedRange<CGFloat> = 180...480
 
+    /// v1.5.11: панель навигации по заголовкам (слева, как Navigation Pane в Word).
+    @Published var showsNavigatorSidebar: Bool = false
+    @Published var navigatorSidebarWidth: CGFloat = 220
+    /// Счётчик редакций текста — инкрементится в userDidEdit; панели,
+    /// пересчитывающие содержимое (навигатор), подписываются на него.
+    @Published private(set) var textRevision: Int = 0
+
+    func toggleNavigatorSidebar() { showsNavigatorSidebar.toggle() }
+
     func toggleCommentsSidebar() { showsCommentsSidebar.toggle() }
     func toggleFootnotesSidebar() { showsFootnotesSidebar.toggle() }
     /// v0.4.3 (R06): режим «Чтение» — только view-состояние (`isEditable=false`
@@ -2609,6 +2618,49 @@ final class DocumentController: ObservableObject {
         session?.bridge.model.footnotes ?? []
     }
 
+    // MARK: - Панель навигации (v1.5.11)
+
+    struct NavigatorHeading {
+        let level: Int
+        let text: String
+        let location: Int   // позиция первого символа абзаца в textStorage
+    }
+
+    /// Заголовки (styleId Heading1..6) прямо из живого textStorage — позиции
+    /// валидны для прыжка (не зависят от пересборки модели). Панель пересчитывает
+    /// по `textRevision` (инкремент в userDidEdit).
+    func navigatorHeadings() -> [NavigatorHeading] {
+        guard let tv = textView, let storage = tv.textStorage else { return [] }
+        let ns = storage.string as NSString
+        var out: [NavigatorHeading] = []
+        var pos = 0
+        let len = ns.length
+        while pos < len {
+            let pr = ns.paragraphRange(for: NSRange(location: pos, length: 0))
+            if let sid = storage.attribute(.docxEditStyleId, at: pr.location, effectiveRange: nil) as? String,
+               sid.hasPrefix("Heading"),
+               let level = Int(sid.dropFirst("Heading".count)),
+               (1...6).contains(level) {
+                let text = ns.substring(with: pr)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                if !text.isEmpty {
+                    out.append(NavigatorHeading(level: level, text: text, location: pr.location))
+                }
+            }
+            pos = NSMaxRange(pr)
+        }
+        return out
+    }
+
+    /// Прыжок к заголовку: курсор в начало абзаца + прокрутка.
+    func goToHeading(location: Int) {
+        guard let tv = textView, let storage = tv.textStorage,
+              location >= 0, location <= storage.length else { return }
+        tv.setSelectedRange(NSRange(location: location, length: 0))
+        tv.scrollRangeToVisible(NSRange(location: location, length: 0))
+        tv.window?.makeFirstResponder(tv)
+    }
+
     // MARK: - Оглавление (v0.5.5, R07)
 
     /// Собирает заголовки документа (styleId Heading1..6) и вставляет блок
@@ -3402,6 +3454,7 @@ final class DocumentController: ObservableObject {
     /// Уведомление от NSTextView: пользователь изменил текст.
     func userDidEdit(text: NSAttributedString) {
         session?.applyAttributed(text)
+        textRevision &+= 1
         refreshStatus()
         maybeAutoRefreshToc()
     }

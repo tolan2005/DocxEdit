@@ -16,6 +16,9 @@ import DocxCore
 /// вправо — уже. Диапазон — DocumentController.sidebarWidthRange.
 struct SidebarResizer: View {
     @Binding var width: CGFloat
+    /// v1.5.11: leading = true для панели у ЛЕВОГО края (навигатор) —
+    /// тянем вправо, чтобы расширить.
+    var leading: Bool = false
     @State private var startWidth: CGFloat = 0
 
     var body: some View {
@@ -29,7 +32,8 @@ struct SidebarResizer: View {
                         .onChanged { g in
                             if startWidth == 0 { startWidth = width }
                             let r = DocumentController.sidebarWidthRange
-                            width = min(r.upperBound, max(r.lowerBound, startWidth - g.translation.width))
+                            let delta = leading ? g.translation.width : -g.translation.width
+                            width = min(r.upperBound, max(r.lowerBound, startWidth + delta))
                         }
                         .onEnded { _ in startWidth = 0 }
                 )
@@ -58,6 +62,12 @@ struct DocumentWindowView: View {
             }
 
             HStack(spacing: 0) {
+                // v1.5.11: навигатор по заголовкам — слева (как Navigation Pane).
+                if controller.showsNavigatorSidebar {
+                    NavigatorSidebarView(controller: controller,
+                                         width: $controller.navigatorSidebarWidth)
+                    SidebarResizer(width: $controller.navigatorSidebarWidth, leading: true)
+                }
                 TextEditorRepresentable(controller: controller, session: session)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 if controller.showsStylesSidebar {
@@ -887,6 +897,7 @@ struct TextEditorRepresentable: NSViewRepresentable {
             observeKeyZero(.docxEditToggleInvisibles, #selector(onToggleInvisibles))
             observeKeyZero(.docxEditToggleRuler, #selector(onToggleRuler))
             observeKeyZero(.docxEditToggleStylesSidebar, #selector(onToggleStylesSidebar))
+            observeKeyZero(.docxEditToggleNavigatorSidebar, #selector(onToggleNavigatorSidebar))
             observeKeyZero(.docxEditToggleReadingMode, #selector(onToggleReadingMode))
             observeKeyZero(.docxEditToggleCommentsSidebar, #selector(onToggleCommentsSidebar))
             observeKeyZero(.docxEditToggleFootnotesSidebar, #selector(onToggleFootnotesSidebar))
@@ -1352,6 +1363,7 @@ struct TextEditorRepresentable: NSViewRepresentable {
         @objc private func onToggleInvisibles() { controller.toggleInvisibleCharacters() }
         @objc private func onToggleRuler()      { controller.toggleRuler() }
         @objc private func onToggleStylesSidebar() { controller.toggleStylesSidebar() }
+        @objc private func onToggleNavigatorSidebar() { controller.toggleNavigatorSidebar() }
         @objc private func onToggleReadingMode()   { controller.toggleReadingMode() }
         @objc private func onToggleCommentsSidebar() {
             controller.toggleCommentsSidebar()

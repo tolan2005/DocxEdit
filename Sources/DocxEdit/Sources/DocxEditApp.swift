@@ -251,6 +251,7 @@ struct DocxEditApp: App {
                     .disabled(appDelegate.isMarkdownMode)
                 Divider()
                 Menu("Панели") {
+                    Button("Навигация")   { appDelegate.toggleNavigatorSidebar() }
                     Button("Стили")       { appDelegate.toggleStylesSidebar() }
                     Button("Комментарии") { appDelegate.toggleCommentsSidebar() }
                         .disabled(appDelegate.isMarkdownMode)
@@ -427,10 +428,10 @@ struct DocxEditApp: App {
 /// (синхронно с §5 «История релизов» в CLAUDE.md).
 enum AboutReleaseNotes {
     static let recent: [(version: String, codename: String, summary: String)] = [
+        ("1.5.11", "Navigator", "**Панель навигации по заголовкам** (паттерн Word Navigation Pane): левая боковая панель со списком всех заголовков H1–H6 с отступом по уровню — клик переносит курсор к разделу и прокручивает документ. Ширина меняется драг-разделителем, крестик закрытия в заголовке (как у остальных панелей с v1.5.9). Открытие: кнопка на вкладке «Вид» (группа «Панели») или меню Вид → Панели → Навигация. Обновляется живьём при редактировании; работает и в Markdown-режиме. Плюс инфраструктура: CI на GitHub Actions (приватное зеркало DocxEdit-src) — все 271 тестов зелёные на чистом раннере; CI сразу поймал баг совместимости со Swift 5.10."),
         ("1.5.10", "Clean Ruler", "Фикс по скриншоту: при включении линейки (Вид → Линейка, ⌘⌥R) над ней появлялась устаревшая панель accessory-контролов NSRulerView (Стили/выравнивание/интервалы/списки — наследие TextEdit), дублирующая ribbon «Главной». Accessory-вид отключён — остаётся чистая линейка с таб-стопами и маркерами отступов."),
         ("1.5.9", "Sidebar Polish", "Боковые панели (Стили/Комментарии/Сноски): **изменяемая ширина** — тяните разделитель у левого края панели (180–480pt, курсор ↔); **крестик закрытия** в заголовке каждой панели; **отдельные кнопки на вкладке «Вид»** ribbon (группа «Панели»: paintpalette/text.bubble/note.text, с подсветкой активного состояния) вместо выпадающего меню. В MD-режиме видна только панель стилей (комментарии/сноски в .md не экспортируются). Группа «Панели» доступна в настройке ribbon. +1 тест (271)."),
         ("1.5.8", "Readable Column", "MD-режим: **читаемая колонка** (паттерн iA Writer/Typora) — текст в Markdown-документе больше не расползается на всю ширину окна: ограниченная ширина с центрированием. Настройки → Основные → «Ширина текста в Markdown»: Узкая (≈70 символов) / Средняя (по умолчанию) / Широкая / Во всю ширину. Применяется к открытым окнам сразу; на содержимое .md не влияет — чисто визуальный комфорт набора. +2 теста (270)."),
-        ("1.5.7", "SmartArt Preview", "Бэклог DOCX (P1): **mc:AlternateContent в теле документа**. SmartArt/диаграммы/фигуры Word больше не исчезают: из legacy-fallback (`mc:Fallback` → VML `v:imagedata`) извлекается картинка-превью с размерами из шейпа — в редакторе видно изображение вместо пустого места. Попутно исправлено дублирование текста текстбоксов в теле (текст VML-fallback'а подавляется — как ранее в колонтитулах, v1.5.2). Отчёт об открытии уточнён: «видно превью, редактирование объекта недоступно». +2 теста (268)."),
     ]
 }
 
@@ -1043,6 +1044,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     func toggleRuler()               { NotificationCenter.default.post(name: .docxEditToggleRuler,      object: nil) }
     func showRibbonCustomize()       { NotificationCenter.default.post(name: .docxEditShowRibbonCustomize, object: nil) }
     func toggleStylesSidebar()       { NotificationCenter.default.post(name: .docxEditToggleStylesSidebar, object: nil) }
+    func toggleNavigatorSidebar()    { NotificationCenter.default.post(name: .docxEditToggleNavigatorSidebar, object: nil) }
     func toggleReadingMode()         { NotificationCenter.default.post(name: .docxEditToggleReadingMode,   object: nil) }
     func toggleCommentsSidebar()     { NotificationCenter.default.post(name: .docxEditToggleCommentsSidebar, object: nil) }
     func toggleFootnotesSidebar()    { NotificationCenter.default.post(name: .docxEditToggleFootnotesSidebar, object: nil) }
@@ -1423,6 +1425,7 @@ extension Notification.Name {
     static let docxEditToggleRuler       = Notification.Name("docxEditToggleRuler")
     static let docxEditShowRibbonCustomize = Notification.Name("docxEditShowRibbonCustomize")
     static let docxEditToggleStylesSidebar = Notification.Name("docxEditToggleStylesSidebar")
+    static let docxEditToggleNavigatorSidebar = Notification.Name("docxEditToggleNavigatorSidebar")
     static let docxEditToggleReadingMode   = Notification.Name("docxEditToggleReadingMode")
     static let docxEditToggleCommentsSidebar = Notification.Name("docxEditToggleCommentsSidebar")
     static let docxEditToggleFootnotesSidebar = Notification.Name("docxEditToggleFootnotesSidebar")
