@@ -3,6 +3,17 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.5.16] — 2026-08-19 — List Start
+
+### Изменения
+- Бэклог DOCX (P2): стартовое значение нумерации (w:start / lvlOverride startOverride) — парсинг в ListInfo.start, счёт в редакторе с нужного числа, запись обратно
+- +1 тест (277)
+
+### Артефакты
+- `build/v1.5.16/DocxEdit-1.5.16.dmg`
+- `build/v1.5.16/DocxEdit-1.5.16.app.zip`
+- `build/v1.5.16/SHA256SUMS`
+
 ## [1.5.15] — 2026-08-18 — Endnotes
 
 ### Изменения
