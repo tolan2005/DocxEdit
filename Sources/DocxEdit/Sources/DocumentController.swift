@@ -429,7 +429,7 @@ final class DocumentController: ObservableObject {
             let ps = attrs.makeNSParagraphStyle()
 
             if let info = newInfo {
-                let stack = counters.next(level: info.level, format: info.formatStyle)
+                let stack = counters.next(level: info.level, format: info.formatStyle, start: info.start)
                 let markerText = listMarkerText(for: info.formatStyle, counters: stack)
                 let markerFont = paraContent.length > 0
                     ? (paraContent.attribute(.font, at: 0, effectiveRange: nil) as? NSFont ?? currentFont())
@@ -624,7 +624,7 @@ final class DocumentController: ObservableObject {
             let ps = (storage.attribute(.paragraphStyle, at: min(r.location, storage.length - 1),
                                         effectiveRange: nil) as? NSParagraphStyle) ?? NSParagraphStyle()
             if let info {
-                let stack = counters.next(level: info.level, format: info.formatStyle)
+                let stack = counters.next(level: info.level, format: info.formatStyle, start: info.start)
                 let markerText = listMarkerText(for: info.formatStyle, counters: stack)
                 let markerFont = paraContent.length > 0
                     ? (paraContent.attribute(.font, at: 0, effectiveRange: nil) as? NSFont ?? currentFont())

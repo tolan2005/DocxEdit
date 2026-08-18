@@ -30,6 +30,12 @@ public struct DocumentModel: Codable, Equatable, Sendable {
     /// v1.5.15: концевые сноски документа. Привязка — `Run.endnoteId`.
     public var endnotes: [Footnote]
 
+    /// v1.5.17: сырые определения стилей таблиц из исходного styles.xml
+    /// (`<w:style w:type="table">…</w:style>`, склеенные). Passthrough —
+    /// writer дописывает в конец генерируемого styles.xml; мы их не рендерим,
+    /// но Word/LibreOffice применит (рамки/заливки стилей таблиц не теряются).
+    public var preservedTableStylesXml: String?
+
     /// v1.5.1 (DESIGN_HEADER_FOOTER.md): сырые части колонтитулов из исходного
     /// пакета — lossless passthrough при экспорте, если колонтитул не
     /// редактировался (`headerFooterEdited == false`). Ключ — слот:
@@ -81,7 +87,8 @@ public struct DocumentModel: Codable, Equatable, Sendable {
         preservedParts: [String: Data] = [:],
         preservedContentTypes: [String: String] = [:],
         preservedSettingsXml: Data? = nil,
-        preservedSectPrExtras: String? = nil
+        preservedSectPrExtras: String? = nil,
+        preservedTableStylesXml: String? = nil
     ) {
         self.metadata = metadata
         self.pageSettings = pageSettings
@@ -97,6 +104,7 @@ public struct DocumentModel: Codable, Equatable, Sendable {
         self.preservedContentTypes = preservedContentTypes
         self.preservedSettingsXml = preservedSettingsXml
         self.preservedSectPrExtras = preservedSectPrExtras
+        self.preservedTableStylesXml = preservedTableStylesXml
     }
 
     // Совместимость декодирования старых моделей без headerFooter/comments/footnotes.
@@ -116,6 +124,7 @@ public struct DocumentModel: Codable, Equatable, Sendable {
         preservedContentTypes = try c.decodeIfPresent([String: String].self, forKey: .preservedContentTypes) ?? [:]
         preservedSettingsXml = try c.decodeIfPresent(Data.self, forKey: .preservedSettingsXml)
         preservedSectPrExtras = try c.decodeIfPresent(String.self, forKey: .preservedSectPrExtras)
+        preservedTableStylesXml = try c.decodeIfPresent(String.self, forKey: .preservedTableStylesXml)
     }
 }
 
@@ -979,17 +988,22 @@ public struct ListInfo: Codable, Equatable, Sendable {
     public var level: Int
     public var continuation: ListContinuation
     public var formatStyle: ListFormatStyle
+    /// v1.5.16: стартовое значение нумерации (`w:start` / `w:startOverride`).
+    /// nil — по умолчанию с 1 (или «•» для буллитов). Имеет смысл для numbered.
+    public var start: Int?
 
     public init(
         listType: ListType,
         level: Int = 0,
         continuation: ListContinuation = .continue,
-        formatStyle: ListFormatStyle
+        formatStyle: ListFormatStyle,
+        start: Int? = nil
     ) {
         self.listType = listType
         self.level = max(0, min(level, 8))
         self.continuation = continuation
         self.formatStyle = formatStyle
+        self.start = start
     }
 }
 
@@ -1111,19 +1125,40 @@ public struct TableCell: Codable, Equatable, Sendable {
     public var rowSpan: Int
     public var width: CGFloat?
     public var backgroundColor: CodableColor?
+    /// v1.5.17: направление текста в ячейке (`w:textDirection`): nil — обычное
+    /// (слева направо); "tbRl" — сверху вниз (поворот на 90°), "btLr" — снизу
+    /// вверх. Round-trip сохраняется; редактор пока рисует текст горизонтально
+    /// (известное ограничение рендера, не потеря данных).
+    public var textDirection: String?
 
     public init(
         blocks: [Block] = [.paragraph(.empty)],
         colSpan: Int = 1,
         rowSpan: Int = 1,
         width: CGFloat? = nil,
-        backgroundColor: CodableColor? = nil
+        backgroundColor: CodableColor? = nil,
+        textDirection: String? = nil
     ) {
         self.blocks = blocks
         self.colSpan = colSpan
         self.rowSpan = rowSpan
         self.width = width
         self.backgroundColor = backgroundColor
+        self.textDirection = textDirection
+    }
+
+    // decodeIfPresent — backward-compat со старыми JSON (autorecover).
+    private enum CodingKeys: String, CodingKey {
+        case blocks, colSpan, rowSpan, width, backgroundColor, textDirection
+    }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        blocks = try c.decode([Block].self, forKey: .blocks)
+        colSpan = try c.decode(Int.self, forKey: .colSpan)
+        rowSpan = try c.decode(Int.self, forKey: .rowSpan)
+        width = try c.decodeIfPresent(CGFloat.self, forKey: .width)
+        backgroundColor = try c.decodeIfPresent(CodableColor.self, forKey: .backgroundColor)
+        textDirection = try c.decodeIfPresent(String.self, forKey: .textDirection)
     }
 }
 
@@ -1131,11 +1166,28 @@ public struct TableStyle: Codable, Equatable, Sendable {
     public var hasBorders: Bool
     public var borderColor: CodableColor?
     public var borderWidth: CGFloat
+    /// v1.5.17: именованный стиль таблицы (`w:tblStyle w:val="…"`, например
+    /// "TableGrid", "LightShading-Accent1"). Round-trip; определения стилей
+    /// таблиц из styles.xml переживают экспорт как passthrough (не рендерим).
+    public var namedStyleId: String?
 
-    public init(hasBorders: Bool = true, borderColor: CodableColor? = nil, borderWidth: CGFloat = 0.5) {
+    public init(hasBorders: Bool = true, borderColor: CodableColor? = nil,
+                borderWidth: CGFloat = 0.5, namedStyleId: String? = nil) {
         self.hasBorders = hasBorders
         self.borderColor = borderColor
         self.borderWidth = borderWidth
+        self.namedStyleId = namedStyleId
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case hasBorders, borderColor, borderWidth, namedStyleId
+    }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        hasBorders = try c.decode(Bool.self, forKey: .hasBorders)
+        borderColor = try c.decodeIfPresent(CodableColor.self, forKey: .borderColor)
+        borderWidth = try c.decode(CGFloat.self, forKey: .borderWidth)
+        namedStyleId = try c.decodeIfPresent(String.self, forKey: .namedStyleId)
     }
 }
 

@@ -238,6 +238,75 @@ final class DocxRoundTripTests: XCTestCase {
         XCTAssertEqual(i1.formatStyle, .lowerLetter)
     }
 
+    // v1.5.16: стартовое значение нумерации (w:start) — round-trip.
+    func testListStartSurvives() throws {
+        var pa = ParagraphAttributes()
+        pa.listInfo = ListInfo(listType: .numbered, level: 0, formatStyle: .decimal, start: 5)
+        let model = doc([
+            .paragraph(Paragraph(runs: [Run(text: "five", attributes: .init())], attributes: pa)),
+            .paragraph(Paragraph(runs: [Run(text: "six", attributes: .init())], attributes: pa)),
+        ])
+        let data = try DocxIO.exportDocx(model)
+        let archive = try Archive(data: data, accessMode: .read)
+        var numData = Data()
+        if let e = archive["word/numbering.xml"] {
+            _ = try archive.extract(e) { numData.append($0) }
+        }
+        let numXml = String(data: numData, encoding: .utf8)!
+        XCTAssertTrue(numXml.contains(#"<w:start w:val="5"/>"#), numXml)
+
+        let back = try DocxIO.importDocx(data: data)
+        let li = try XCTUnwrap(firstParagraph(back).attributes.listInfo)
+        XCTAssertEqual(li.start, 5)
+    }
+
+    // v1.5.17: вертикальный текст ячейки (w:textDirection) — round-trip.
+    func testCellTextDirectionSurvives() throws {
+        let cell = TableCell(
+            blocks: [.paragraph(Paragraph(runs: [Run(text: "верт", attributes: .init())]))],
+            textDirection: "tbRl")
+        let table = TableBlock(rows: [TableRow(cells: [cell])])
+        let model = doc([.table(table)])
+        let data = try DocxIO.exportDocx(model)
+        let archive = try Archive(data: data, accessMode: .read)
+        var docData = Data()
+        if let e = archive["word/document.xml"] {
+            _ = try archive.extract(e) { docData.append($0) }
+        }
+        let xml = String(data: docData, encoding: .utf8)!
+        XCTAssertTrue(xml.contains(#"<w:textDirection w:val="tbRl"/>"#), xml)
+
+        let back = try DocxIO.importDocx(data: data)
+        guard case .table(let t) = back.sections[0].blocks[0] else {
+            return XCTFail("таблица потерялась")
+        }
+        XCTAssertEqual(t.rows[0].cells[0].textDirection, "tbRl")
+    }
+
+    // v1.5.17: именованный стиль таблицы (w:tblStyle) — round-trip, и его
+    // определение из styles.xml переживает экспорт (passthrough).
+    func testTableNamedStyleSurvives() throws {
+        let cell = TableCell(blocks: [.paragraph(Paragraph(runs: [Run(text: "x", attributes: .init())]))])
+        var style = TableStyle()
+        style.namedStyleId = "LightShading-Accent1"
+        let table = TableBlock(rows: [TableRow(cells: [cell])], style: style)
+        let model = doc([.table(table)])
+        let data = try DocxIO.exportDocx(model)
+        let archive = try Archive(data: data, accessMode: .read)
+        var docData = Data()
+        if let e = archive["word/document.xml"] {
+            _ = try archive.extract(e) { docData.append($0) }
+        }
+        let xml = String(data: docData, encoding: .utf8)!
+        XCTAssertTrue(xml.contains(#"<w:tblStyle w:val="LightShading-Accent1"/>"#), xml)
+
+        let back = try DocxIO.importDocx(data: data)
+        guard case .table(let t) = back.sections[0].blocks[0] else {
+            return XCTFail("таблица потерялась")
+        }
+        XCTAssertEqual(t.style.namedStyleId, "LightShading-Accent1")
+    }
+
     // MARK: - Таблицы
 
     func testTableSurvives() throws {

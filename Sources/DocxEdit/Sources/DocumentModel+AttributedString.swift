@@ -517,7 +517,9 @@ struct ListCounters {
 
     /// Следующий элемент на уровне `level` формата `format`; возвращает стек
     /// счётчиков уровней 0...level для генерации маркера.
-    mutating func next(level: Int, format: DocxCore.ListFormatStyle) -> [Int] {
+    /// v1.5.16: `start` (w:start/startOverride из DOCX) — если последовательность
+    /// уровня пуста (или формат сменился и она сброшена), начинаем с него.
+    mutating func next(level: Int, format: DocxCore.ListFormatStyle, start: Int? = nil) -> [Int] {
         let lvl = max(0, min(level, 8))
         if counts.count <= lvl {
             counts += Array(repeating: 0, count: lvl + 1 - counts.count)
@@ -525,6 +527,8 @@ struct ListCounters {
         }
         // Смена формата на том же уровне — новая последовательность этого уровня.
         if let prev = formats[lvl], prev != format { counts[lvl] = 0 }
+        // Стартовое значение: применяется к свежей (нулевой) последовательности.
+        if counts[lvl] == 0, let start, start > 0 { counts[lvl] = start - 1 }
         counts[lvl] += 1
         formats[lvl] = format
         // Более глубокие уровни начнут нумерацию заново под новым родителем.
@@ -715,7 +719,7 @@ extension DocumentModel {
                     let paraStyle = p.attributes.makeNSParagraphStyle()
 
                     if let li = p.attributes.listInfo {
-                        let counters = listCounters.next(level: li.level, format: li.formatStyle)
+                        let counters = listCounters.next(level: li.level, format: li.formatStyle, start: li.start)
                         let markerText = listMarkerText(for: li.formatStyle, counters: counters)
                         var markerAttrs = defaultAttrs
                         markerAttrs[.paragraphStyle] = paraStyle

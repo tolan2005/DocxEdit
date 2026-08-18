@@ -373,6 +373,19 @@ public enum DocxIO {
             extras = extras.trimmingCharacters(in: .whitespacesAndNewlines)
             model.preservedSectPrExtras = extras.isEmpty ? nil : extras
         }
+        // v1.5.17: определения стилей таблиц — passthrough (сырые блоки
+        // <w:style w:type="table">…</w:style> склеиваются и дописываются
+        // при экспорте; наш генератор styles.xml их не умеет).
+        if let stylesXml, let s = String(data: stylesXml, encoding: .utf8),
+           let rx = try? NSRegularExpression(
+               pattern: #"<w:style w:type="table".*?</w:style>"#,
+               options: [.dotMatchesLineSeparators]) {
+            let blocks = rx.matches(in: s, range: NSRange(s.startIndex..., in: s))
+                .compactMap { Range($0.range, in: s).map { String(s[$0]) } }
+            if !blocks.isEmpty {
+                model.preservedTableStylesXml = blocks.joined()
+            }
+        }
         // v0.4.5 (R06): комментарии — если есть comments.xml, парсим треды.
         // Runs уже получили `commentId` от OoxmlDocumentParser (значения = w:id
         // из commentRangeStart, в виде строки — совпадают с id, что мы кладём
@@ -845,6 +858,10 @@ private final class NumberingXmlParser: NSObject, XMLParserDelegate {
     private var abstractNums: [String: [Int: (ListType, DocxCore.ListFormatStyle)]] = [:]
     /// numId → abstractNumId
     private var numToAbstract: [String: String] = [:]
+    /// v1.5.16: w:start по уровню abstractNum.
+    private var abstractStarts: [String: [Int: Int]] = [:]
+    /// v1.5.16: w:startOverride по (numId, ilvl) из w:lvlOverride.
+    private var numStartOverrides: [String: [Int: Int]] = [:]
 
     private var inAbstractNum = false
     private var currentAbstractId = ""
@@ -855,6 +872,8 @@ private final class NumberingXmlParser: NSObject, XMLParserDelegate {
 
     private var inNum = false
     private var currentNumId = ""
+    /// v1.5.16: внутри w:lvlOverride — уровень для startOverride.
+    private var currentOverrideIlvl: Int? = nil
 
     func parse(data: Data) {
         let parser = XMLParser(data: data)
@@ -866,6 +885,13 @@ private final class NumberingXmlParser: NSObject, XMLParserDelegate {
     func listInfo(numId: String, ilvl: Int) -> (ListType, DocxCore.ListFormatStyle)? {
         guard let abstractId = numToAbstract[numId] else { return nil }
         return abstractNums[abstractId]?[ilvl]
+    }
+
+    /// v1.5.16: стартовое значение нумерации для (numId, ilvl):
+    /// startOverride (lvlOverride) приоритетнее w:start уровня.
+    func startValue(numId: String, ilvl: Int) -> Int? {
+        guard let abstractId = numToAbstract[numId] else { return nil }
+        return numStartOverrides[numId]?[ilvl] ?? abstractStarts[abstractId]?[ilvl]
     }
 
     func parser(_ p: XMLParser, didStartElement el: String, namespaceURI: String?,
@@ -886,6 +912,19 @@ private final class NumberingXmlParser: NSObject, XMLParserDelegate {
             if inLvl, let v = a["w:val"] { currentNumFmt = v }
         case "w:lvlText":
             if inLvl, let v = a["w:val"] { currentLvlText = v }
+        case "w:start":
+            // v1.5.16: стартовое значение уровня (w:lvl > w:start).
+            if inLvl, let v = a["w:val"], let n = Int(v) {
+                abstractStarts[currentAbstractId, default: [:]][currentIlvl] = n
+            }
+        case "w:lvlOverride":
+            // v1.5.16: перезапуск/переопределение уровня для конкретного numId.
+            if inNum { currentOverrideIlvl = Int(a["w:ilvl"] ?? "") }
+        case "w:startOverride":
+            if inNum, let ilvl = currentOverrideIlvl,
+               let v = a["w:val"], let n = Int(v) {
+                numStartOverrides[currentNumId, default: [:]][ilvl] = n
+            }
         case "w:num":
             inNum = true
             currentNumId = a["w:numId"] ?? ""
@@ -916,6 +955,9 @@ private final class NumberingXmlParser: NSObject, XMLParserDelegate {
             }
         case "w:num":
             inNum = false
+            currentOverrideIlvl = nil
+        case "w:lvlOverride":
+            currentOverrideIlvl = nil
         default: break
         }
     }
@@ -1198,6 +1240,8 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
     // rowSpan+=1; `.none` = обычная ячейка.
     private enum VMergeKind { case none, restart, continue_ }
     private var tableCurrentCellVMerge: VMergeKind = .none
+    /// v1.5.17: w:textDirection ячейки ("tbRl"/"btLr").
+    private var tableCurrentCellTextDirection: String? = nil
     private var tableCurrentGridCol: Int = 0
     /// (grid-col) → (индекс row в `tableRows`, индекс cell в этой row).
     /// Используется continue-ячейкой, чтобы найти restart-ячейку и увеличить её rowSpan.
@@ -1389,6 +1433,10 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
         case "w:tblPr":
             inTablePr = true
 
+        case "w:tblStyle":
+            // v1.5.17: именованный стиль таблицы ("TableGrid", "LightShading…").
+            if inTablePr, let v = a["w:val"] { tableCurrentStyle.namedStyleId = v }
+
         case "w:tblBorders":
             if inTablePr { inTblBorders = true; tableCurrentStyle.hasBorders = true }
 
@@ -1465,6 +1513,7 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
             tableCurrentCellBackground = nil
             tableCurrentCellColSpan = 1
             tableCurrentCellVMerge = .none
+            tableCurrentCellTextDirection = nil
 
         case "w:tcPr":
             inTcPr = true
@@ -1487,6 +1536,13 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
             if inTcPr {
                 let v = a["w:val"] ?? ""
                 tableCurrentCellVMerge = (v == "restart") ? .restart : .continue_
+            }
+
+        case "w:textDirection":
+            // v1.5.17: вертикальный текст в ячейке (tbRl/btLr). Сохраняем для
+            // round-trip; рендер в редакторе — горизонтальный (ограничение).
+            if inTcPr, let v = a["w:val"], !v.isEmpty {
+                tableCurrentCellTextDirection = v
             }
 
         case "w:shd":
@@ -1926,7 +1982,8 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
                 }
                 currentDirectParaProps.listInfo = ListInfo(
                     listType: type, level: currentIlvl,
-                    continuation: .continue, formatStyle: style
+                    continuation: .continue, formatStyle: style,
+                    start: currentNumId.flatMap { numbering?.startValue(numId: $0, ilvl: currentIlvl) }
                 )
                 inNumPr = false
             }
@@ -2048,7 +2105,8 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
                     blocks: final,
                     colSpan: colSpan,
                     width: tableCurrentCellWidth,
-                    backgroundColor: tableCurrentCellBackground))
+                    backgroundColor: tableCurrentCellBackground,
+                    textDirection: tableCurrentCellTextDirection))
                 if tableCurrentCellVMerge == .restart {
                     let rowIdx = tableRows.count // текущая (ещё не закоммиченная) row
                     let cellIdx = tableCurrentRow.count - 1
@@ -2063,6 +2121,7 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
             tableCurrentCellBackground = nil
             tableCurrentCellColSpan = 1
             tableCurrentCellVMerge = .none
+            tableCurrentCellTextDirection = nil
 
         case "w:tcPr":
             inTcPr = false
@@ -2243,11 +2302,16 @@ private final class OoxmlDocumentSerializer {
     private var numIdForParagraph: [Int] = []
     /// numId → (уровень → формат маркера) — реальные форматы уровней блока.
     private var levelFormats: [Int: [Int: DocxCore.ListFormatStyle]] = [:]
+    /// v1.5.16: стартовые значения уровней по блоку (numId → ilvl → start).
+    private var levelStarts: [Int: [Int: Int]] = [:]
     /// Счётчик абзацев при рендере — индекс в numIdForParagraph (обход идентичен collect-проходу).
     private var renderParaIndex = 0
     /// Override стилей на уровне документа (из диалога «Стили…»); nil для того
     /// же id — писать стандартный def.
     private var paragraphOverrides: [String: ParagraphStyleDef] = [:]
+    /// v1.5.17: сырые определения стилей таблиц (`<w:style w:type="table">…`)
+    /// из исходного styles.xml — passthrough в экспортируемый styles.xml.
+    private var preservedTableStylesXml: String? = nil
     private var characterOverrides: [String: CharacterStyleDef] = [:]
     private var docHeaderFooter = HeaderFooter()
     /// v1.5.1 (DESIGN_HEADER_FOOTER.md): lossless passthrough — сырые части
@@ -2313,6 +2377,8 @@ private final class OoxmlDocumentSerializer {
     private var hasEndnotes: Bool = false
 
     func serialize(document: DocumentModel) throws -> [String: Data] {
+        // v1.5.16: сброс starts перед сбором блоков.
+        levelStarts = [:]
         collectListBlocks(document)
         collectImages(document)
         collectHyperlinks(document)
@@ -2322,6 +2388,7 @@ private final class OoxmlDocumentSerializer {
         currentImageRunIndex = 0
         paragraphOverrides = document.styles.paragraphStyles
         characterOverrides = document.styles.characterStyles
+        preservedTableStylesXml = document.preservedTableStylesXml
         docHeaderFooter = document.headerFooter
         // v1.5.1: passthrough только если колонтитул не редактировался.
         preservedHF = document.headerFooterEdited ? [:] : document.preservedHeaderFooter
@@ -2578,6 +2645,10 @@ private final class OoxmlDocumentSerializer {
             numIdForParagraph.append(numId)
             if levelFormats[numId] == nil { levelFormats[numId] = [:] }
             if levelFormats[numId]?[li.level] == nil { levelFormats[numId]?[li.level] = li.formatStyle }
+            // v1.5.16: стартовое значение уровня (первое встреченное в блоке).
+            if let st = li.start, levelStarts[numId]?[li.level] == nil {
+                levelStarts[numId, default: [:]][li.level] = st
+            }
         }
 
         for section in document.sections {
@@ -2855,7 +2926,8 @@ private final class OoxmlDocumentSerializer {
             for level in 0...8 {
                 let indent = 720 + level * 360
                 s += "<w:lvl w:ilvl=\"\(level)\">"
-                s += "<w:start w:val=\"1\"/>"
+                let startVal = levelStarts[numId]?[level] ?? 1
+                s += "<w:start w:val=\"\(startVal)\"/>"
                 s += lvlFormatXml(for: numberingLevelFormat(numId: numId, level: level), level: level)
                 s += "<w:pPr><w:ind w:left=\"\(indent)\" w:hanging=\"360\"/></w:pPr>"
                 s += "</w:lvl>"
@@ -3044,8 +3116,10 @@ private final class OoxmlDocumentSerializer {
 
     private func renderTable(_ t: TableBlock) -> String {
         var s = "<w:tbl>"
-        // tblPr — стиль + границы (v0.1.51).
-        var tblPr = "<w:tblStyle w:val=\"TableGrid\"/><w:tblW w:w=\"0\" w:type=\"auto\"/>"
+        // tblPr — именованный стиль (v1.5.17: из документа, default TableGrid) +
+        // границы (v0.1.51).
+        let styleId = t.style.namedStyleId ?? "TableGrid"
+        var tblPr = "<w:tblStyle w:val=\"\(escapeXml(styleId))\"/><w:tblW w:w=\"0\" w:type=\"auto\"/>"
         if t.style.hasBorders {
             let borderColorHex = t.style.borderColor.flatMap { hexFor($0) } ?? "808080"
             // w:sz — в 1/8 pt units (Word convention): sz = pt * 8.
@@ -3142,6 +3216,10 @@ private final class OoxmlDocumentSerializer {
                 }
                 if let bg = cell.backgroundColor, let hex = hexFor(bg) {
                     tcPr += "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"\(hex)\"/>"
+                }
+                // v1.5.17: вертикальный текст ячейки (round-trip).
+                if let td = cell.textDirection, !td.isEmpty {
+                    tcPr += "<w:textDirection w:val=\"\(escapeXml(td))\"/>"
                 }
                 s += "<w:tc><w:tcPr>\(tcPr)</w:tcPr>"
                 for case let .paragraph(p) in cell.blocks { s += renderParagraph(p) }
@@ -3584,6 +3662,11 @@ private final class OoxmlDocumentSerializer {
             s += "<w:name w:val=\"Comment Reference\"/>"
             s += "<w:rPr><w:vertAlign w:val=\"superscript\"/></w:rPr>"
             s += "</w:style>"
+        }
+        // v1.5.17: определения стилей таблиц из исходного styles.xml —
+        // passthrough (мы их не рендерим, но Word/LibreOffice применит).
+        if let ts = preservedTableStylesXml, !ts.isEmpty {
+            s += ts
         }
         s += "</w:styles>"
         return s
