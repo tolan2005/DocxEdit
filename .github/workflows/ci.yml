@@ -1,0 +1,40 @@
+# CI DocxEdit — юнит-тесты DocxCore/DocxIO на каждый push/PR.
+#
+# Локально XCTest недоступен (Command Line Tools без Xcode) — этот workflow
+# единственное место, где тесты реально выполняются. GUI-таргет DocxEdit
+# собирается отдельным шагом (build-only, без запуска).
+#
+# Активируется автоматически при публикации репозитория на GitHub.
+
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    name: swift test (macOS)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+
+      - name: Swift version
+        run: swift --version
+
+      - name: Build (release)
+        run: swift build -c release
+
+      - name: Run tests
+        run: swift test 2>&1 | tee test-output.log
+
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: test-output.log

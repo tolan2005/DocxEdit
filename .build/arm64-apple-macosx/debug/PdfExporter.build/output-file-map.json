@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/PdfExporter.build/primary.swiftdeps"
+  },
+  "/Users/ant/Documents/Claude/docx/Sources/PdfExporter/Sources/PdfExporter.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/PdfExporter.build/PdfExporter.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/PdfExporter.build/PdfExporter.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/PdfExporter.build/PdfExporter~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/PdfExporter.build/PdfExporter.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/PdfExporter.build/PdfExporter.dia"
+  }
+}

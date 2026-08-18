@@ -1,0 +1,13 @@
+{
+  "": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/EncodingDetector.build/EncodingDetector.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/EncodingDetector.build/EncodingDetector.o",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/EncodingDetector.build/primary.swiftdeps"
+  },
+  "/Users/ant/Documents/Claude/docx/Sources/EncodingDetector/Sources/EncodingDetector.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/EncodingDetector.build/EncodingDetector.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/EncodingDetector.build/EncodingDetector~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/EncodingDetector.build/EncodingDetector.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/EncodingDetector.build/EncodingDetector.dia"
+  }
+}

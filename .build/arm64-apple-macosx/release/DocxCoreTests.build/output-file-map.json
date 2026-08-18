@@ -1,0 +1,25 @@
+{
+  "": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxCoreTests.build/DocxCoreTests.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxCoreTests.build/DocxCoreTests.o",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxCoreTests.build/primary.swiftdeps"
+  },
+  "/Users/ant/Documents/Claude/docx/Tests/DocxCoreTests/CodableRoundTripTests.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxCoreTests.build/CodableRoundTripTests.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxCoreTests.build/CodableRoundTripTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxCoreTests.build/CodableRoundTripTests.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxCoreTests.build/CodableRoundTripTests.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/Tests/DocxCoreTests/DocxCoreTests.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxCoreTests.build/DocxCoreTests.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxCoreTests.build/DocxCoreTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxCoreTests.build/DocxCoreTests.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxCoreTests.build/DocxCoreTests.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/Tests/DocxCoreTests/EncodingEdgeTests.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxCoreTests.build/EncodingEdgeTests.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxCoreTests.build/EncodingEdgeTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxCoreTests.build/EncodingEdgeTests.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxCoreTests.build/EncodingEdgeTests.dia"
+  }
+}

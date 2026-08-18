@@ -1,0 +1,13 @@
+{
+  "": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/MarkdownIOTests.build/MarkdownIOTests.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/MarkdownIOTests.build/MarkdownIOTests.o",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/MarkdownIOTests.build/primary.swiftdeps"
+  },
+  "/Users/ant/Documents/Claude/docx/Tests/MarkdownIOTests/MarkdownIOTests.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/MarkdownIOTests.build/MarkdownIOTests.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/MarkdownIOTests.build/MarkdownIOTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/MarkdownIOTests.build/MarkdownIOTests.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/MarkdownIOTests.build/MarkdownIOTests.dia"
+  }
+}

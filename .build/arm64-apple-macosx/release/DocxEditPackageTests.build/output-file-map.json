@@ -1,0 +1,13 @@
+{
+  "": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxEditPackageTests.build/DocxEditPackageTests.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxEditPackageTests.build/DocxEditPackageTests.o",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxEditPackageTests.build/primary.swiftdeps"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxEditPackageTests.derived/runner.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxEditPackageTests.build/runner.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxEditPackageTests.build/runner~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxEditPackageTests.build/runner.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/DocxEditPackageTests.build/runner.dia"
+  }
+}

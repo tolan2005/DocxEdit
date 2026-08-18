@@ -1,0 +1,110 @@
+{
+  "": {
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/primary.swiftdeps"
+  },
+  "/Users/ant/Documents/Claude/docx/Tests/DocxIOTests/AlternateContentTests.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/AlternateContentTests.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/AlternateContentTests.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/AlternateContentTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/AlternateContentTests.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/AlternateContentTests.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/Tests/DocxIOTests/AttrRevisionRoundTripTests.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/AttrRevisionRoundTripTests.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/AttrRevisionRoundTripTests.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/AttrRevisionRoundTripTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/AttrRevisionRoundTripTests.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/AttrRevisionRoundTripTests.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/Tests/DocxIOTests/CrossRefRoundTripTests.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/CrossRefRoundTripTests.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/CrossRefRoundTripTests.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/CrossRefRoundTripTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/CrossRefRoundTripTests.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/CrossRefRoundTripTests.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/Tests/DocxIOTests/DocxFuzzTests.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxFuzzTests.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxFuzzTests.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxFuzzTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxFuzzTests.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxFuzzTests.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/Tests/DocxIOTests/DocxIOTests.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxIOTests.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxIOTests.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxIOTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxIOTests.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxIOTests.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/Tests/DocxIOTests/DocxRoundTripTests.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxRoundTripTests.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxRoundTripTests.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxRoundTripTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxRoundTripTests.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxRoundTripTests.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/Tests/DocxIOTests/DocxUnderlineRoundTripTests.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxUnderlineRoundTripTests.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxUnderlineRoundTripTests.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxUnderlineRoundTripTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxUnderlineRoundTripTests.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DocxUnderlineRoundTripTests.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/Tests/DocxIOTests/FootnotesRenumberTests.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/FootnotesRenumberTests.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/FootnotesRenumberTests.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/FootnotesRenumberTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/FootnotesRenumberTests.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/FootnotesRenumberTests.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/Tests/DocxIOTests/FootnotesRoundTripTests.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/FootnotesRoundTripTests.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/FootnotesRoundTripTests.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/FootnotesRoundTripTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/FootnotesRoundTripTests.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/FootnotesRoundTripTests.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/Tests/DocxIOTests/HeaderFooterPassthroughTests.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/HeaderFooterPassthroughTests.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/HeaderFooterPassthroughTests.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/HeaderFooterPassthroughTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/HeaderFooterPassthroughTests.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/HeaderFooterPassthroughTests.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/Tests/DocxIOTests/R06RoundTripTests.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/R06RoundTripTests.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/R06RoundTripTests.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/R06RoundTripTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/R06RoundTripTests.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/R06RoundTripTests.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/Tests/DocxIOTests/RealDocxCorpusTests.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/RealDocxCorpusTests.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/RealDocxCorpusTests.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/RealDocxCorpusTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/RealDocxCorpusTests.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/RealDocxCorpusTests.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/Tests/DocxIOTests/TocSdtRoundTripTests.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/TocSdtRoundTripTests.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/TocSdtRoundTripTests.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/TocSdtRoundTripTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/TocSdtRoundTripTests.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/TocSdtRoundTripTests.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/Tests/DocxIOTests/UnicodeEdgeTests.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/UnicodeEdgeTests.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/UnicodeEdgeTests.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/UnicodeEdgeTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/UnicodeEdgeTests.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/UnicodeEdgeTests.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/DerivedSources/resource_bundle_accessor.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/resource_bundle_accessor.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/resource_bundle_accessor.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/resource_bundle_accessor~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/resource_bundle_accessor.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxIOTests.build/resource_bundle_accessor.dia"
+  }
+}

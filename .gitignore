@@ -1,13 +1,12 @@
-# Public DocxEdit repository — everything except README.md is excluded from git.
-# Source code, tests, scripts, changelogs and other docs live only in the
-# maintainer's local working tree. Public distribution goes through GitHub
-# Releases (DMG + SHA256SUMS attached to each release).
+# DocxEdit — полная рабочая копия (исходники).
+# Публичный remote `origin` (tolan2005/DocxEdit) — README + Releases only:
+# НИКОГДА не пушить ветки с кодом в origin (только `gh release` через
+# scripts/publish-github.sh). Исходники пушатся в remote `src`
+# (tolan2005/DocxEdit-src, приватный) — там же работает CI.
 
-# Whitelist approach: ignore everything, then re-include the few tracked files.
-/*
-!/.gitignore
-!/README.md
-!/LICENSE
-
-# macOS junk (defensive; already covered by /* but explicit).
 .DS_Store
+build/
+.swiftpm/
+*.xcuserstate
+xcuserdata/
+test-output.log

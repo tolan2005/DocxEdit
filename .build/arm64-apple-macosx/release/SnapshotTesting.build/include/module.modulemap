@@ -1,0 +1,3 @@
+module SnapshotTesting {
+    header "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/include/SnapshotTesting-Swift.h"
+}

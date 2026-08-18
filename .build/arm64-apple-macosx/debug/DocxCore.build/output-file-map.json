@@ -1,0 +1,33 @@
+{
+  "": {
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/primary.swiftdeps"
+  },
+  "/Users/ant/Documents/Claude/docx/Sources/DocxCore/Sources/CharacterAttributes+Merger.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/CharacterAttributes+Merger.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/CharacterAttributes+Merger.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/CharacterAttributes+Merger~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/CharacterAttributes+Merger.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/CharacterAttributes+Merger.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/Sources/DocxCore/Sources/DocumentError.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/DocumentError.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/DocumentError.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/DocumentError~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/DocumentError.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/DocumentError.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/Sources/DocxCore/Sources/DocumentModel.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/DocumentModel.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/DocumentModel.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/DocumentModel~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/DocumentModel.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/DocumentModel.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/Sources/DocxCore/Sources/DocumentStatistics.swift": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/DocumentStatistics.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/DocumentStatistics.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/DocumentStatistics~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/DocumentStatistics.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/DocxCore.build/DocumentStatistics.dia"
+  }
+}

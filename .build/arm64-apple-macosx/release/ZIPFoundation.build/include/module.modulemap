@@ -1,0 +1,3 @@
+module ZIPFoundation {
+    header "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/ZIPFoundation.build/include/ZIPFoundation-Swift.h"
+}

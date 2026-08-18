@@ -1,0 +1,211 @@
+{
+  "": {
+    "dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SnapshotTesting.d",
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SnapshotTesting.o",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/primary.swiftdeps"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/AssertSnapshot.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/AssertSnapshot.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/AssertSnapshot~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/AssertSnapshot.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/AssertSnapshot.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Async.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Async.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Async~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Async.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Async.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Common/Internal.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Internal.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Internal~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Internal.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Internal.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Common/PlistEncoder.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/PlistEncoder.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/PlistEncoder~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/PlistEncoder.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/PlistEncoder.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Common/String+SpecialCharacters.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/String+SpecialCharacters.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/String+SpecialCharacters~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/String+SpecialCharacters.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/String+SpecialCharacters.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Common/View.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/View.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/View~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/View.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/View.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Common/XCTAttachment.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/XCTAttachment.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/XCTAttachment~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/XCTAttachment.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/XCTAttachment.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Diff.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Diff.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Diff~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Diff.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Diff.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Diffing.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Diffing.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Diffing~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Diffing.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Diffing.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Extensions/Wait.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Wait.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Wait~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Wait.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Wait.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Internal/Deprecations.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Deprecations.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Deprecations~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Deprecations.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Deprecations.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Internal/RecordIssue.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/RecordIssue.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/RecordIssue~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/RecordIssue.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/RecordIssue.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/SnapshotTestingConfiguration.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SnapshotTestingConfiguration.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SnapshotTestingConfiguration~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SnapshotTestingConfiguration.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SnapshotTestingConfiguration.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/SnapshotsTestTrait.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SnapshotsTestTrait.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SnapshotsTestTrait~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SnapshotsTestTrait.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SnapshotsTestTrait.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Snapshotting.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Snapshotting~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Snapshotting.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Snapshotting.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting/Any.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Any.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Any~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Any.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Any.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting/CALayer.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/CALayer.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/CALayer~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/CALayer.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/CALayer.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting/CGPath.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/CGPath.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/CGPath~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/CGPath.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/CGPath.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting/CaseIterable.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/CaseIterable.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/CaseIterable~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/CaseIterable.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/CaseIterable.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting/Data.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Data.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Data~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Data.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Data.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting/Encodable.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Encodable.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Encodable~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Encodable.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/Encodable.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting/NSBezierPath.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/NSBezierPath.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/NSBezierPath~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/NSBezierPath.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/NSBezierPath.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting/NSImage.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/NSImage.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/NSImage~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/NSImage.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/NSImage.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting/NSView.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/NSView.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/NSView~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/NSView.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/NSView.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting/NSViewController.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/NSViewController.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/NSViewController~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/NSViewController.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/NSViewController.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting/SceneKit.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SceneKit.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SceneKit~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SceneKit.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SceneKit.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting/SpriteKit.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SpriteKit.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SpriteKit~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SpriteKit.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SpriteKit.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting/String.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/String.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/String~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/String.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/String.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting/SwiftUIView.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SwiftUIView.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SwiftUIView~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SwiftUIView.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/SwiftUIView.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting/UIBezierPath.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/UIBezierPath.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/UIBezierPath~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/UIBezierPath.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/UIBezierPath.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting/UIImage.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/UIImage.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/UIImage~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/UIImage.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/UIImage.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting/UIView.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/UIView.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/UIView~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/UIView.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/UIView.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting/UIViewController.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/UIViewController.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/UIViewController~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/UIViewController.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/UIViewController.dia"
+  },
+  "/Users/ant/Documents/Claude/docx/.build/checkouts/swift-snapshot-testing/Sources/SnapshotTesting/Snapshotting/URLRequest.swift": {
+    "object": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/URLRequest.swift.o",
+    "swiftmodule": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/URLRequest~partial.swiftmodule",
+    "swift-dependencies": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/URLRequest.swiftdeps",
+    "diagnostics": "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/release/SnapshotTesting.build/URLRequest.dia"
+  }
+}
