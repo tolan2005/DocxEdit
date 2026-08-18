@@ -3,6 +3,19 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.5.17] — 2026-08-19 — Table Style & Vertical Text
+
+### Изменения
+- Бэклог DOCX (P2, завершён): именованные стили таблиц (w:tblStyle) — имя + определения из styles.xml переживают round-trip (passthrough)
+- вертикальный текст в ячейках (w:textDirection) — round-trip (рендер в редакторе горизонтальный, известное ограничение)
+- +2 теста (279)
+- бэклог P0-P2 закрыт полностью
+
+### Артефакты
+- `build/v1.5.17/DocxEdit-1.5.17.dmg`
+- `build/v1.5.17/DocxEdit-1.5.17.app.zip`
+- `build/v1.5.17/SHA256SUMS`
+
 ## [1.5.16] — 2026-08-19 — List Start
 
 ### Изменения
