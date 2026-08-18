@@ -39,7 +39,7 @@ struct FootnotesSidebarView: View {
             .padding(8)
             Divider()
 
-            if controller.listFootnotes().isEmpty {
+            if controller.listFootnotes().isEmpty && controller.listEndnotes().isEmpty {
                 Spacer()
                 Text("Нет сносок")
                     .foregroundColor(.secondary)
@@ -51,6 +51,18 @@ struct FootnotesSidebarView: View {
                         ForEach(controller.listFootnotes(), id: \.id) { f in
                             footnoteRow(f)
                             Divider()
+                        }
+                        // v1.5.15: концевые сноски — своя секция (в Word живут
+                        // в конце документа; здесь — отдельным списком ниже).
+                        if !controller.listEndnotes().isEmpty {
+                            Text("Концевые сноски")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 8)
+                            ForEach(controller.listEndnotes(), id: \.id) { f in
+                                endnoteRow(f)
+                                Divider()
+                            }
                         }
                     }
                     .padding(6)
@@ -91,6 +103,29 @@ struct FootnotesSidebarView: View {
                 .buttonStyle(.plain)
                 .help("Удалить сноску")
             }
+        }
+        .padding(.vertical, 2)
+    }
+
+    /// v1.5.15: строка концевой сноски — то же, но номер римскими (как в тексте)
+    /// и без кнопки удаления (создание/удаление концевых — пока только импорт).
+    @ViewBuilder
+    private func endnoteRow(_ f: Footnote) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Text(romanNumeral(for: f.id) + ".")
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .foregroundColor(.accentColor)
+                .frame(width: 30, alignment: .leading)
+            TextEditor(text: Binding(
+                get: { drafts["e" + f.id] ?? f.text },
+                set: { newValue in
+                    drafts["e" + f.id] = newValue
+                    controller.updateEndnoteText(id: f.id, text: newValue)
+                }
+            ))
+            .font(.system(size: 12))
+            .frame(minHeight: 40, maxHeight: 100)
+            .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.secondary.opacity(0.3)))
         }
         .padding(.vertical, 2)
     }

@@ -27,6 +27,9 @@ public struct DocumentModel: Codable, Equatable, Sendable {
     /// v0.5.2 (R07): сноски документа. Привязка — `Run.footnoteId`.
     public var footnotes: [Footnote]
 
+    /// v1.5.15: концевые сноски документа. Привязка — `Run.endnoteId`.
+    public var endnotes: [Footnote]
+
     /// v1.5.1 (DESIGN_HEADER_FOOTER.md): сырые части колонтитулов из исходного
     /// пакета — lossless passthrough при экспорте, если колонтитул не
     /// редактировался (`headerFooterEdited == false`). Ключ — слот:
@@ -72,6 +75,7 @@ public struct DocumentModel: Codable, Equatable, Sendable {
         headerFooter: HeaderFooter = .init(),
         comments: [CommentThread] = [],
         footnotes: [Footnote] = [],
+        endnotes: [Footnote] = [],
         preservedHeaderFooter: [String: PreservedHFPart] = [:],
         headerFooterEdited: Bool = false,
         preservedParts: [String: Data] = [:],
@@ -86,6 +90,7 @@ public struct DocumentModel: Codable, Equatable, Sendable {
         self.headerFooter = headerFooter
         self.comments = comments
         self.footnotes = footnotes
+        self.endnotes = endnotes
         self.preservedHeaderFooter = preservedHeaderFooter
         self.headerFooterEdited = headerFooterEdited
         self.preservedParts = preservedParts
@@ -104,6 +109,7 @@ public struct DocumentModel: Codable, Equatable, Sendable {
         headerFooter = try c.decodeIfPresent(HeaderFooter.self, forKey: .headerFooter) ?? .init()
         comments = try c.decodeIfPresent([CommentThread].self, forKey: .comments) ?? []
         footnotes = try c.decodeIfPresent([Footnote].self, forKey: .footnotes) ?? []
+        endnotes = try c.decodeIfPresent([Footnote].self, forKey: .endnotes) ?? []
         preservedHeaderFooter = try c.decodeIfPresent([String: PreservedHFPart].self, forKey: .preservedHeaderFooter) ?? [:]
         headerFooterEdited = try c.decodeIfPresent(Bool.self, forKey: .headerFooterEdited) ?? false
         preservedParts = try c.decodeIfPresent([String: Data].self, forKey: .preservedParts) ?? [:]
@@ -631,6 +637,10 @@ public struct Run: Codable, Equatable, Sendable {
     /// (REF/PAGEREF/SEQ/DATE/…); многоабзацные (TOC) — через tocBlock/SDT.
     public var fieldInstr: String?
 
+    /// v1.5.15: id концевой сноски (`<w:endnoteReference w:id="X"/>`).
+    /// Содержимое — в `DocumentModel.endnotes[id]`. Симметрично footnoteId.
+    public var endnoteId: String?
+
     public init(text: String, attributes: CharacterAttributes = .init(),
                 image: InlineImage? = nil, hyperlink: String? = nil,
                 commentId: String? = nil,
@@ -639,7 +649,8 @@ public struct Run: Codable, Equatable, Sendable {
                 crossRef: String? = nil,
                 tocBlock: String? = nil,
                 attributeRevision: String? = nil,
-                fieldInstr: String? = nil) {
+                fieldInstr: String? = nil,
+                endnoteId: String? = nil) {
         self.text = text
         self.attributes = attributes
         self.image = image
@@ -652,11 +663,12 @@ public struct Run: Codable, Equatable, Sendable {
         self.tocBlock = tocBlock
         self.attributeRevision = attributeRevision
         self.fieldInstr = fieldInstr
+        self.endnoteId = endnoteId
     }
 
     // decodeIfPresent — backward-compat со старыми JSON.
     private enum CodingKeys: String, CodingKey {
-        case text, attributes, image, hyperlink, commentId, insertion, deletion, footnoteId, crossRef, tocBlock, attributeRevision, fieldInstr
+        case text, attributes, image, hyperlink, commentId, insertion, deletion, footnoteId, crossRef, tocBlock, attributeRevision, fieldInstr, endnoteId
     }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -672,6 +684,7 @@ public struct Run: Codable, Equatable, Sendable {
         tocBlock = try c.decodeIfPresent(String.self, forKey: .tocBlock)
         attributeRevision = try c.decodeIfPresent(String.self, forKey: .attributeRevision)
         fieldInstr = try c.decodeIfPresent(String.self, forKey: .fieldInstr)
+        endnoteId = try c.decodeIfPresent(String.self, forKey: .endnoteId)
     }
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
@@ -687,6 +700,7 @@ public struct Run: Codable, Equatable, Sendable {
         try c.encodeIfPresent(tocBlock, forKey: .tocBlock)
         try c.encodeIfPresent(attributeRevision, forKey: .attributeRevision)
         try c.encodeIfPresent(fieldInstr, forKey: .fieldInstr)
+        try c.encodeIfPresent(endnoteId, forKey: .endnoteId)
     }
 }
 

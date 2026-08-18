@@ -116,6 +116,17 @@ extension NSDocumentBridge {
         isDirty = true
     }
 
+    // MARK: - Концевые сноски (v1.5.15)
+
+    /// Обновляет текст существующей концевой сноски. Если нет — no-op.
+    func updateEndnoteText(id: String, text: String) {
+        guard let idx = model.endnotes.firstIndex(where: { $0.id == id }) else { return }
+        model.endnotes[idx].text = text
+        isDirty = true
+    }
+
+    var endnotes: [Footnote] { model.endnotes }
+
     var footnotes: [Footnote] { model.footnotes }
 
     /// v0.5.4: полная замена списка сносок (используется renumberFootnotes).

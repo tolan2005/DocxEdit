@@ -59,6 +59,8 @@ extension NSAttributedString.Key {
     /// v0.5.3 (R07): id сноски на якорной позиции (superscript-маркер в тексте).
     /// Содержимое сноски — в `DocumentModel.footnotes[id]`.
     static let docxEditFootnoteId = NSAttributedString.Key("docxEditFootnoteId")
+    /// v1.5.15: id концевой сноски. Содержимое — в `DocumentModel.endnotes[id]`.
+    static let docxEditEndnoteId = NSAttributedString.Key("docxEditEndnoteId")
     /// v0.5.5 (R07): маркер блока оглавления. Значение = String с фиксированным
     /// id блока (пока поддерживается один TOC на документ, id = "toc"). Атрибут
     /// стоит на всех символах сгенерированных абзацев оглавления, чтобы можно
@@ -72,6 +74,18 @@ extension NSAttributedString.Key {
 }
 
 // MARK: - Inline-изображение через NSTextAttachment (v0.1.52, R03)
+
+/// v1.5.15: римская запись номера концевой сноски ("3" → "iii"). Нечисловой
+/// id возвращаем как есть.
+func romanNumeral(for id: String) -> String {
+    guard let n = Int(id), n > 0, n < 4000 else { return id }
+    let table: [(Int, String)] = [(1000,"m"),(900,"cm"),(500,"d"),(400,"cd"),
+                                  (100,"c"),(90,"xc"),(50,"l"),(40,"xl"),
+                                  (10,"x"),(9,"ix"),(5,"v"),(4,"iv"),(1,"i")]
+    var rest = n, out = ""
+    for (v, s) in table { while rest >= v { out += s; rest -= v } }
+    return out
+}
 
 /// Собирает `NSTextAttachment` из `InlineImage`. Размер вычисляется так:
 /// если `displayWidth`/`displayHeight` заданы — используются они; иначе — натуральный
@@ -773,6 +787,20 @@ extension DocumentModel {
                             result.append(NSAttributedString(string: markerText, attributes: attrs))
                             continue
                         }
+                        // v1.5.15: якорь концевой сноски — superscript римскими
+                        // (конвенция Word для endnotes), маркер по id.
+                        if let eid = run.endnoteId {
+                            var attrs = run.attributes.nsAttributes(defaultFont: defaultFont, fallbackFontName: fallbackFontName)
+                            attrs[.paragraphStyle] = paraStyle
+                            attrs[.docxEditEndnoteId] = eid
+                            if let f = attrs[.font] as? NSFont {
+                                attrs[.font] = NSFontManager.shared.convert(f, toSize: f.pointSize * 0.7)
+                                attrs[.baselineOffset] = f.pointSize * 0.35
+                            }
+                            let markerText = run.text.isEmpty ? romanNumeral(for: eid) : run.text
+                            result.append(NSAttributedString(string: markerText, attributes: attrs))
+                            continue
+                        }
                         if run.text.isEmpty { continue }
                         var attrs = run.attributes.nsAttributes(defaultFont: defaultFont, fallbackFontName: fallbackFontName)
                         attrs[.paragraphStyle] = paraStyle
@@ -969,6 +997,13 @@ extension DocumentModel {
                                         deletion: deletion, footnoteId: fid))
                         return
                     }
+                    // v1.5.15: якорь концевой сноски — симметрично.
+                    if let eid = attrs[.docxEditEndnoteId] as? String {
+                        runs.append(Run(text: "", attributes: CharacterAttributes(),
+                                        commentId: commentId, insertion: insertion,
+                                        deletion: deletion, endnoteId: eid))
+                        return
+                    }
                     // Inline-изображение: если в атрибутах есть .attachment — извлекаем
                     // InlineImage и создаём отдельный Run (не сливаем с текстовыми).
                     if let att = attrs[.attachment] as? NSTextAttachment,
@@ -1002,7 +1037,7 @@ extension DocumentModel {
                     if var last = runs.last, last.attributes == charAttrs,
                        last.image == nil, last.hyperlink == hyperlink, last.commentId == commentId,
                        last.insertion == insertion, last.deletion == deletion,
-                       last.footnoteId == nil, last.crossRef == crossRef, last.tocBlock == tocBlock,
+                       last.footnoteId == nil, last.endnoteId == nil, last.crossRef == crossRef, last.tocBlock == tocBlock,
                        last.attributeRevision == attributeRevision,
                        last.fieldInstr == nil, fieldInstr == nil {
                         last.text += text

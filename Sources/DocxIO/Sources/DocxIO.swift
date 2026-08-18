@@ -58,6 +58,7 @@ public enum DocxIO {
         var settingsXml: Data?
         var commentsXml: Data?
         var footnotesXml: Data?
+        var endnotesXml: Data?
         var documentRelsXml: Data?
         // v1.5.2: исходный [Content_Types].xml — для ContentType preserved-частей.
         var contentTypesData: Data?
@@ -87,6 +88,12 @@ public enum DocxIO {
             case "word/settings.xml":            settingsXml     = buffer
             case "word/comments.xml":            commentsXml     = buffer
             case "word/footnotes.xml":           footnotesXml    = buffer
+            case "word/endnotes.xml":
+                endnotesXml = buffer
+                // v1.5.15: копия остаётся в preservedParts — если в теле нет
+                // ни одной живой ссылки (writer не сгенерирует свою часть),
+                // оригинал переживает round-trip как раньше (v1.5.2).
+                preservedParts["word/endnotes.xml"] = buffer
             case "word/_rels/document.xml.rels": documentRelsXml = buffer
             case "[Content_Types].xml":          contentTypesData = buffer
             case "_rels/.rels":
@@ -381,6 +388,13 @@ public enum DocxIO {
             let fp = FootnotesXmlParser()
             fp.parse(data: footnotesXml)
             model.footnotes = fp.footnotes
+        }
+        // v1.5.15: концевые сноски — word/endnotes.xml (элементы w:endnote).
+        if let endnotesXml {
+            let ep = FootnotesXmlParser()
+            ep.elementName = "w:endnote"
+            ep.parse(data: endnotesXml)
+            model.endnotes = ep.footnotes
         }
         return (model, parser.buildReport().merging(hfReportEntries(preservedHF: preservedHF)))
     }
@@ -1016,6 +1030,9 @@ private final class CommentsXmlParser: NSObject, XMLParserDelegate {
 /// id=0 continuationSeparator) пропускаем — они системные.
 private final class FootnotesXmlParser: NSObject, XMLParserDelegate {
     var footnotes: [Footnote] = []
+    /// v1.5.15: имя элемента-контейнера — "w:footnote" (по умолчанию) или
+    /// "w:endnote" (концевые сноски). Структура частей идентична.
+    var elementName = "w:footnote"
     private var currentId: String?
     private var currentText: String = ""
     private var inText = false
@@ -1027,7 +1044,7 @@ private final class FootnotesXmlParser: NSObject, XMLParserDelegate {
     func parser(_ parser: XMLParser, didStartElement e: String, namespaceURI: String?,
                 qualifiedName: String?, attributes attr: [String: String]) {
         switch e {
-        case "w:footnote":
+        case elementName:
             let id = attr["w:id"] ?? ""
             let type = attr["w:type"] ?? ""
             // Системные — separator / continuationSeparator. Пропускаем.
@@ -1052,7 +1069,7 @@ private final class FootnotesXmlParser: NSObject, XMLParserDelegate {
         switch e {
         case "w:t":
             inText = false
-        case "w:footnote":
+        case elementName:
             if let id = currentId {
                 footnotes.append(Footnote(id: id, text: currentText))
             }
@@ -1263,6 +1280,8 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
     /// v0.5.2 (R07): id сноски, увиденной в текущем `<w:r>`. Живёт до
     /// закрытия w:r, потом сбрасывается.
     private var currentRunFootnoteId: String? = nil
+    /// v1.5.15: id концевой сноски в текущем `<w:r>` (w:endnoteReference).
+    private var currentRunEndnoteId: String? = nil
 
     // v1.5.6: сложные поля (w:fldChar). Round-trip одноабзацных полей
     // (REF/PAGEREF/SEQ/DATE/…): инструкция вешается на первый ран результата
@@ -1315,7 +1334,8 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
         add("w:object",        "Legacy-объекты (OLE)",  "Встроенный OLE-объект (Excel-лист, формула и т.п.). Не поддерживается.")
         add("w:sdt",           "Content Controls",      "Структурированные элементы (шаблонные поля). Содержимое импортируется как текст, оболочка теряется.")
         // v0.5.2 (R07): w:footnoteReference теперь поддерживается — не отчитываем.
-        add("w:endnoteReference", "Концевые сноски",    "Ссылка на концевую сноску — R07.")
+        // v1.5.15: w:endnoteReference поддержан — импорт/экспорт word/endnotes.xml.
+        // Создание концевых сносок в UI пока не добавлено (импорт-only).
         // v0.4.5: `w:comment` больше не считается неподдержанным — реализован
         // импорт `<w:comment>` из word/comments.xml + `commentRangeStart/End`
         // на runs. Известное MVP-ограничение: ответы приходят как продолжение
@@ -1619,6 +1639,10 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
             // v0.5.2 (R07): вход-точка сноски в теле документа. Живёт на текущем ране.
             if let id = a["w:id"] { currentRunFootnoteId = id }
 
+        case "w:endnoteReference":
+            // v1.5.15: концевая сноска. Симметрично w:footnoteReference.
+            if let id = a["w:id"] { currentRunEndnoteId = id }
+
         case "w:fldSimple":
             // v0.5.5 (R07): распознаём поле REF — вытаскиваем имя закладки.
             // instr вида " REF _Ref123 \h " или " REF имя ".
@@ -1798,7 +1822,6 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
             if fieldDepth > 0 { inInstrText = true }
 
         case "wp:anchor", "w:pict", "w:object",
-             "w:endnoteReference",
              "mc:AlternateContent":
             note(el)
 
@@ -1917,6 +1940,7 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
                 let insertion = activeInsertions.last
                 let deletion  = activeDeletions.last
                 let footnoteId = currentRunFootnoteId
+                let endnoteId = currentRunEndnoteId
                 let crossRef = activeCrossRef
                 let tocBlock = activeTocBlock
                 let attrRev = currentRunAttrRevision
@@ -1934,7 +1958,7 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
                     let run = Run(text: "\u{FFFC}", attributes: finalCharAttrs, image: img, hyperlink: currentHyperlinkURL,
                                   commentId: commentId, insertion: insertion, deletion: deletion,
                                   footnoteId: footnoteId, crossRef: crossRef, tocBlock: tocBlock,
-                                  attributeRevision: attrRev, fieldInstr: fieldInstr)
+                                  attributeRevision: attrRev, fieldInstr: fieldInstr, endnoteId: endnoteId)
                     if currentParagraph == nil {
                         currentParagraph = Paragraph(runs: [], attributes: currentParagraphAttributes())
                     }
@@ -1946,7 +1970,7 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
                     let run = Run(text: currentRunText, attributes: finalCharAttrs, hyperlink: currentHyperlinkURL,
                                   commentId: commentId, insertion: insertion, deletion: deletion,
                                   footnoteId: footnoteId, crossRef: crossRef, tocBlock: tocBlock,
-                                  attributeRevision: attrRev, fieldInstr: fieldInstr)
+                                  attributeRevision: attrRev, fieldInstr: fieldInstr, endnoteId: endnoteId)
                     if currentParagraph == nil {
                         currentParagraph = Paragraph(runs: [], attributes: currentParagraphAttributes())
                     }
@@ -1956,6 +1980,7 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
                 currentDirectRunProps = RunProps()
                 currentRunStyleId = nil
                 currentRunFootnoteId = nil
+                currentRunEndnoteId = nil
                 currentRunAttrRevision = nil
             }
             inRun = false
@@ -2284,6 +2309,8 @@ private final class OoxmlDocumentSerializer {
     /// v0.5.2 (R07): выставляется true, если writer добавил footnotes.xml —
     /// используется renderContentTypes/renderDocumentRels для вставки Override.
     private var hasFootnotes: Bool = false
+    /// v1.5.15: writer добавил endnotes.xml — Content_Types + rels.
+    private var hasEndnotes: Bool = false
 
     func serialize(document: DocumentModel) throws -> [String: Data] {
         collectListBlocks(document)
@@ -2396,6 +2423,15 @@ private final class OoxmlDocumentSerializer {
             if !used.isEmpty {
                 parts["word/footnotes.xml"] = Data(renderFootnotesXml(used).utf8)
                 hasFootnotes = true
+            }
+        }
+        // v1.5.15: концевые сноски — word/endnotes.xml (симметрично).
+        if !document.endnotes.isEmpty {
+            let usedIds = collectUsedEndnoteIds(document)
+            let used = document.endnotes.filter { usedIds.contains($0.id) }
+            if !used.isEmpty {
+                parts["word/endnotes.xml"] = Data(renderEndnotesXml(used).utf8)
+                hasEndnotes = true
             }
         }
         // v0.1.53: изображения — media/imageN.ext.
@@ -2944,11 +2980,21 @@ private final class OoxmlDocumentSerializer {
             } else {
                 footnoteMarker = ""
             }
-            if run.text.isEmpty && !footnoteMarker.isEmpty {
+            // v1.5.15: маркер концевой сноски (w:endnoteReference).
+            let endnoteMarker: String
+            if let eid = run.endnoteId {
+                endnoteMarker = "<w:endnoteReference w:id=\"\(escapeXml(eid))\"/>"
+            } else {
+                endnoteMarker = ""
+            }
+            if run.text.isEmpty && !footnoteMarker.isEmpty && endnoteMarker.isEmpty {
                 // Пустой ран только с footnoteRef — не пишем текст.
                 return "<w:r>\(rpr)\(footnoteMarker)</w:r>"
             }
-            return "<w:r>\(rpr)<\(textTag)\(spaceAttr)>\(escaped)</\(textTag)>\(footnoteMarker)</w:r>"
+            if run.text.isEmpty && footnoteMarker.isEmpty && !endnoteMarker.isEmpty {
+                return "<w:r>\(rpr)\(endnoteMarker)</w:r>"
+            }
+            return "<w:r>\(rpr)<\(textTag)\(spaceAttr)>\(escaped)</\(textTag)>\(footnoteMarker)\(endnoteMarker)</w:r>"
         }()
         // Оборачиваем в w:ins/w:del — по одному id на ран (упрощение MVP).
         if let ins = run.insertion {
@@ -3151,12 +3197,21 @@ private final class OoxmlDocumentSerializer {
     /// Собирает все `footnoteId`, реально используемые в теле документа.
     /// Осиротевшие сноски (в модели, но без якоря) в файл не пишутся.
     private func collectUsedFootnoteIds(_ document: DocumentModel) -> Set<String> {
+        collectUsedNoteIds(document, endnotes: false)
+    }
+
+    /// v1.5.15: сбор id концевых сносок (endnoteId) — тот же обход.
+    private func collectUsedEndnoteIds(_ document: DocumentModel) -> Set<String> {
+        collectUsedNoteIds(document, endnotes: true)
+    }
+
+    private func collectUsedNoteIds(_ document: DocumentModel, endnotes: Bool) -> Set<String> {
         var ids: Set<String> = []
         for section in document.sections {
             for block in section.blocks {
                 if case let .paragraph(p) = block {
                     for run in p.runs {
-                        if let fid = run.footnoteId { ids.insert(fid) }
+                        if let fid = endnotes ? run.endnoteId : run.footnoteId { ids.insert(fid) }
                     }
                 } else if case let .table(t) = block {
                     for row in t.rows {
@@ -3164,7 +3219,7 @@ private final class OoxmlDocumentSerializer {
                             for b in cell.blocks {
                                 if case let .paragraph(p) = b {
                                     for run in p.runs {
-                                        if let fid = run.footnoteId { ids.insert(fid) }
+                                        if let fid = endnotes ? run.endnoteId : run.footnoteId { ids.insert(fid) }
                                     }
                                 }
                             }
@@ -3191,6 +3246,24 @@ private final class OoxmlDocumentSerializer {
             s += "</w:footnote>"
         }
         s += "\n</w:footnotes>\n"
+        return s
+    }
+
+    /// v1.5.15: `word/endnotes.xml` — системные separator/continuationSeparator
+    /// + пользовательские концевые сноски. Структура зеркалит footnotes.xml.
+    private func renderEndnotesXml(_ notes: [Footnote]) -> String {
+        var s = """
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <w:endnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+        <w:endnote w:type="separator" w:id="-1"><w:p><w:r><w:separator/></w:r></w:p></w:endnote>
+        <w:endnote w:type="continuationSeparator" w:id="0"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:endnote>
+        """
+        for n in notes {
+            s += "\n<w:endnote w:id=\"\(escapeXml(n.id))\">"
+            s += "<w:p><w:r><w:t xml:space=\"preserve\">\(escapeXml(n.text))</w:t></w:r></w:p>"
+            s += "</w:endnote>"
+        }
+        s += "\n</w:endnotes>\n"
         return s
     }
 
@@ -3409,6 +3482,9 @@ private final class OoxmlDocumentSerializer {
         if hasFootnotes {
             s += "\n  <Override PartName=\"/word/footnotes.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml\"/>"
         }
+        if hasEndnotes {
+            s += "\n  <Override PartName=\"/word/endnotes.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml\"/>"
+        }
         s += "\n</Types>\n"
         return s
     }
@@ -3456,6 +3532,9 @@ private final class OoxmlDocumentSerializer {
         }
         if hasFootnotes {
             s += "\n  <Relationship Id=\"rIdFootnotes\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes\" Target=\"footnotes.xml\"/>"
+        }
+        if hasEndnotes {
+            s += "\n  <Relationship Id=\"rIdEndnotes\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes\" Target=\"endnotes.xml\"/>"
         }
         // Гиперссылки (v0.1.54) — сортируем по rId для детерминированного вывода.
         for (url, rId) in hyperlinkRIdByUrl.sorted(by: { $0.value < $1.value }) {

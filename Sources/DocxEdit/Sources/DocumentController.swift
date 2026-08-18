@@ -2618,6 +2618,18 @@ final class DocumentController: ObservableObject {
         session?.bridge.model.footnotes ?? []
     }
 
+    // MARK: - Концевые сноски (v1.5.15)
+
+    func listEndnotes() -> [Footnote] {
+        session?.bridge.model.endnotes ?? []
+    }
+
+    func updateEndnoteText(id: String, text: String) {
+        guard let session = session else { return }
+        session.bridge.updateEndnoteText(id: id, text: text)
+        session.markDirty()
+    }
+
     // MARK: - Панель навигации (v1.5.11)
 
     struct NavigatorHeading {
