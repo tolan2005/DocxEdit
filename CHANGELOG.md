@@ -3,6 +3,19 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.5.15] — 2026-08-18 — Endnotes
+
+### Изменения
+- Бэклог DOCX (P2): концевые сноски — импорт endnotes.xml + w:endnoteReference, маркер superscript римскими (Word-конвенция), секция в панели Сноски с редактированием, экспорт endnotes.xml+rels+Content_Types (только использованные)
+- без ссылок в теле — passthrough оригинала
+- создание в UI не добавлено (импорт-only)
+- +2 теста (276)
+
+### Артефакты
+- `build/v1.5.15/DocxEdit-1.5.15.dmg`
+- `build/v1.5.15/DocxEdit-1.5.15.app.zip`
+- `build/v1.5.15/SHA256SUMS`
+
 ## [1.5.14] — 2026-08-18 — Watermarks
 
 ### Изменения
