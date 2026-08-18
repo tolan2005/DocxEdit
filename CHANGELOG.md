@@ -3,6 +3,18 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.5.18] — 2026-08-19 — Find Highlight
+
+### Изменения
+- Расширенный поиск (⇧⌘F): подсветка всех вхождений жёлтым прямо в документе (DocxLayoutManager, без мутации storage) + тумблер «Подсветить все»
+- счётчик «N из M» при навигации
+- подсветка снимается при правке/закрытии
+
+### Артефакты
+- `build/v1.5.18/DocxEdit-1.5.18.dmg`
+- `build/v1.5.18/DocxEdit-1.5.18.app.zip`
+- `build/v1.5.18/SHA256SUMS`
+
 ## [1.5.17] — 2026-08-19 — Table Style & Vertical Text
 
 ### Изменения
