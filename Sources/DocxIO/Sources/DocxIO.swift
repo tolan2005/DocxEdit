@@ -364,7 +364,7 @@ public enum DocxIO {
                 let rid  = String(doc[ridR])
                 guard let target = relsMap[rid] else { continue }
                 // target относительно word/ — "header2.xml".
-                let slot = kind + type.prefix(1).uppercased() + type.dropFirst()
+                let slot = kind + type.prefix(1).uppercased() + String(type.dropFirst())
                 result[slot] = target
             }
         }
