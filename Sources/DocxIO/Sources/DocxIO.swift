@@ -260,9 +260,53 @@ public enum DocxIO {
                         cxEMU: cx, cyEMU: cy))
                 }
             }
+            // v1.5.14: водяные знаки — VML `<w:pict>` с `v:textpath` (WordArt,
+            // повёрнутый серый текст) или `v:imagedata` (картинка-подложка).
+            // Перед сканированием вырезаем mc:Fallback-участки (в 133.docx
+            // fallback несёт VML-дубли wps-шейпов — не водяные знаки).
+            var watermarks: [HFWatermark] = []
+            if let rawXml = String(data: xml, encoding: .utf8) {
+                let doc = rawXml.replacingOccurrences(
+                    of: #"<mc:Fallback>.*?</mc:Fallback>"#, with: "",
+                    options: .regularExpression)
+                if let pictRx = try? NSRegularExpression(
+                    pattern: #"<w:pict>.*?</w:pict>"#, options: [.dotMatchesLineSeparators]) {
+                for pm in pictRx.matches(in: doc, range: NSRange(doc.startIndex..., in: doc)) {
+                    guard let pr = Range(pm.range, in: doc) else { continue }
+                    let d = String(doc[pr])
+                    func strAfter(_ pat: String) -> String? {
+                        guard let rx = try? NSRegularExpression(pattern: pat),
+                              let mm = rx.firstMatch(in: d, range: NSRange(d.startIndex..., in: d)),
+                              let rr = Range(mm.range(at: 1), in: d) else { return nil }
+                        return String(d[rr])
+                    }
+                    func ptAfter(_ name: String) -> CGFloat {
+                        strAfter(name + #":(-?[\d.]+)pt"#).flatMap(Double.init).map { CGFloat($0) } ?? 0
+                    }
+                    let x = ptAfter("margin-left")
+                    let y = ptAfter("margin-top")
+                    let w = ptAfter("width")
+                    let h = ptAfter("height")
+                    let rot = strAfter(#"rotation:(-?[\d.]+)"#).flatMap(Double.init).map { CGFloat($0) } ?? 0
+                    let color = strAfter(#"fillcolor="(#[0-9A-Fa-f]{6})""#)
+                    if let text = strAfter(#"<v:textpath[^>]*string="([^"]*)""#), !text.isEmpty {
+                        watermarks.append(HFWatermark(text: text, xPt: x, yPt: y,
+                                                      wPt: w, hPt: h, rotation: rot,
+                                                      colorHex: color))
+                    } else if let rid = strAfter(#"<v:imagedata[^>]*r:id="([^"]+)""#),
+                              let origName = mediaByRId[rid],
+                              media["hfp_\(slot)_\(origName)"] != nil {
+                        watermarks.append(HFWatermark(mediaName: "hfp_\(slot)_\(origName)",
+                                                      xPt: x, yPt: y, wPt: w, hPt: h,
+                                                      rotation: rot, colorHex: nil))
+                    }
+                }
+                }
+            }
             preservedHF[slot] = PreservedHFPart(partName: partName, xml: xml,
                                                 relsXml: relsOut, media: media,
-                                                images: images)
+                                                images: images,
+                                                watermarks: watermarks)
         }
         // Флаги режимов — ТОЛЬКО из авторитетных источников (раньше
         // выставлялись по наличию части: рисовали even-колонтитул там, где
@@ -1181,6 +1225,15 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
     /// иначе .inline (wp:inline).
     private var currentDrawingWrap: InlineImageWrap = .inline
     private var currentDrawingBehindDoc: Bool = false
+    /// v1.5.12: позиция якоря (EMU, от колонки/абзаца) — для плавающего рендера.
+    private var currentAnchorXEMU: Int? = nil
+    private var currentAnchorYEMU: Int? = nil
+    /// v1.5.12: сейчас внутри wp:positionH / wp:positionV (для wp:posOffset).
+    private var anchorPosAxis: String? = nil   // "h" | "v"
+    /// v1.5.12: буфер текста внутри wp:positionH/positionV (wp:posOffset и др.).
+    private var anchorPosBuffer = ""
+    /// v1.5.12: внутри wp:posOffset — следующий текст идёт в anchorPosBuffer.
+    private var inPosOffset = false
     private var currentRunImage: InlineImage? = nil
     /// v1.5.7: глубина вложенности mc:Fallback в ТЕЛЕ документа.
     /// mc:AlternateContent несёт объект дважды (современный Choice + VML/legacy
@@ -1476,9 +1529,19 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
         case "wp:anchor":
             if inDrawing {
                 currentDrawingBehindDoc = (a["behindDoc"] == "1")
+                currentAnchorXEMU = nil
+                currentAnchorYEMU = nil
                 // Пока не встретим wp:wrap*, считаем wrapNone → behind/inFrontOf.
                 currentDrawingWrap = currentDrawingBehindDoc ? .behindText : .inFrontOfText
             }
+
+        // v1.5.12: позиции якоря — wp:posOffset внутри positionH/positionV.
+        case "wp:positionH":
+            if inDrawing { anchorPosAxis = "h" }
+        case "wp:positionV":
+            if inDrawing { anchorPosAxis = "v" }
+        case "wp:posOffset":
+            if inDrawing && anchorPosAxis != nil { inPosOffset = true; anchorPosBuffer = "" }
 
         case "wp:wrapSquare":
             if inDrawing { currentDrawingWrap = .square }
@@ -1521,7 +1584,9 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
                     currentRunImage = InlineImage(format: format, data: data,
                                                    displayWidth: widthPt, displayHeight: heightPt,
                                                    altText: currentDrawingAltText,
-                                                   wrap: currentDrawingWrap)
+                                                   wrap: currentDrawingWrap,
+                                                   anchorXEMU: currentAnchorXEMU,
+                                                   anchorYEMU: currentAnchorYEMU)
                 }
             }
 
@@ -1803,6 +1868,16 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
         case "mc:Fallback":
             mcFallbackDepth = max(0, mcFallbackDepth - 1)
 
+        case "wp:posOffset":
+            if inPosOffset {
+                let v = Int(anchorPosBuffer.trimmingCharacters(in: .whitespacesAndNewlines))
+                if anchorPosAxis == "h" { currentAnchorXEMU = v }
+                if anchorPosAxis == "v" { currentAnchorYEMU = v }
+                inPosOffset = false
+            }
+        case "wp:positionH", "wp:positionV":
+            anchorPosAxis = nil
+
         case "w:t":
             inText = false   // Fix #3
 
@@ -2020,6 +2095,8 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
     }
 
     func parser(_ p: XMLParser, foundCharacters string: String) {
+        // v1.5.12: значение wp:posOffset (позиция якоря плавающей картинки).
+        if inPosOffset { anchorPosBuffer += string }
         // Fix #3: собираем текст только внутри <w:t>
         // v1.5.7: текст внутри mc:Fallback пропускаем — это legacy-дубль
         // содержимого mc:Choice (текстбоксы задваивались).
@@ -2184,6 +2261,9 @@ private final class OoxmlDocumentSerializer {
         let heightPt: CGFloat
         let altText: String?
         let wrap: InlineImageWrap  // v0.1.102: режим обтекания текстом
+        // v1.5.12: позиция плавающего якоря (EMU, от колонки/абзаца).
+        let anchorXEMU: Int?
+        let anchorYEMU: Int?
     }
     private var imageEntries: [ImageEntry] = []
     /// Индекс `Run.image → rId` — по позиции при обходе. Ключ = порядковый индекс
@@ -2353,7 +2433,9 @@ private final class OoxmlDocumentSerializer {
                     widthPt: img.displayWidth > 0 ? img.displayWidth : 128,
                     heightPt: img.displayHeight > 0 ? img.displayHeight : 128,
                     altText: img.altText,
-                    wrap: img.wrap
+                    wrap: img.wrap,
+                    anchorXEMU: img.anchorXEMU,
+                    anchorYEMU: img.anchorYEMU
                 )
                 imagesByRunIndex[runIndex] = imageEntries.count
                 imageEntries.append(entry)
@@ -3178,11 +3260,12 @@ private final class OoxmlDocumentSerializer {
         </a:graphic>
         """
 
-        // v0.1.102: не-inline режимы → `<wp:anchor>` c нужным wrapMode; минимальное
-        // позиционирование (positionH/positionV=column/paragraph по умолчанию).
-        // мейнстрим-редакторов восстанавливает обтекание правильно; наш редактор пока рендерит
-        // всё как inline (реальный anchored-layout — R04).
+        // v0.1.102: не-inline режимы → `<wp:anchor>` c нужным wrapMode.
+        // v1.5.12: реальные posOffset (позиция от колонки/абзаца) — редактор
+        // рендерит плавающие картинки и даёт их двигать мышью.
         if entry.wrap != .inline {
+            let offX = entry.anchorXEMU ?? 0
+            let offY = entry.anchorYEMU ?? 0
             let wrapEl: String = {
                 switch entry.wrap {
                 case .square:        return "<wp:wrapSquare wrapText=\"bothSides\"/>"
@@ -3198,8 +3281,8 @@ private final class OoxmlDocumentSerializer {
             <w:r><w:drawing>\
             <wp:anchor distT="0" distB="0" distL="114300" distR="114300" simplePos="0" relativeHeight="0" behindDoc="\(behind)" locked="0" layoutInCell="1" allowOverlap="1">\
             <wp:simplePos x="0" y="0"/>\
-            <wp:positionH relativeFrom="column"><wp:posOffset>0</wp:posOffset></wp:positionH>\
-            <wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV>\
+            <wp:positionH relativeFrom="column"><wp:posOffset>\(offX)</wp:posOffset></wp:positionH>\
+            <wp:positionV relativeFrom="paragraph"><wp:posOffset>\(offY)</wp:posOffset></wp:positionV>\
             <wp:extent cx="\(cx)" cy="\(cy)"/>\
             <wp:effectExtent l="0" t="0" r="0" b="0"/>\
             \(wrapEl)\

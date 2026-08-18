@@ -698,6 +698,8 @@ struct TextEditorRepresentable: NSViewRepresentable {
         // символа триггерил повторный updateNSView с уже наполненным storage —
         // пересчёт «оживлял» скролл. Фикс: считать после синка.
         applyPageViewStyle(nsView, textView: textView)
+        // v1.5.12: плавающие картинки — после раскладки/синка.
+        context.coordinator.updateFloatingImages()
     }
 
     private func applyPageViewStyle(_ scroll: NSScrollView, textView: NSTextView) {
@@ -711,7 +713,7 @@ struct TextEditorRepresentable: NSViewRepresentable {
             let usableW = max(1, size.width - margins.left - margins.right)
             let usableH = max(1, size.height - margins.top - margins.bottom)
             let gap = DocxTextView.sheetGap
-            scroll.backgroundColor = NSColor(calibratedWhite: 0.55, alpha: 1)
+            scroll.backgroundColor = DocxTextView.sheetField
             textView.drawsBackground = true
             textView.autoresizingMask = [.width]
             textView.isHorizontallyResizable = false
@@ -755,6 +757,7 @@ struct TextEditorRepresentable: NSViewRepresentable {
                 // частей (только если колонтитул не редактировался — тогда
                 // части регенерируются без графики).
                 dt.hfImages = [:]
+                dt.hfWatermarks = [:]
                 if !session.bridge.model.headerFooterEdited {
                     for (slot, part) in session.bridge.model.preservedHeaderFooter {
                         for img in part.images {
@@ -766,6 +769,14 @@ struct TextEditorRepresentable: NSViewRepresentable {
                                 y: CGFloat(img.yEMU) / 12700.0,
                                 w: CGFloat(img.cxEMU) / 12700.0,
                                 h: CGFloat(img.cyEMU) / 12700.0))
+                        }
+                        // v1.5.14: водяные знаки слота (VML).
+                        for wm in part.watermarks {
+                            var ns: NSImage? = nil
+                            if let mn = wm.mediaName, let data = part.media[mn] {
+                                ns = NSImage(data: data)
+                            }
+                            dt.hfWatermarks[slot, default: []].append((wm, ns))
                         }
                     }
                 }
@@ -933,42 +944,66 @@ struct TextEditorRepresentable: NSViewRepresentable {
             observeKeyNote(.docxEditInsertDateTime, #selector(onInsertDateTime(_:)))
             observeKeyNote(.docxEditInsertText, #selector(onInsertText(_:)))
 
-            // ⌘]/⌘[ на кириллической (РУ) раскладке: SwiftUI .keyboardShortcut молча не
-            // срабатывает (обнаружено по жалобе «многоуровневые списки не включаются» —
-            // toggleList и кнопки в тулбаре работали, а именно ⌘] не долетал). Причина —
-            // не физическая позиция клавиши (keyCode тоже отличается от US-раскладки,
-            // физической клавиши "]" в ЙЦУКЕН попросту нет на том же месте), а то, что
-            // под Cmd-модификатором RU-раскладка отображает эту клавишу в "`", а не в "]"
-            // (проверено логированием: characters="`", но charactersIgnoringModifiers="]").
-            // Поэтому сопоставляем по charactersIgnoringModifiers — то же значение, которое
-            // AppKit использует для сопоставления keyEquivalent у NSMenuItem, и оно
-            // корректно даёт "]"/"[" независимо от раскладки. Событие гасим (return nil),
-            // чтобы не дублировать на раскладках, где совпало бы и через SwiftUI-шорткат.
+            // Универсальный фикс клавиатурных шорткатов на кириллической (РУ) и других
+            // нелатинских раскладках (v1.5.13; развитие ADR-027). SwiftUI .keyboardShortcut
+            // молча не срабатывает для буквенных клавиш: charactersIgnoringModifiers на РУ
+            // даёт кириллицу («и» вместо «b»). Решение — сопоставление по физическому
+            // keyCode (layout-independent). Для пунктуационных клавиш ([ ] { } | :)
+            // charactersIgnoringModifiers отдаёт латинский символ корректно (ADR-027),
+            // поэтому они сопоставляются по chars. Событие гасим (return nil), чтобы не
+            // дублировать на раскладках, где сработал бы и штатный SwiftUI-шорткат
+            // (монитор отрабатывает раньше).
             keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
                 guard let self, let window = self.scrollView?.window, window.isKeyWindow else { return event }
+                guard let appDelegate = NSApp.delegate as? AppDelegate else { return event }
                 let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
                 let chars = event.charactersIgnoringModifiers ?? ""
-                // ⇧⌥⌘V — «Вставить с сохранением стиля». SwiftUI-шорткат под РУ-
-                // раскладкой не срабатывает (та же причина, что у ⌘]/⌘[ в ADR-027);
-                // буквенные клавиши на РУ-раскладке НЕ дают латинского символа даже
-                // в charactersIgnoringModifiers (в отличие от скобок), поэтому
-                // сопоставляем по физическому keyCode — 9 для клавиши V, независимо
-                // от раскладки.
-                if mods == [.command, .shift, .option], event.keyCode == 9 {
-                    self.controller.pasteAsPlainText()
-                    return nil
+
+                // Буквенные шорткаты — по физическому keyCode (US-позиции клавиш).
+                switch (mods, event.keyCode) {
+                case (.command, 11): appDelegate.toggleBold(); return nil            // ⌘B
+                case (.command, 34): appDelegate.toggleItalic(); return nil          // ⌘I
+                case (.command, 32): appDelegate.toggleUnderline(); return nil       // ⌘U
+                case ([.command, .shift], 7): appDelegate.toggleStrikethrough(); return nil  // ⇧⌘X
+                case (.command, 45): appDelegate.newDocument(); return nil           // ⌘N
+                case ([.command, .shift], 45): appDelegate.newMarkdownDocument(); return nil // ⇧⌘N
+                case (.command, 31): appDelegate.openDocument(); return nil          // ⌘O
+                case (.command, 1): appDelegate.saveDocument(); return nil           // ⌘S
+                case ([.command, .shift], 1): appDelegate.saveDocumentAs(); return nil       // ⇧⌘S
+                case ([.command, .option, .shift], 1): appDelegate.showStyles(); return nil  // ⇧⌥⌘S
+                case ([.command, .shift], 14): appDelegate.toggleTrackChanges(); return nil  // ⇧⌘E
+                case ([.command, .option], 14): appDelegate.exportPDF(); return nil          // ⌥⌘E
+                case (.command, 35): appDelegate.printDocument(); return nil         // ⌘P
+                case ([.command, .option], 35): appDelegate.togglePageView(); return nil     // ⌥⌘P
+                case ([.command, .shift, .option], 9): self.controller.pasteAsPlainText(); return nil // ⇧⌥⌘V
+                case ([.command, .shift], 9): appDelegate.pasteFormatting(); return nil      // ⇧⌘V (paste format)
+                case ([.command, .shift], 8): appDelegate.copyFormatting(); return nil       // ⇧⌘C (copy format)
+                case (.command, 3): appDelegate.findInDocument(); return nil         // ⌘F
+                case ([.command, .option], 3): appDelegate.insertFootnote(); return nil      // ⌥⌘F (сноска, Word)
+                case ([.command, .shift], 3): appDelegate.showFindReplace(); return nil      // ⇧⌘F
+                case ([.command, .shift], 4): appDelegate.replaceInDocument(); return nil    // ⇧⌘H (Replace, Word)
+                case ([.command, .option], 5): self.controller.showGoToDialog(); return nil  // ⌥⌘G
+                case (.command, 40): appDelegate.showBookmarks(); return nil         // ⌘K
+                case ([.command, .option], 17): appDelegate.insertTable(); return nil        // ⌥⌘T
+                case ([.command, .option], 46): appDelegate.insertCommentAtSelection(); return nil // ⌥⌘M
+                case ([.command, .option], 15): appDelegate.toggleRuler(); return nil        // ⌥⌘R
+                case ([.command, .shift], 15): appDelegate.toggleReadingMode(); return nil   // ⇧⌘R
+                default: break
                 }
-                // ⌘⌥G — «Перейти к…». Буквенный shortcut, физический keyCode G = 5.
-                if mods == [.command, .option], event.keyCode == 5 {
-                    self.controller.showGoToDialog()
-                    return nil
-                }
-                if mods == .command {
-                    switch chars {
-                    case "]": self.controller.increaseIndent(); return nil
-                    case "[": self.controller.decreaseIndent(); return nil
-                    default: break
-                    }
+
+                // Пунктуационные шорткаты — по charactersIgnoringModifiers (на РУ
+                // отдаёт латинский символ корректно, см. ADR-027). { } | : на US-
+                // раскладке набираются с Shift, поэтому модификаторы включают shift.
+                switch (mods, chars) {
+                case (.command, "]"): self.controller.increaseIndent(); return nil
+                case (.command, "["): self.controller.decreaseIndent(); return nil
+                case ([.command, .shift], "{"): appDelegate.applyAlignment(.left); return nil
+                case ([.command, .shift], "}"): appDelegate.applyAlignment(.right); return nil
+                case ([.command, .shift], "|"): appDelegate.applyAlignment(.center); return nil
+                case ([.command, .option, .shift], "}"): appDelegate.applyAlignment(.justified); return nil
+                case ([.command, .shift], "]"): appDelegate.goToNextRevision(); return nil
+                case ([.command, .shift], ":"): appDelegate.reviewCheckSpelling(); return nil
+                default: break
                 }
                 return event
             }
@@ -2010,6 +2045,8 @@ struct TextEditorRepresentable: NSViewRepresentable {
             }
             // v0.1.67: положение изображения могло сдвинуться при правке текста.
             updateImageResizeOverlay()
+            // v1.5.12: плавающие картинки — пересчёт позиций/обтекания.
+            updateFloatingImages()
         }
         func textViewDidChangeSelection(_ notification: Notification) {
             guard !isInternalUpdate else { return }
@@ -2023,7 +2060,13 @@ struct TextEditorRepresentable: NSViewRepresentable {
             guard let sv = scrollView, let tv = sv.documentView as? NSTextView,
                   let storage = tv.textStorage else { return }
             let sel = tv.selectedRange()
-            let isImage = sel.length == 1 && sel.location < storage.length &&
+            // v1.5.12: у плавающих картинок якорь 1×1pt — overlay на него
+            // не вешаем (ресайз/драг — на самом NSImageView).
+            let wrapRaw = sel.length > 0 && sel.location < storage.length
+                ? storage.attribute(.docxEditImageWrap, at: sel.location, effectiveRange: nil) as? String
+                : nil
+            let isFloating = wrapRaw.flatMap { InlineImageWrap(rawValue: $0) }.map { $0 != .inline } ?? false
+            let isImage = !isFloating && sel.length == 1 && sel.location < storage.length &&
                 (storage.attribute(.attachment, at: sel.location, effectiveRange: nil) as? NSTextAttachment) != nil
             if isImage {
                 let overlay = imageResizeOverlay ?? {
@@ -2041,6 +2084,174 @@ struct TextEditorRepresentable: NSViewRepresentable {
                 imageResizeOverlay?.removeFromSuperview()
                 imageResizeOverlay = nil
             }
+        }
+
+        // MARK: - Плавающие изображения (v1.5.12)
+
+        /// Живые NSImageView поверх текста для wrap != .inline. Ключ — позиция
+        /// символа-якоря (U+FFFC) в textStorage. behindText рисуется отдельно —
+        /// в DocxTextView.drawBackground (под текстом).
+        private var floatingImageViews: [Int: FloatingImageNSView] = [:]
+        private var lastExclusionSignature = ""
+
+        /// Сканирует storage на плавающие картинки и синхронизирует субвьюхи
+        /// и exclusionPaths. Вызывается после синка storage, правок и смены вида.
+        func updateFloatingImages() {
+            guard let sv = scrollView, let tv = sv.documentView as? NSTextView,
+                  let storage = tv.textStorage,
+                  let lm = tv.layoutManager, let container = tv.textContainer else { return }
+            lm.ensureLayout(for: container)
+            var seen: Set<Int> = []
+            var behind: [(image: NSImage, rect: NSRect)] = []
+            var exclusionRects: [NSRect] = []
+
+            storage.enumerateAttribute(.attachment, in: NSRange(location: 0, length: storage.length)) { val, range, _ in
+                guard let att = val as? NSTextAttachment,
+                      let raw = storage.attribute(.docxEditImageWrap, at: range.location, effectiveRange: nil) as? String,
+                      let wrap = InlineImageWrap(rawValue: raw), wrap != .inline,
+                      let img = att.image else { return }
+                seen.insert(range.location)
+
+                // Размеры и смещения — из якорного атрибута "x,y,w,h" (EMU→pt).
+                var xPt: CGFloat = 0, yPt: CGFloat = 0
+                var wPt = img.size.width, hPt = img.size.height
+                if let anchor = storage.attribute(.docxEditImageAnchor, at: range.location, effectiveRange: nil) as? String {
+                    let parts = anchor.split(separator: ",").compactMap { Int($0) }
+                    if parts.count >= 2 {
+                        xPt = CGFloat(parts[0]) / 12700.0
+                        yPt = CGFloat(parts[1]) / 12700.0
+                    }
+                    if parts.count >= 4, parts[2] > 0, parts[3] > 0 {
+                        wPt = CGFloat(parts[2]) / 12700.0
+                        hPt = CGFloat(parts[3]) / 12700.0
+                    }
+                }
+
+                // Якорь по вертикали — верх строки, где стоит символ U+FFFC;
+                // по горизонтали — левый край колонки текста (x=0 контейнера).
+                let gr = lm.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+                guard gr.location != NSNotFound, gr.location < lm.numberOfGlyphs else { return }
+                let lineRect = lm.lineFragmentRect(forGlyphAt: gr.location, effectiveRange: nil)
+                let rectTV = NSRect(x: tv.textContainerOrigin.x + xPt,
+                                    y: lineRect.minY + yPt,
+                                    width: wPt, height: hPt)
+
+                if wrap == .behindText {
+                    behind.append((img, rectTV))
+                } else {
+                    let view: FloatingImageNSView
+                    if let existing = floatingImageViews[range.location] {
+                        view = existing
+                    } else {
+                        view = FloatingImageNSView(frame: rectTV)
+                        view.charIndex = range.location
+                        view.onDragCommit = { [weak self, weak tv] newOrigin in
+                            guard let self, let tv else { return }
+                            self.commitFloatingImageDrag(charIndex: range.location,
+                                                         newOrigin: newOrigin, in: tv)
+                        }
+                        tv.addSubview(view)
+                        floatingImageViews[range.location] = view
+                    }
+                    view.image = img
+                    view.frame = rectTV
+                    view.isHidden = false
+                }
+
+                // Обтекание: square/tight/topAndBottom — текст огибает рамку.
+                if wrap == .square || wrap == .tight || wrap == .topAndBottom {
+                    exclusionRects.append(rectTV.offsetBy(dx: -tv.textContainerOrigin.x,
+                                                          dy: -tv.textContainerOrigin.y))
+                }
+            }
+
+            // Удалить вьюхи чужих/удалённых якорей.
+            for (idx, view) in floatingImageViews where !seen.contains(idx) {
+                view.removeFromSuperview()
+                floatingImageViews.removeValue(forKey: idx)
+            }
+
+            // exclusionPaths — только при изменении (иначе лишние relayout'ы).
+            let signature = exclusionRects.map { "\($0)" }.joined(separator: "|")
+            if signature != lastExclusionSignature {
+                lastExclusionSignature = signature
+                container.exclusionPaths = exclusionRects.map { NSBezierPath(rect: $0) }
+            }
+
+            if let dt = tv as? DocxTextView {
+                dt.floatingBehindImages = behind
+                dt.needsDisplay = true
+            }
+        }
+
+        /// Фиксация драга плавающей картинки: новые смещения (pt от колонки/
+        /// строки-якоря) пишем обратно в атрибут на U+FFFC с регистрацией undo.
+        private func commitFloatingImageDrag(charIndex: Int, newOrigin: NSPoint, in tv: NSTextView) {
+            guard let storage = tv.textStorage, charIndex < storage.length else { return }
+            // Верх строки-якоря — из текущего layout.
+            guard let lm = tv.layoutManager, charIndex < storage.length else { return }
+            let gr = lm.glyphRange(forCharacterRange: NSRange(location: charIndex, length: 1),
+                                   actualCharacterRange: nil)
+            let lineRect = lm.lineFragmentRect(forGlyphAt: gr.location, effectiveRange: nil)
+            let xPt = newOrigin.x - tv.textContainerOrigin.x
+            let yPt = newOrigin.y - lineRect.minY
+            let xEmu = Int((xPt * 12700).rounded())
+            let yEmu = Int((yPt * 12700).rounded())
+            // Размеры сохраняем из старого атрибута.
+            var wEmu = 0, hEmu = 0
+            if let old = storage.attribute(.docxEditImageAnchor, at: charIndex, effectiveRange: nil) as? String {
+                let parts = old.split(separator: ",").compactMap { Int($0) }
+                if parts.count >= 4 { wEmu = parts[2]; hEmu = parts[3] }
+            }
+            if wEmu <= 0, let att = storage.attribute(.attachment, at: charIndex, effectiveRange: nil) as? NSTextAttachment,
+               let img = att.image {
+                wEmu = Int(img.size.width * 12700); hEmu = Int(img.size.height * 12700)
+            }
+            let range = NSRange(location: charIndex, length: 1)
+            guard tv.shouldChangeText(in: range, replacementString: nil) else { return }
+            storage.addAttribute(.docxEditImageAnchor,
+                                 value: "\(xEmu),\(yEmu),\(wEmu),\(hEmu)", range: range)
+            tv.didChangeText()
+            updateFloatingImages()
+        }
+    }
+}
+
+// MARK: - Плавающая картинка (v1.5.12)
+
+/// NSImageView с драгом: тянем мышью — картинка едет, отпускаем — новые
+/// смещения коммитятся в модель (один шаг undo через shouldChangeText).
+final class FloatingImageNSView: NSImageView {
+    var charIndex: Int = 0
+    var onDragCommit: ((NSPoint) -> Void)?
+    private var dragStartWindow: NSPoint = .zero
+    private var startOrigin: NSPoint = .zero
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        imageScaling = .scaleAxesIndependently
+        imageAlignment = .alignCenter
+        wantsLayer = true
+        layer?.borderWidth = 0.5
+        layer?.borderColor = NSColor.tertiaryLabelColor.cgColor
+    }
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override func mouseDown(with event: NSEvent) {
+        dragStartWindow = event.locationInWindow
+        startOrigin = frame.origin
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        let d = convert(NSPoint(x: event.locationInWindow.x - dragStartWindow.x,
+                                y: event.locationInWindow.y - dragStartWindow.y),
+                        from: nil)
+        frame.origin = NSPoint(x: startOrigin.x + d.x, y: startOrigin.y + d.y)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        if frame.origin != startOrigin {
+            onDragCommit?(frame.origin)
         }
     }
 }
@@ -2118,13 +2329,32 @@ final class DocxTextView: NSTextView {
     /// значения — картинка + смещение от колонки текста/абзаца колонтитула (pt).
     var hfImages: [String: [(image: NSImage, x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat)]] = [:]
 
+    /// v1.5.12: плавающие картинки «за текстом» (wrap=behindDoc) — рисуются в
+    /// drawBackground (под глифами). Координаты — в системе textView.
+    var floatingBehindImages: [(image: NSImage, rect: NSRect)] = []
+
+    /// v1.5.14: водяные знаки колонтитулов (VML WordArt/картинка) по слотам.
+    /// Координаты — pt от верхнего левого угла ЛИСТА. Рисуются под текстом.
+    var hfWatermarks: [String: [(wm: HFWatermark, image: NSImage?)]] = [:]
+
     /// v1.5.8: ширина читаемой колонки в MD-режиме (0 = во всю ширину).
     /// Колонка центрируется симметричным textContainerInset (пересчёт на ресайз).
     var mdColumnWidth: CGFloat = 0
 
     /// Серый зазор сверху и между листами (как в мейнстрим-редакторов).
     static let sheetGap: CGFloat = 24
-    private static let sheetField = NSColor(calibratedWhite: 0.55, alpha: 1)
+    static let sheetField = NSColor(name: nil) { appearance in
+        let dark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        return dark ? NSColor(calibratedWhite: 0.22, alpha: 1) : NSColor(calibratedWhite: 0.55, alpha: 1)
+    }
+
+    /// v1.5.13: лист адаптируется к тёмной теме — иначе дефолтный текст
+    /// (labelColor, белый в dark mode) был бы белым по белому. Печать всегда
+    /// с белым листом (isDrawingToScreen проверяется в drawBackground).
+    static let sheetPaper = NSColor(name: nil) { appearance in
+        let dark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        return dark ? NSColor(white: 0.13, alpha: 1) : NSColor.white
+    }
 
     /// v0.5.5 (R07): ссылка на контроллер — нужна для Cmd+клик по cross-ref.
     weak var docxController: DocumentController?
@@ -2229,6 +2459,7 @@ final class DocxTextView: NSTextView {
     override func drawBackground(in rect: NSRect) {
         guard showsPageSheet, pageSheetWidth > 0, sheetPageHeight > 0 else {
             super.drawBackground(in: rect)
+            drawFloatingBehind(in: rect)
             return
         }
         // При печати серое поле и белый лист+тень НЕ рисуем (бумага сама белая,
@@ -2254,7 +2485,9 @@ final class DocxTextView: NSTextView {
                 shadow.shadowBlurRadius = 14
                 shadow.shadowOffset = NSSize(width: 0, height: -4)
                 shadow.set()
-                NSColor.white.setFill()
+                // v1.5.13: при печати лист всегда белый (бумага), на экране —
+                // адаптивный (dark mode → тёмный лист).
+                DocxTextView.sheetPaper.setFill()
                 sheet.fill()
                 ctx.restoreGState()
             }
@@ -2277,17 +2510,36 @@ final class DocxTextView: NSTextView {
             }
             // v1.5.3: плавающие картинки колонтитула (логотипы и т.п.) —
             // из passthrough-частей, смещения от колонки/абзаца.
+            // v1.5.14: водяные знаки — под картинками колонтитула (координаты
+            // от угла листа, а не от абзаца).
             switch variant {
             case .firstPage:
+                drawHFWatermarks("headerFirst", sheet: sheet)
+                drawHFWatermarks("footerFirst", sheet: sheet)
                 drawHFImages("headerFirst", baseX: x0, baseY: hy)
                 drawHFImages("footerFirst", baseX: x0, baseY: fy)
             case .evenPage:
+                drawHFWatermarks("headerEven", sheet: sheet)
+                drawHFWatermarks("footerEven", sheet: sheet)
                 drawHFImages("headerEven", baseX: x0, baseY: hy)
                 drawHFImages("footerEven", baseX: x0, baseY: fy)
             case .defaultOdd:
+                drawHFWatermarks("headerDefault", sheet: sheet)
+                drawHFWatermarks("footerDefault", sheet: sheet)
                 drawHFImages("headerDefault", baseX: x0, baseY: hy)
                 drawHFImages("footerDefault", baseX: x0, baseY: fy)
             }
+        }
+        // v1.5.12: картинки «за текстом» — поверх листов, под глифами.
+        drawFloatingBehind(in: rect)
+    }
+
+    /// v1.5.12: плавающие картинки wrap=behindDoc (под текстом, поверх фона/листа).
+    private func drawFloatingBehind(in rect: NSRect) {
+        guard !floatingBehindImages.isEmpty else { return }
+        for item in floatingBehindImages where item.rect.intersects(rect) {
+            item.image.draw(in: item.rect, from: .zero, operation: .sourceOver,
+                            fraction: 1.0, respectFlipped: true, hints: nil)
         }
     }
 
@@ -2303,6 +2555,59 @@ final class DocxTextView: NSTextView {
     }
 
     private enum PageVariant { case defaultOdd, firstPage, evenPage }
+
+    /// v1.5.14: водяные знаки слота. Текст — WordArt-подобный (полупрозрачный,
+    /// повёрнутый, размер подгоняется под рамку шейпа), картинка — с прозрачностью.
+    private func drawHFWatermarks(_ slot: String, sheet: NSRect) {
+        guard let items = hfWatermarks[slot], !items.isEmpty else { return }
+        for (wm, img) in items {
+            let frame = NSRect(x: sheet.minX + wm.xPt, y: sheet.minY + wm.yPt,
+                               width: max(1, wm.wPt), height: max(1, wm.hPt))
+            guard frame.intersects(sheet) else { continue }
+            if let image = img {
+                image.draw(in: frame, from: .zero, operation: .sourceOver,
+                           fraction: 0.5, respectFlipped: true, hints: nil)
+            } else if let text = wm.text, !text.isEmpty {
+                let color: NSColor
+                if let hex = wm.colorHex, let c = CodableColor.fromHex(hex) {
+                    color = NSColor(srgbRed: c.red, green: c.green, blue: c.blue, alpha: c.alpha)
+                } else {
+                    color = NSColor.lightGray
+                }
+                // Размер шрифта — под рамку (WordArt масштабирует под шейп;
+                // приближаем: шрифт ~45% высоты рамки, но не крупнее ширины/длины).
+                var fontSize = max(10, frame.height * 0.45)
+                var font = NSFont.boldSystemFont(ofSize: fontSize)
+                var attrs: [NSAttributedString.Key: Any] = [
+                    .font: font,
+                    .foregroundColor: color.withAlphaComponent(0.45),
+                ]
+                var textSize = (text as NSString).size(withAttributes: attrs)
+                if textSize.width > frame.width, textSize.width > 0 {
+                    fontSize = max(8, fontSize * frame.width / textSize.width)
+                    font = NSFont.boldSystemFont(ofSize: fontSize)
+                    attrs[.font] = font
+                    textSize = (text as NSString).size(withAttributes: attrs)
+                }
+                NSGraphicsContext.current?.saveGraphicsState()
+                if wm.rotation != 0 {
+                    let t = NSAffineTransform()
+                    t.translateX(by: frame.midX, yBy: frame.midY)
+                    t.rotate(byDegrees: -wm.rotation)  // координаты NSTextView — перевёрнутые
+                    t.concat()
+                    (text as NSString).draw(
+                        at: NSPoint(x: -textSize.width / 2, y: -textSize.height / 2),
+                        withAttributes: attrs)
+                } else {
+                    (text as NSString).draw(
+                        at: NSPoint(x: frame.midX - textSize.width / 2,
+                                    y: frame.midY - textSize.height / 2),
+                        withAttributes: attrs)
+                }
+                NSGraphicsContext.current?.restoreGraphicsState()
+            }
+        }
+    }
 
     private func pageVariant(for pageNumber: Int) -> PageVariant {
         if differentFirstPage, pageNumber == 1 { return .firstPage }

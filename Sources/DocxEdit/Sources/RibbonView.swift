@@ -250,7 +250,7 @@ struct RibbonView: View {
             group("Редактирование") {
                 HStack(spacing: 2) {
                     btn("magnifyingglass",     "Найти (⌘F)")      { controller.showFindBar() }
-                    btn("arrow.left.arrow.right", "Заменить (⌥⌘F)") { controller.showReplaceBar() }
+                    btn("arrow.left.arrow.right", "Заменить (⇧⌘H)") { controller.showReplaceBar() }
                     btn("arrow.right.doc.on.clipboard", "Перейти к… (⌘⌥G)") { controller.showGoToDialog() }
                 }
             }

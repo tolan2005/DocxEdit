@@ -231,4 +231,97 @@ final class HeaderFooterPassthroughTests: XCTestCase {
         let back = try JSONDecoder().decode(DocumentModel.self, from: JSONEncoder().encode(model))
         XCTAssertEqual(back.preservedHeaderFooter["headerDefault"]?.images, def.images)
     }
+
+    // MARK: - v1.5.14: водяные знаки (VML w:pict в колонтитулах)
+    /// Собирает минимальный docx с header1.xml, содержащим заданный w:pict.
+    private func makeDocxWithWatermarkHeader(_ pict: String) throws -> Data {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("wm-\(UUID().uuidString).docx")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        guard let archive = Archive(url: tmp, accessMode: .create) else {
+            throw NSError(domain: "test", code: 1)
+        }
+        func add(_ path: String, _ content: String) throws {
+            let data = Data(content.utf8)
+            try archive.addEntry(with: path, type: .file,
+                                 uncompressedSize: Int64(data.count),
+                                 provider: { pos, size in
+                data.subdata(in: Int(pos)..<Int(pos)+size)
+            })
+        }
+        try add("[Content_Types].xml", """
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+            <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+            <Default Extension="xml" ContentType="application/xml"/>
+            <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+            <Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+            </Types>
+            """)
+        try add("_rels/.rels", """
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+            <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+            </Relationships>
+            """)
+        try add("word/_rels/document.xml.rels", """
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+            <Relationship Id="rIdH1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>
+            </Relationships>
+            """)
+        try add("word/document.xml", """
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+                        xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+            <w:body><w:p><w:r><w:t>Текст</w:t></w:r></w:p>
+            <w:sectPr><w:headerReference w:type="default" r:id="rIdH1"/></w:sectPr></w:body>
+            </w:document>
+            """)
+        try add("word/header1.xml", """
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+                   xmlns:v="urn:schemas-microsoft-com:vml"
+                   xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+            <w:p><w:r>\(pict)</w:r></w:p>
+            </w:hdr>
+            """)
+        return try Data(contentsOf: tmp)
+    }
+
+    /// WordArt-водяной знак (v:textpath) парсится с текстом/позицией/поворотом.
+    func testTextWatermarkParsed() throws {
+        let pict = """
+            <w:pict><v:shapetype id="_x0000_t136" coordsize="21600,21600" o:spt="136"
+             adj="10800" path="m@7,0l@8,0m@5,21600l@6,21600e">
+             <v:formulas></v:formulas></v:shapetype>
+            <v:shape id="PowerPlusWaterMarkObject1" o:spid="_x0000_s2049" type="#_x0000_t136"
+             style="position:absolute;margin-left:0;margin-top:0;width:468pt;height:117pt;rotation:315;z-index:-251654144"
+             fillcolor="#C0C0C0">
+             <v:textpath on="t" string="КОНФИДЕНЦИАЛЬНО" style="font-family:&quot;Calibri&quot;;font-size:1pt"/>
+            </v:shape></w:pict>
+            """
+        let (model, _) = try DocxIO.importDocxWithReport(
+            data: makeDocxWithWatermarkHeader(pict))
+        let def = try XCTUnwrap(model.preservedHeaderFooter["headerDefault"])
+        let wm = try XCTUnwrap(def.watermarks.first, "водяной знак не распознан")
+        XCTAssertEqual(wm.text, "КОНФИДЕНЦИАЛЬНО")
+        XCTAssertEqual(wm.rotation, 315)
+        XCTAssertEqual(wm.wPt, 468, accuracy: 0.1)
+        XCTAssertEqual(wm.hPt, 117, accuracy: 0.1)
+        XCTAssertEqual(wm.colorHex, "#C0C0C0")
+        // Passthrough: часть колонтитула пишется обратно как есть.
+        let out = try zipEntries(DocxIO.exportDocx(model))
+        let hdr = String(data: try XCTUnwrap(out["word/header1.xml"]), encoding: .utf8)!
+        XCTAssertTrue(hdr.contains("КОНФИДЕНЦИАЛЬНО"), hdr)
+    }
+
+    /// w:pict внутри mc:Fallback (VML-дубль текстбокса) — НЕ водяной знак.
+    func testFallbackPictNotWatermark() throws {
+        let (model, _) = try DocxIO.importDocxWithReport(data: fixture133)
+        for (slot, part) in model.preservedHeaderFooter {
+            XCTAssertTrue(part.watermarks.isEmpty,
+                          "fallback-VML в \(slot) не должен попадать в водяные знаки")
+        }
+    }
 }

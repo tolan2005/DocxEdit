@@ -129,18 +129,23 @@ public struct PreservedHFPart: Codable, Equatable, Sendable {
     /// v1.5.3: плавающие изображения (wp:anchor) с позициями — для отрисовки
     /// в редакторе (DocxTextView). Ссылки — через mediaName в `media`.
     public var images: [HFImage]
+    /// v1.5.14: водяные знаки (VML `<w:pict>`: WordArt-текст или картинка
+    /// `v:imagedata`) — для отрисовки в редакторе.
+    public var watermarks: [HFWatermark]
 
     public init(partName: String, xml: Data, relsXml: Data? = nil,
-                media: [String: Data] = [:], images: [HFImage] = []) {
+                media: [String: Data] = [:], images: [HFImage] = [],
+                watermarks: [HFWatermark] = []) {
         self.partName = partName
         self.xml = xml
         self.relsXml = relsXml
         self.media = media
         self.images = images
+        self.watermarks = watermarks
     }
 
     private enum CodingKeys: String, CodingKey {
-        case partName, xml, relsXml, media, images
+        case partName, xml, relsXml, media, images, watermarks
     }
 
     public init(from decoder: Decoder) throws {
@@ -150,6 +155,41 @@ public struct PreservedHFPart: Codable, Equatable, Sendable {
         relsXml = try c.decodeIfPresent(Data.self, forKey: .relsXml)
         media = try c.decodeIfPresent([String: Data].self, forKey: .media) ?? [:]
         images = try c.decodeIfPresent([HFImage].self, forKey: .images) ?? []
+        watermarks = try c.decodeIfPresent([HFWatermark].self, forKey: .watermarks) ?? []
+    }
+}
+
+/// v1.5.14: водяной знак (VML-шейп `<w:pict>` в header/footer-части).
+/// Word пишет watermark как WordArt `v:textpath` (серый повёрнутый текст)
+/// или как картинку `v:imagedata`. Позиция — pt от верхнего левого угла
+/// СТРАНИЦЫ (style margin-left/margin-top), размер — width/height (pt),
+/// rotation — градусы поворота (WordArt воды — обычно 315).
+public struct HFWatermark: Codable, Equatable, Sendable {
+    /// Текст WordArt-воды (nil для картинки).
+    public var text: String?
+    /// Картинка-вода: ключ в PreservedHFPart.media (nil для текста).
+    public var mediaName: String?
+    public var xPt: CGFloat
+    public var yPt: CGFloat
+    public var wPt: CGFloat
+    public var hPt: CGFloat
+    /// Поворот в градусах (0 — без поворота).
+    public var rotation: CGFloat
+    /// Цвет текста (#RRGGBB), nil → светло-серый.
+    public var colorHex: String?
+
+    public init(text: String? = nil, mediaName: String? = nil,
+                xPt: CGFloat = 0, yPt: CGFloat = 0,
+                wPt: CGFloat = 0, hPt: CGFloat = 0,
+                rotation: CGFloat = 0, colorHex: String? = nil) {
+        self.text = text
+        self.mediaName = mediaName
+        self.xPt = xPt
+        self.yPt = yPt
+        self.wPt = wPt
+        self.hPt = hPt
+        self.rotation = rotation
+        self.colorHex = colorHex
     }
 }
 
@@ -693,17 +733,41 @@ public struct InlineImage: Codable, Equatable, Sendable {
     /// Режим обтекания текстом. Пишется в DOCX как `<wp:anchor>` (для не-inline)
     /// или `<wp:inline>` (для .inline). См. `InlineImageWrap`.
     public var wrap: InlineImageWrap
+    /// v1.5.12: позиция плавающего якоря (wp:anchor): posOffset по горизонтали
+    /// от колонки текста и по вертикали от абзаца, в EMU (1 pt = 12700 EMU).
+    /// nil → 0. Имеет смысл только при wrap != .inline.
+    public var anchorXEMU: Int?
+    public var anchorYEMU: Int?
 
     public init(format: InlineImageFormat, data: Data,
                 displayWidth: CGFloat = 0, displayHeight: CGFloat = 0,
                 altText: String? = nil,
-                wrap: InlineImageWrap = .inline) {
+                wrap: InlineImageWrap = .inline,
+                anchorXEMU: Int? = nil, anchorYEMU: Int? = nil) {
         self.format = format
         self.data = data
         self.displayWidth = displayWidth
         self.displayHeight = displayHeight
         self.altText = altText
         self.wrap = wrap
+        self.anchorXEMU = anchorXEMU
+        self.anchorYEMU = anchorYEMU
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case format, data, displayWidth, displayHeight, altText, wrap, anchorXEMU, anchorYEMU
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        format = try c.decode(InlineImageFormat.self, forKey: .format)
+        data = try c.decode(Data.self, forKey: .data)
+        displayWidth = try c.decode(CGFloat.self, forKey: .displayWidth)
+        displayHeight = try c.decode(CGFloat.self, forKey: .displayHeight)
+        altText = try c.decodeIfPresent(String.self, forKey: .altText)
+        wrap = try c.decodeIfPresent(InlineImageWrap.self, forKey: .wrap) ?? .inline
+        anchorXEMU = try c.decodeIfPresent(Int.self, forKey: .anchorXEMU)
+        anchorYEMU = try c.decodeIfPresent(Int.self, forKey: .anchorYEMU)
     }
 }
 

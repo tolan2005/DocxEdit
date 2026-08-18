@@ -436,6 +436,39 @@ final class DocxRoundTripTests: XCTestCase {
         }
     }
 
+    // v1.5.12: позиция плавающего якоря (wp:anchor posOffset) переживает
+    // round-trip — и в XML пишется, и при импорте читается.
+    func testFloatingImageAnchorPositionSurvives() throws {
+        let pngBytes: [UInt8] = [
+            0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A,0x00,0x00,0x00,0x0D,0x49,0x48,0x44,0x52,
+            0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x01,0x08,0x06,0x00,0x00,0x00,0x1F,0x15,0xC4,
+            0x89,0x00,0x00,0x00,0x0D,0x49,0x44,0x41,0x54,0x78,0x9C,0x62,0x00,0x01,0x00,0x00,
+            0x05,0x00,0x01,0x0D,0x0A,0x2D,0xB4,0x00,0x00,0x00,0x00,0x49,0x45,0x4E,0x44,0xAE,
+            0x42,0x60,0x82
+        ]
+        // 72pt и 36pt в EMU.
+        let img = InlineImage(format: .png, data: Data(pngBytes),
+                              displayWidth: 100, displayHeight: 80, wrap: .square,
+                              anchorXEMU: 72 * 12700, anchorYEMU: 36 * 12700)
+        let run = Run(text: "\u{FFFC}", attributes: .init(), image: img)
+        let model = doc([.paragraph(Paragraph(runs: [run]))])
+        let data = try DocxIO.exportDocx(model)
+        let archive = try Archive(data: data, accessMode: .read)
+        var docData = Data()
+        if let e = archive["word/document.xml"] {
+            _ = try archive.extract(e) { docData.append($0) }
+        }
+        let xml = String(data: docData, encoding: .utf8)!
+        XCTAssertTrue(xml.contains("<wp:posOffset>\(72 * 12700)</wp:posOffset>"), xml)
+        XCTAssertTrue(xml.contains("<wp:posOffset>\(36 * 12700)</wp:posOffset>"))
+
+        let back = try DocxIO.importDocx(data: data)
+        let got = try XCTUnwrap(firstParagraph(back).runs.first { $0.image != nil }?.image)
+        XCTAssertEqual(got.anchorXEMU, 72 * 12700)
+        XCTAssertEqual(got.anchorYEMU, 36 * 12700)
+        XCTAssertEqual(got.wrap, .square)
+    }
+
     // Alt-текст изображения (v0.1.60).
     func testImageAltTextSurvives() throws {
         let pngBytes: [UInt8] = [

@@ -78,10 +78,10 @@
 - ~~P0: сложные поля `w:fldChar` (живой TOC/PAGEREF/SEQ); границы абзацев `w:pBdr`~~
   — **сделано в v1.5.5 (pBdr) и v1.5.6 (fldChar, одноабзацные)**. Многоабзацные
   поля (TOC без SDT) — как раньше, результат+отчёт.
-- P1: водяные знаки (VML `w:pict` в колонтитулах); плавающие картинки
-  `wp:anchor` + wrapSquare/Tight; ~~`mc:AlternateContent` fallback~~ —
-  **fallback сделан в v1.5.7** (картинка-превью из v:imagedata, текст
-  Fallback подавляется против дублей).
+- ~~P1: водяные знаки (VML `w:pict` в колонтитулах)~~ — **сделано в v1.5.14**
+  (парсинг v:textpath/v:imagedata + рендер на листах и при печати);
+  ~~`mc:AlternateContent` fallback~~ — **сделан в v1.5.7**; плавающие картинки
+  в теле — **сделано в v1.5.12** (рендер + обтекание + драг).
 - P2: концевые сноски endnotes; `w:start`/`lvlOverride` в нумерации; стили
   таблиц `w:tblStyle`; вертикальный текст в ячейках.
 - P3: OLE `w:object`; OMML `m:oMath`; буквица `framePr`; границы страницы `pgBorders`.

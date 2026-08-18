@@ -38,6 +38,11 @@ extension NSAttributedString.Key {
     /// v0.1.102: режим обтекания изображения (rawValue InlineImageWrap).
     /// Проставляется на U+FFFC вместе с `.attachment`.
     static let docxEditImageWrap = NSAttributedString.Key("docxEditImageWrap")
+    /// v1.5.12: позиция плавающего якоря — строка "xEMU,yEMU,wEMU,hEMU" (Int, EMU
+    /// от колонки/абзаца; размер — отображаемый). На U+FFFC рядом с
+    /// `.attachment` (при wrap != .inline). Размер дублируется, потому что
+    /// у плавающего аттачмента cell 1×1pt (реальный размер — у NSImageView).
+    static let docxEditImageAnchor = NSAttributedString.Key("docxEditImageAnchor")
     /// v0.2.4: имя закладки (String) на диапазоне (или 0-длина в позиции курсора).
     /// DOCX round-trip: `<w:bookmarkStart w:name="…"/>` перед и `<w:bookmarkEnd/>` после.
     static let docxEditBookmark = NSAttributedString.Key("docxEditBookmark")
@@ -75,9 +80,16 @@ func makeImageAttachment(from img: InlineImage) -> NSTextAttachment {
     let att = NSTextAttachment()
     if let ns = NSImage(data: img.data) {
         att.image = ns
-        let w = img.displayWidth > 0 ? img.displayWidth : ns.size.width
-        let h = img.displayHeight > 0 ? img.displayHeight : ns.size.height
-        att.bounds = NSRect(x: 0, y: 0, width: w, height: h)
+        // v1.5.12: плавающая картинка (wrap != .inline) не занимает места
+        // в тексте — рендерится отдельным NSImageView поверх/под текстом,
+        // а текст обтекает через exclusionPaths. Ячейка-якорь — 1pt.
+        if img.wrap != .inline {
+            att.bounds = NSRect(x: 0, y: 0, width: 1, height: 1)
+        } else {
+            let w = img.displayWidth > 0 ? img.displayWidth : ns.size.width
+            let h = img.displayHeight > 0 ? img.displayHeight : ns.size.height
+            att.bounds = NSRect(x: 0, y: 0, width: w, height: h)
+        }
     }
     return att
 }
@@ -731,6 +743,12 @@ extension DocumentModel {
                             }
                             if img.wrap != .inline {
                                 attrs[.docxEditImageWrap] = img.wrap.rawValue
+                                // v1.5.12: позиция плавающего якоря + размеры (EMU).
+                                if img.anchorXEMU != nil || img.anchorYEMU != nil {
+                                    let wEmu = Int(img.displayWidth * 12700)
+                                    let hEmu = Int(img.displayHeight * 12700)
+                                    attrs[.docxEditImageAnchor] = "\(img.anchorXEMU ?? 0),\(img.anchorYEMU ?? 0),\(wEmu),\(hEmu)"
+                                }
                             }
                             let att = makeImageAttachment(from: img)
                             let attStr = NSAttributedString(attachment: att)
@@ -961,6 +979,21 @@ extension DocumentModel {
                         if let raw = attrs[.docxEditImageWrap] as? String,
                            let w = InlineImageWrap(rawValue: raw) {
                             img.wrap = w
+                        }
+                        // v1.5.12: плавающий якорь "xEMU,yEMU,wEMU,hEMU"
+                        // (старый формат "x,y" тоже читаем).
+                        if let raw = attrs[.docxEditImageAnchor] as? String {
+                            let parts = raw.split(separator: ",")
+                            if parts.count >= 2 {
+                                img.anchorXEMU = Int(parts[0])
+                                img.anchorYEMU = Int(parts[1])
+                            }
+                            if parts.count >= 4,
+                               let wEmu = Int(parts[2]), let hEmu = Int(parts[3]),
+                               wEmu > 0, hEmu > 0 {
+                                img.displayWidth = CGFloat(wEmu) / 12700.0
+                                img.displayHeight = CGFloat(hEmu) / 12700.0
+                            }
                         }
                         runs.append(Run(text: text, attributes: charAttrs, image: img, hyperlink: hyperlink,
                                         commentId: commentId, insertion: insertion, deletion: deletion))
