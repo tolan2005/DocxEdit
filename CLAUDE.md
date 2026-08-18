@@ -21,7 +21,7 @@
 - **RTF:** Foundation `NSAttributedString`
 - **Markdown:** swift-markdown (cmark)
 - **Тесты (с v0.5.2, 184 теста, ~1.4 с):** XCTest, 5 таргетов — `DocxCoreTests` (модель/encoding/Codable/`EncodingEdgeTests`), `DocxIOTests` (DOCX round-trip, `DocxFuzzTests`, `R06RoundTripTests`, `UnicodeEdgeTests`, `RealDocxCorpusTests` с fixtures 21-24.docx), `RtfIOTests`, `MarkdownIOTests`, `DocxEditTests` (мост `BridgeRoundTripTests`, `PropertyBasedRoundTripTests` со SeededRNG, `BridgeSnapshotTests` через pointfreeco/swift-snapshot-testing). Snapshot-эталоны — в `Tests/DocxEditTests/__Snapshots__/`. Smoke-тест бандла — в `build.sh`.
-- **CI:** _план_ (GitHub Actions; пока не настроено, см. §7)
+- **CI:** GitHub Actions на приватном зеркале `tolan2005/DocxEdit-src` (см. §7)
 
 ## 3. Архитектурные решения (ADR)
 
@@ -469,7 +469,7 @@
 ## 7. Известные ограничения и технический долг
 
 - **Тестирование при релизе:** `release.sh` перед сборкой проверяет, что `AboutReleaseNotes.recent` содержит запись выпускаемой версии (шаг 0, добавлен в v0.1.24 — ручное обновление About забывалось в 0.1.22 и 0.1.23, оба раза баг дошёл до пользователя); гоняет `swift test` — **работает локально с 2026-07-13** после установки пользователем полного Xcode и `sudo xcode-select -s /Applications/Xcode.app/...`. Всего 36 тестов (12 DocxCoreTests + 4 DocxIOTests + 20 DocxRoundTripTests), проходят за ~90 мс. **Первый же прогон XCTest нашёл 2 бага**, невидимых 5 месяцев: (а) `Archive.Entry` — internal у ZIPFoundation, `DocxIOTests.swift` не компилировался (заменено на bool `hasEntry`); (б) **критический баг EncodingDetector с v0.1.0**: CP1251-кириллица определялась как UTF-16LE — эвристика `≥0x20` в `decodeAsUtf16WithoutBOM` ловила любую 8-битку. Тест `testEncodingDetector_Windows1251` существовал с v0.1.0, никогда не запускался. Фикс: переставить порядок в `EncodingDetector.detect` — сначала кириллические 8-битные (isCyrillic, доля кириллицы >30%), потом UTF-16 без BOM как fallback. `build.sh` всегда выполняет **smoke-тест бандла** (структура `.app`, валидность Info.plist через `plutil`, Mach-O/арх через `lipo`, соответствие версии; `codesign` — мягкая проверка).
-- **CI не активирован:** GitHub Actions конфиг существует, но пока тесты не запускаются автоматически на каждый коммит. Snapshot-тесты — реализованы (v0.5.2, `BridgeSnapshotTests`, эталоны в репо, precision 0.98). Property-based — реализованы (v0.5.2, `PropertyBasedRoundTripTests`, seedable `SeededRNG`).
+- **CI активирован (2026-08-18, v1.5.10+):** исходники живут в **приватном** репо `tolan2005/DocxEdit-src` (remote `src`; публичный `tolan2005/DocxEdit` по-прежнему README+Releases only — ветки с кодом в `origin` НЕ пушим, релизные теги release.sh пушит в `src`). GitHub Actions (`.github/workflows/ci.yml`): macos-14 + Xcode 15.4, `swift build -c release` + `swift test`, триггеры — push/PR/workflow_dispatch/расписание (пн 06:00 UTC). Известный квирк: push-триггер на свежем приватном репо не регистрировался (18.08.2026) — запуск через `gh workflow run CI --repo tolan2005/DocxEdit-src` или расписание. Первый же прогон поймал реальный баг переносимости: `String + DropFirstSequence` не компилируется на Swift 5.10 (локально Swift 6.3) — зафикшено. Нотаризация осознанно пропущена (нет платного Apple Developer аккаунта).
 - **DOCX round-trip:** поддерживаются базовые OOXML-элементы; таблицы, изображения, гиперссылки, сноски — в R03.
 - **RTF round-trip:** ограничен возможностями `NSAttributedString`.
 - **Markdown round-trip:** импорт полный (swift-markdown), экспорт минимальный.
