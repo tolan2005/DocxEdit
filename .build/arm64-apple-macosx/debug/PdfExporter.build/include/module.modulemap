@@ -1,3 +1,0 @@
-module PdfExporter {
-    header "/Users/ant/Documents/Claude/docx/.build/arm64-apple-macosx/debug/PdfExporter.build/include/PdfExporter-Swift.h"
-}

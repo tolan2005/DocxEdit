@@ -10,3 +10,4 @@ build/
 *.xcuserstate
 xcuserdata/
 test-output.log
+.build/
