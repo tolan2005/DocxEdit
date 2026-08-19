@@ -3,6 +3,18 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.6.3] — 2026-08-19 — Highlight Fix & UI Smoke
+
+### Изменения
+- Фикс подсветки MD-исходника (оффскрин-проверка): bold через NSFontDescriptor (SF Mono), italic через obliqueness
+- scripts/ui-smoke.sh — открытие корпусных документов живым .app без краша, шаг в release.sh (SKIP_UI_SMOKE=1 отключает)
+- +2 теста (292)
+
+### Артефакты
+- `build/v1.6.3/DocxEdit-1.6.3.dmg`
+- `build/v1.6.3/DocxEdit-1.6.3.app.zip`
+- `build/v1.6.3/SHA256SUMS`
+
 ## [1.6.2] — 2026-08-19 — Obsidian & Endnote UI
 
 ### Изменения
