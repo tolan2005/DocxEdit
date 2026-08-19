@@ -249,6 +249,9 @@ struct DocxEditApp: App {
                 Button("Линейка") { appDelegate.toggleRuler() }
                     .keyboardShortcut("r", modifiers: [.command, .option])
                     .disabled(appDelegate.isMarkdownMode)
+                Button("Исходный Markdown") { appDelegate.toggleMarkdownSourceMode() }
+                    .keyboardShortcut("/", modifiers: .command)
+                    .disabled(!appDelegate.isMarkdownMode)
                 Divider()
                 Menu("Панели") {
                     Button("Навигация")   { appDelegate.toggleNavigatorSidebar() }
@@ -428,10 +431,10 @@ struct DocxEditApp: App {
 /// (синхронно с §5 «История релизов» в CLAUDE.md).
 enum AboutReleaseNotes {
     static let recent: [(version: String, codename: String, summary: String)] = [
+        ("1.6.1", "Math & Drop Cap", "Бэклог DOCX (P3, завершён — форматный бэклог закрыт полностью P0–P3): **OMML-формулы** (`m:oMath`/`m:oMathPara`) — текст формулы больше не теряется при импорте (был: содержимое исчезало молча); живой round-trip в OMML не поддерживается — отметка в отчёте об открытии. **Буквица** (`w:framePr`) — атрибуты (dropCap/lines/wrap/якоря) переживают open→⌘S как карта атрибутов (в редакторе буквица не рисуется — ограничение, данные не теряются). Ранее закрыто в P3: границы страницы — passthrough sectPr-extras (v1.5.4), OLE-объекты — картинка-превью (v1.5.7) + passthrough бинарей (v1.5.2). +2 теста (287)."),
+        ("1.6.0", "MD Source Mode", "**Исходный режим Markdown** — долгожданная фича для MD-пользователей: переключатель «Исходник» в статусбаре (или меню Вид → «Исходный Markdown», ⌘/) открывает сырой .md-текст моноширинным шрифтом с подсветкой синтаксиса (заголовки, **жирный**, *курсив*, `код`, ссылки, цитаты, маркеры списков, HR, fenced-блоки). Источник истины в этом режиме — текст: ⌘S пишет его напрямую, модель синхронизируется best-effort на каждую правку (статистика/автосейв живые), возврат в WYSIWYG — мгновенный. Ribbon и боковые панели скрываются. Попутный фикс: `applyAttributed` терял endnotes и passthrough стилей таблиц при правке (латентный баг v1.5.15/1.5.17). +6 тестов (285)."),
+        ("1.5.18", "Find Highlight", "Расширенный поиск (⇧⌘F): **подсветка всех вхождений** — все совпадения подсвечиваются жёлтым прямо в документе (рисует DocxLayoutManager под текстом, storage не мутируется — в модель ничего не запекается, undo не затрагивается), тумблер «Подсветить все» (по умолчанию вкл); **счётчик «N из M»** — текущее совпадение из общего числа при навигации «Найти далее». Подсветка снимается при правке текста, очистке запроса и закрытии диалога."),
         ("1.5.17", "Table Style & Vertical Text", "Бэклог DOCX (P2, завершён): **именованные стили таблиц** (`w:tblStyle` — «Light Shading», «Table Grid» и др. сторонних файлов) — имя парсится в модель и пишется обратно, а определения стилей таблиц из styles.xml переживают экспорт целиком (passthrough) — Word/LibreOffice применят их как раньше. **Вертикальный текст в ячейках** (`w:textDirection`) — round-trip сохраняется; в редакторе пока рисуется горизонтально (известное ограничение рендера, данные не теряются). +2 теста (279). Бэклог формата P0–P2 закрыт полностью."),
-        ("1.5.16", "List Start", "Бэклог DOCX (P2): **стартовое значение нумерации** (`w:start` и перезапуск через `w:lvlOverride`/`w:startOverride`). Списки вида «5. 6. 7.» и перезапущенная нумерация теперь парсятся (`ListInfo.start`), считаются в редакторе с нужного числа (ListCounters) и пишутся обратно при ⌘S — раньше любой список начинался с 1. +1 тест (277)."),
-        ("1.5.15", "Endnotes", "Бэклог DOCX (P2): **концевые сноски**. Импорт `word/endnotes.xml` + маркеры `w:endnoteReference` в теле (раньше — только запись в отчёте об открытии, сноски были невидимы); в редакторе маркер — superscript римскими цифрами (конвенция Word); панель «Сноски» показывает секцию «Концевые сноски» с редактированием текста; экспорт пишет endnotes.xml + rels + Content_Types (только реально использованные); файл без ссылок на endnotes сохраняет оригинальную часть побайтово (passthrough). Создание концевых сносок в UI пока не добавлено — импорт/редактирование существующих. +2 теста (276)."),
-        ("1.5.14", "Watermarks", "Бэклог DOCX (P1, последний): **водяные знаки видны в редакторе**. WordArt-воды (`v:textpath` — «КОНФИДЕНЦИАЛЬНО», «КОПИЯ»…) и картинки-подложки (`v:imagedata`) парсятся из VML в частях колонтитулов (текст, позиция/размер из style, поворот, цвет fillcolor) и рисуются на каждом листе в «Виде страницы» + при печати — полупрозрачными, с поворотом, под текстом. mc:Fallback-участки исключены (VML-дубли текстбоксов не считаются водяными знаками). Сами части по-прежнему lossless-passthrough — вода переживает ⌘S побайтово. +2 теста (274). Бэклог формата P0/P1 закрыт полностью."),
     ]
 }
 
@@ -1042,6 +1045,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     func showImportReport()    { NotificationCenter.default.post(name: .docxEditShowImportReport, object: nil) }
     func toggleInvisibleCharacters() { NotificationCenter.default.post(name: .docxEditToggleInvisibles, object: nil) }
     func toggleRuler()               { NotificationCenter.default.post(name: .docxEditToggleRuler,      object: nil) }
+    /// v1.6.0: вход/выход из исходного MD-режима (напрямую в session текущего
+    /// окна — состояние пер-окно, шина не нужна).
+    func toggleMarkdownSourceMode() {
+        guard let session, session.mode == .markdown else { return }
+        if session.isMarkdownSourceMode { session.exitMarkdownSourceMode() }
+        else { session.enterMarkdownSourceMode() }
+    }
     func showRibbonCustomize()       { NotificationCenter.default.post(name: .docxEditShowRibbonCustomize, object: nil) }
     func toggleStylesSidebar()       { NotificationCenter.default.post(name: .docxEditToggleStylesSidebar, object: nil) }
     func toggleNavigatorSidebar()    { NotificationCenter.default.post(name: .docxEditToggleNavigatorSidebar, object: nil) }
@@ -1226,10 +1236,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             // v0.5.7 (R08): замер длительности save.
             let saveStart = Date()
             // v1.4.0 (ADR-049): формат сохранения — по режиму документа.
+            // v1.6.0: в исходном MD-режиме источник истины — сырой текст.
             switch session.mode {
             case .docx:     try DocxIO.exportDocx(session.bridge.model, to: url)
-            case .markdown: try MarkdownIO.exportMarkdown(session.bridge.model,
-                                prettyTables: AppPreferences.shared.markdownPrettyTables, to: url)
+            case .markdown:
+                if session.isMarkdownSourceMode {
+                    try session.markdownSource.write(to: url, atomically: true, encoding: .utf8)
+                } else {
+                    try MarkdownIO.exportMarkdown(session.bridge.model,
+                        prettyTables: AppPreferences.shared.markdownPrettyTables, to: url)
+                }
             }
             let saveMs = Date().timeIntervalSince(saveStart) * 1000.0
             let bytes = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
@@ -1264,7 +1280,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
                 switch format {
                 case .pdf:      try PdfExporter.exportToPDF(session.bridge.model, to: url)
                 case .docx:     try DocxIO.exportDocx(session.bridge.model, to: url)
-                case .markdown: try MarkdownIO.exportMarkdown(session.bridge.model, to: url)
+                case .markdown:
+                    if session.isMarkdownSourceMode {
+                        try session.markdownSource.write(to: url, atomically: true, encoding: .utf8)
+                    } else {
+                        try MarkdownIO.exportMarkdown(session.bridge.model, to: url)
+                    }
                 case .rtf:      try RtfIO.exportRTF(session.bridge.model, to: url)
                 case .txt:      try exportPlainText(session.bridge.model, to: url, encoding: selectedTxtEncoding)
                 case .odt:      try OdtIO.exportODT(session.bridge.model, to: url)

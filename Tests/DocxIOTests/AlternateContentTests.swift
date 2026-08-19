@@ -92,8 +92,7 @@ final class AlternateContentTests: XCTestCase {
     }
 
     /// SmartArt/диаграмма: в mc:Fallback лежит v:imagedata-превью → картинка.
-    func testFallbackImageExtracted() throws {
-        let body = """
+    func testFallbackImageExtracted() throws {        let body = """
             <w:p><w:r><mc:AlternateContent>
             <mc:Choice Requires="wps"><w:drawing><wp:inline><wp:extent cx="100" cy="100"/>
             <wpg:wgp xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup"/>
@@ -112,5 +111,23 @@ final class AlternateContentTests: XCTestCase {
         XCTAssertEqual(images.first.map { Double($0.displayWidth) } ?? 0, 93.65, accuracy: 0.01)
         XCTAssertEqual(images.first.map { Double($0.displayHeight) } ?? 0, 33.5, accuracy: 0.01)
         XCTAssertEqual(images.first?.format, .png)
+    }
+
+    /// v1.6.1: OMML-формула (m:oMath) — текст формулы импортируется, не теряется.
+    func testOmmlMathTextImported() throws {
+        let body = """
+            <w:p><w:r><w:t>Сумма: </w:t></w:r>
+            <m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">
+              <m:r><m:t>x+y=2</m:t></m:r>
+            </m:oMath>
+            </w:p>
+            """
+        let model = try DocxIO.importDocx(data: base(bodyXml: body))
+        let text = model.sections.flatMap { $0.blocks }.compactMap { block -> String? in
+            if case .paragraph(let p) = block { return p.runs.map(\.text).joined() }
+            return nil
+        }.joined()
+        XCTAssertTrue(text.contains("Сумма: "), text)
+        XCTAssertTrue(text.contains("x+y=2"), "текст формулы потерян: \(text)")
     }
 }

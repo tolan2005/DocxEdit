@@ -22,14 +22,25 @@ struct FindReplaceView: View {
     @State private var wholeWord: Bool = false
     @State private var statusMessage: String = ""
     @State private var matchCount: Int = 0
+    /// v1.5.18: подсветка всех вхождений в документе (рисует DocxLayoutManager).
+    @State private var highlightAll: Bool = true
 
     private var options: DocumentController.SearchOptions {
         DocumentController.SearchOptions(useRegex: useRegex, caseSensitive: caseSensitive, wholeWord: wholeWord)
     }
 
     private func refreshCount() {
-        guard !searchText.isEmpty else { matchCount = 0; return }
+        guard !searchText.isEmpty else {
+            matchCount = 0
+            controller.clearFindHighlights()
+            return
+        }
         matchCount = controller.countMatches(pattern: searchText, options: options)
+        if highlightAll {
+            controller.showFindHighlights(pattern: searchText, options: options)
+        } else {
+            controller.clearFindHighlights()
+        }
     }
 
     var body: some View {
@@ -49,10 +60,13 @@ struct FindReplaceView: View {
                 Toggle("Регулярное выражение", isOn: $useRegex)
                 Toggle("Учитывать регистр", isOn: $caseSensitive)
                 Toggle("Слово целиком", isOn: $wholeWord)
+                Toggle("Подсветить все", isOn: $highlightAll)
             }
             .toggleStyle(.checkbox)
             HStack {
-                Text(searchText.isEmpty ? " " : "Совпадений: \(matchCount)")
+                // v1.5.18: «3 из 17» — текущее совпадение среди всех.
+                let idxText = controller.findCurrentIndex.map { "\($0) из \(matchCount)" }
+                Text(searchText.isEmpty ? " " : "Совпадений: \(matchCount)" + (idxText.map { " — \($0)" } ?? ""))
                     .font(.caption)
                     .foregroundStyle(matchCount == 0 && !searchText.isEmpty ? .red : .secondary)
                 Spacer()
@@ -62,7 +76,10 @@ struct FindReplaceView: View {
             }
             HStack {
                 Spacer()
-                Button("Закрыть") { onClose() }
+                Button("Закрыть") {
+                    controller.clearFindHighlights()
+                    onClose()
+                }
                     .keyboardShortcut(.cancelAction)
                 Button("Заменить все") {
                     let n = controller.replaceAll(pattern: searchText, replacement: replaceText, options: options)
@@ -95,5 +112,7 @@ struct FindReplaceView: View {
         .onChange(of: useRegex)     { _ in refreshCount() }
         .onChange(of: caseSensitive){ _ in refreshCount() }
         .onChange(of: wholeWord)    { _ in refreshCount() }
+        .onChange(of: highlightAll) { _ in refreshCount() }
+        .onDisappear { controller.clearFindHighlights() }
     }
 }

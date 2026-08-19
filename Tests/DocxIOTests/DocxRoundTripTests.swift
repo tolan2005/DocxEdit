@@ -307,6 +307,30 @@ final class DocxRoundTripTests: XCTestCase {
         XCTAssertEqual(t.style.namedStyleId, "LightShading-Accent1")
     }
 
+    // v1.6.1: буквица (w:framePr) — атрибуты переживают round-trip.
+    func testFramePrSurvives() throws {
+        var pa = ParagraphAttributes()
+        pa.framePr = ["w:dropCap": "drop", "w:lines": "3", "w:wrap": "around",
+                      "w:vAnchor": "text", "w:hAnchor": "text"]
+        let model = doc([.paragraph(Paragraph(runs: [Run(text: "Буквица", attributes: .init())],
+                                              attributes: pa))])
+        let data = try DocxIO.exportDocx(model)
+        let archive = try Archive(data: data, accessMode: .read)
+        var docData = Data()
+        if let e = archive["word/document.xml"] {
+            _ = try archive.extract(e) { docData.append($0) }
+        }
+        let xml = String(data: docData, encoding: .utf8)!
+        XCTAssertTrue(xml.contains("<w:framePr"), xml)
+        XCTAssertTrue(xml.contains(#"w:dropCap="drop""#), xml)
+        XCTAssertTrue(xml.contains(#"w:lines="3""#), xml)
+
+        let back = try DocxIO.importDocx(data: data)
+        let fp = try XCTUnwrap(firstParagraph(back).attributes.framePr)
+        XCTAssertEqual(fp["w:dropCap"], "drop")
+        XCTAssertEqual(fp["w:lines"], "3")
+    }
+
     // MARK: - Таблицы
 
     func testTableSurvives() throws {

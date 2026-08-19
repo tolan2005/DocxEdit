@@ -1623,6 +1623,7 @@ final class DocumentController: ObservableObject {
             if let match = firstMatch(in: storage.string, pattern: pattern, options: options, range: searchRange) {
                 tv.setSelectedRange(match)
                 tv.scrollRangeToVisible(match)
+                updateFindCurrentIndex(pattern: pattern, options: options)
                 return true
             }
         }
@@ -1684,6 +1685,46 @@ final class DocumentController: ObservableObject {
         guard let storage = textView?.textStorage, !pattern.isEmpty else { return 0 }
         return allMatches(in: storage.string, pattern: pattern, options: options,
                           range: NSRange(location: 0, length: storage.length)).count
+    }
+
+    // MARK: - Подсветка всех вхождений (v1.5.18)
+
+    /// Индекс текущего выделения среди всех совпадений (для «3 из 17»).
+    /// nil — выделение не совпадает ни с одним вхождением.
+    @Published private(set) var findCurrentIndex: Int? = nil
+    /// Активна ли подсветка всех вхождений.
+    @Published private(set) var findHighlightsActive: Bool = false
+
+    /// Все диапазоны совпадений (порядок документа).
+    func matchRanges(pattern: String, options: SearchOptions) -> [NSRange] {
+        guard let storage = textView?.textStorage, !pattern.isEmpty else { return [] }
+        return allMatches(in: storage.string, pattern: pattern, options: options,
+                          range: NSRange(location: 0, length: storage.length))
+    }
+
+    /// Включает/обновляет подсветку всех вхождений (рисует DocxLayoutManager).
+    func showFindHighlights(pattern: String, options: SearchOptions) {
+        let ranges = matchRanges(pattern: pattern, options: options)
+        (textView?.layoutManager as? DocxLayoutManager)?.findHighlights = ranges
+        findHighlightsActive = !ranges.isEmpty
+        textView?.needsDisplay = true
+        updateFindCurrentIndex(pattern: pattern, options: options)
+    }
+
+    /// Снимает подсветку.
+    func clearFindHighlights() {
+        (textView?.layoutManager as? DocxLayoutManager)?.findHighlights = []
+        findHighlightsActive = false
+        findCurrentIndex = nil
+        textView?.needsDisplay = true
+    }
+
+    /// Индекс текущего выделения в списке совпадений.
+    private func updateFindCurrentIndex(pattern: String, options: SearchOptions) {
+        guard let tv = textView else { return }
+        let sel = tv.selectedRange()
+        let ranges = matchRanges(pattern: pattern, options: options)
+        findCurrentIndex = ranges.firstIndex(of: sel).map { $0 + 1 }
     }
 
     // Внутренние утилиты поиска.
@@ -3467,6 +3508,8 @@ final class DocumentController: ObservableObject {
     func userDidEdit(text: NSAttributedString) {
         session?.applyAttributed(text)
         textRevision &+= 1
+        // v1.5.18: правка сдвигает позиции — снимаем подсветку поиска.
+        if findHighlightsActive { clearFindHighlights() }
         refreshStatus()
         maybeAutoRefreshToc()
     }

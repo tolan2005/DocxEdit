@@ -868,6 +868,11 @@ public struct ParagraphAttributes: Codable, Equatable, Sendable {
     public var tabStops: [TabStop]
     /// v1.5.5: границы абзаца (w:pBdr); nil — без границ.
     public var border: ParagraphBorder?
+    /// v1.6.1: буквица / рамка абзаца (`w:framePr`) — карта атрибутов
+    /// (w:dropCap, w:lines, w:wrap, w:vAnchor, w:hAnchor, w:x, w:y, w:width,
+    /// w:height…). Round-trip без рендера (редактор не рисует буквицу —
+    /// известное ограничение; данные не теряются при open→⌘S).
+    public var framePr: [String: String]?
 
     public init(
         alignment: TextAlignment = .left,
@@ -881,7 +886,8 @@ public struct ParagraphAttributes: Codable, Equatable, Sendable {
         listInfo: ListInfo? = nil,
         styleId: String? = nil,
         tabStops: [TabStop] = [],
-        border: ParagraphBorder? = nil
+        border: ParagraphBorder? = nil,
+        framePr: [String: String]? = nil
     ) {
         self.alignment = alignment
         self.lineSpacing = lineSpacing
@@ -895,6 +901,7 @@ public struct ParagraphAttributes: Codable, Equatable, Sendable {
         self.styleId = styleId
         self.tabStops = tabStops
         self.border = border
+        self.framePr = framePr
     }
 
     // Совместимость с моделями без tabStops (автосейвы до v1.5.4).
@@ -912,6 +919,7 @@ public struct ParagraphAttributes: Codable, Equatable, Sendable {
         styleId = try c.decodeIfPresent(String.self, forKey: .styleId)
         tabStops = try c.decodeIfPresent([TabStop].self, forKey: .tabStops) ?? []
         border = try c.decodeIfPresent(ParagraphBorder.self, forKey: .border)
+        framePr = try c.decodeIfPresent([String: String].self, forKey: .framePr)
     }
 }
 

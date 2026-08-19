@@ -56,7 +56,8 @@ struct DocumentWindowView: View {
     var body: some View {
         VStack(spacing: 0) {
             // v0.4.3 (R06): режим «Чтение» скрывает ribbon.
-            if !controller.isReadingMode {
+            // v1.6.0: исходный MD-режим тоже (форматирование неприменимо к исходнику).
+            if !controller.isReadingMode && !session.isMarkdownSourceMode {
                 RibbonView(controller: controller, prefs: prefs, appDelegate: appDelegate, session: session)
                 Divider()
             }
@@ -68,20 +69,29 @@ struct DocumentWindowView: View {
                                          width: $controller.navigatorSidebarWidth)
                     SidebarResizer(width: $controller.navigatorSidebarWidth, leading: true)
                 }
+                // v1.6.0: исходный Markdown — вместо WYSIWYG-редактора.
+                if session.isMarkdownSourceMode {
+                    MarkdownSourceView(
+                        text: $session.markdownSource,
+                        onChange: { session.applyMarkdownSource($0) }
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
                 TextEditorRepresentable(controller: controller, session: session)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                if controller.showsStylesSidebar {
+                }
+                if controller.showsStylesSidebar && !session.isMarkdownSourceMode {
                     SidebarResizer(width: $controller.stylesSidebarWidth)
                     StylesSidebarView(controller: controller,
                                       width: $controller.stylesSidebarWidth)
                 }
-                if controller.showsCommentsSidebar {
+                if controller.showsCommentsSidebar && !session.isMarkdownSourceMode {
                     SidebarResizer(width: $controller.commentsSidebarWidth)
                     CommentsSidebarView(engine: controller.comments,
                                         width: $controller.commentsSidebarWidth,
                                         onClose: { controller.toggleCommentsSidebar() })
                 }
-                if controller.showsFootnotesSidebar {
+                if controller.showsFootnotesSidebar && !session.isMarkdownSourceMode {
                     SidebarResizer(width: $controller.footnotesSidebarWidth)
                     FootnotesSidebarView(controller: controller,
                                          width: $controller.footnotesSidebarWidth)
@@ -381,6 +391,22 @@ struct StatusBar: View {
             LanguageIndicator(controller: controller)
             Divider().frame(height: 12)
             ModeIndicator(session: session)
+            // v1.6.0: исходный Markdown (только в MD-режиме) — ⌘/.
+            if session.mode == .markdown {
+                Divider().frame(height: 12)
+                Button {
+                    if session.isMarkdownSourceMode { session.exitMarkdownSourceMode() }
+                    else { session.enterMarkdownSourceMode() }
+                } label: {
+                    Image(systemName: session.isMarkdownSourceMode ? "doc.richtext" : "chevron.left.forwardslash.chevron.right")
+                        .font(.system(size: 10))
+                        .foregroundStyle(session.isMarkdownSourceMode ? Color.accentColor : Color.secondary)
+                        .frame(width: 22, height: 16)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(session.isMarkdownSourceMode ? "Визуальный режим (⌘/)" : "Исходный Markdown (⌘/)")
+            }
             Spacer()
             // v0.4.6 (R06): индикатор track-changes в статусбаре.
             if trackChanges.isRecording {
@@ -578,6 +604,8 @@ private struct ModeIndicator: View {
             alert.addButton(withTitle: "Отмена")
             guard alert.runModal() == .alertFirstButtonReturn else { return }
         }
+        // v1.6.0: выходим из исходного режима при смене формата.
+        if session.isMarkdownSourceMode { session.exitMarkdownSourceMode() }
         session.mode = m
     }
 }
@@ -2708,7 +2736,29 @@ final class DocxLayoutManager: NSLayoutManager {
     /// тофу/«0»), и наши маркеры оказывались поверх системных.
     var showsCustomInvisibles: Bool = false
 
+    /// v1.5.18: подсветка всех вхождений поиска — char-диапазоны в storage.
+    /// Рисуется ПОД текстом (до super.drawGlyphs), storage не мутируется —
+    /// в модель ничего не «запекается» (в отличие от временного backgroundColor).
+    var findHighlights: [NSRange] = []
+
     override func drawGlyphs(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
+        // Подсветка поиска — под глифами.
+        if !findHighlights.isEmpty, let storage = textStorage,
+           let container = textContainers.first {
+            let charRange = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
+            NSColor.systemYellow.withAlphaComponent(0.4).setFill()
+            for hl in findHighlights {
+                let inter = NSIntersectionRange(hl, charRange)
+                guard inter.length > 0, inter.location < storage.length else { continue }
+                let gr = glyphRange(forCharacterRange: inter, actualCharacterRange: nil)
+                let box = boundingRect(forGlyphRange: gr, in: container)
+                    .offsetBy(dx: origin.x, dy: origin.y)
+                if !box.isNull, !box.isEmpty {
+                    NSBezierPath(roundedRect: box.insetBy(dx: -1, dy: 0),
+                                 xRadius: 2, yRadius: 2).fill()
+                }
+            }
+        }
         super.drawGlyphs(forGlyphRange: glyphsToShow, at: origin)
         guard let storage = textStorage, storage.length > 0 else { return }
 

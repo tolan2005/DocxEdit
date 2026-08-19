@@ -18,6 +18,8 @@ extension NSAttributedString.Key {
     /// v1.5.5: границы абзаца (значение — `ParagraphBorder` из DocxCore).
     /// Рисуется DocxLayoutManager (TextKit 1 не имеет pBdr).
     static let docxEditParagraphBorder = NSAttributedString.Key("docxEditParagraphBorder")
+    /// v1.6.1: буквица/рамка абзаца ([String: String], w:framePr attrs).
+    static let docxEditFramePr = NSAttributedString.Key("docxEditFramePr")
     /// v1.5.6: инструкция сложного поля (String) на первом ране результата.
     static let docxEditFieldInstr = NSAttributedString.Key("docxEditFieldInstr")
     /// Хранится на символах, к которым применён символьный стиль (Strong/Emphasis/CodeChar).
@@ -738,6 +740,7 @@ extension DocumentModel {
                         attrs[.paragraphStyle] = paraStyle
                         if let sid = p.attributes.styleId { attrs[.docxEditStyleId] = sid }
                         if let b = p.attributes.border, !b.isEmpty { attrs[.docxEditParagraphBorder] = b }
+                        if let fp = p.attributes.framePr, !fp.isEmpty { attrs[.docxEditFramePr] = fp }
                         // v1.4.2 (ADR-049): горизонтальная линия — пустой абзац
                         // не несёт ни одного символа, атрибуту styleId не на чём
                         // «висеть» (пропадал при from(attributed:)), да и высоты
@@ -754,6 +757,7 @@ extension DocumentModel {
                             attrs[.paragraphStyle] = paraStyle
                             if let sid = p.attributes.styleId { attrs[.docxEditStyleId] = sid }
                             if let b = p.attributes.border, !b.isEmpty { attrs[.docxEditParagraphBorder] = b }
+                        if let fp = p.attributes.framePr, !fp.isEmpty { attrs[.docxEditFramePr] = fp }
                             if let url = run.hyperlink { attrs[.link] = url }
                             if let cid = run.commentId { attrs[.docxEditCommentId] = cid }
                             if let alt = img.altText, !alt.isEmpty {
@@ -810,6 +814,7 @@ extension DocumentModel {
                         attrs[.paragraphStyle] = paraStyle
                         if let sid = p.attributes.styleId { attrs[.docxEditStyleId] = sid }
                         if let b = p.attributes.border, !b.isEmpty { attrs[.docxEditParagraphBorder] = b }
+                        if let fp = p.attributes.framePr, !fp.isEmpty { attrs[.docxEditFramePr] = fp }
                         if let csid = run.attributes.styleId { attrs[.docxEditCharStyleId] = csid }
                         if let fi = run.fieldInstr { attrs[.docxEditFieldInstr] = fi }
                         if let cid = run.commentId { attrs[.docxEditCommentId] = cid }
@@ -896,6 +901,10 @@ extension DocumentModel {
             // v1.5.5: границы абзаца обратно в модель.
             if let b = attributed.attribute(.docxEditParagraphBorder, at: loc, effectiveRange: nil) as? ParagraphBorder {
                 attrs.border = b
+            }
+            // v1.6.1: буквица/рамка абзаца обратно в модель.
+            if let fp = attributed.attribute(.docxEditFramePr, at: loc, effectiveRange: nil) as? [String: String] {
+                attrs.framePr = fp
             }
             return attrs
         }

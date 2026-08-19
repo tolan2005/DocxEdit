@@ -92,6 +92,20 @@ extension NSDocumentBridge {
 
     var headerFooter: HeaderFooter { model.headerFooter }
 
+    // MARK: - Замена модели целиком (v1.6.0, MD source-режим)
+
+    /// Заменяет модель (реимпорт из Markdown-исходника). Метаданные/настройки
+    /// страницы/стили переносятся — из Markdown они не восстанавливаются.
+    func replaceModel(_ new: DocumentModel) {
+        var m = new
+        m.metadata = model.metadata
+        m.pageSettings = model.pageSettings
+        m.styles = model.styles
+        m.headerFooter = model.headerFooter
+        model = m
+        isDirty = true
+    }
+
     // MARK: - Сноски (v0.5.3, R07)
 
     /// Добавляет новую сноску. id должен быть уникальным (не пересекаться

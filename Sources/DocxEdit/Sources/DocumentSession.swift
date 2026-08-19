@@ -10,6 +10,7 @@ import Foundation
 import SwiftUI
 import AppKit
 import DocxCore
+import MarkdownIO
 
 @MainActor
 final class DocumentSession: ObservableObject {
@@ -20,6 +21,40 @@ final class DocumentSession: ObservableObject {
     /// расширением при открытии; для нового документа — из настроек.
     /// Влияет на формат сохранения по умолчанию и набор инструментов (v1.4.1).
     @Published var mode: DocumentMode
+
+    /// v1.6.0: исходный режим Markdown — редактирование сырого .md текста
+    /// с подсветкой синтаксиса (только при mode == .markdown). Источник истины
+    /// в этом режиме — `markdownSource`; модель синхронизируется на каждую
+    /// правку (для статистики/автосейва) и при выходе в WYSIWYG.
+    @Published var isMarkdownSourceMode: Bool = false
+    @Published var markdownSource: String = ""
+
+    /// Войти в исходный режим: экспорт текущей модели в Markdown.
+    func enterMarkdownSourceMode() {
+        guard mode == .markdown else { return }
+        markdownSource = MarkdownIO.exportMarkdown(bridge.model,
+                                                   prettyTables: AppPreferences.shared.markdownPrettyTables)
+        isMarkdownSourceMode = true
+    }
+
+    /// Правка исходника: текст + best-effort синхронизация модели
+    /// (swift-markdown отказоустойчив к недописанному синтаксису).
+    func applyMarkdownSource(_ text: String) {
+        markdownSource = text
+        if let model = try? MarkdownIO.importMarkdown(string: text) {
+            bridge.replaceModel(model)
+        }
+        markDirty()
+    }
+
+    /// Выйти в WYSIWYG: перестроить attributedText из модели.
+    func exitMarkdownSourceMode() {
+        isMarkdownSourceMode = false
+        attributedText = bridge.model.toAttributedString(
+            defaultFont: preferredDefaultFont(),
+            fallbackFontName: AppPreferences.shared.favoriteFonts.first,
+            usableWidth: bridge.model.pageSettings.usableWidthInPoints)
+    }
 
     /// Полное NSAttributedString-представление текущей модели.
     /// Используется NSTextView через textStorage; обновляется при open/reset/import.
@@ -92,6 +127,9 @@ final class DocumentSession: ObservableObject {
     /// Заменяет документ целиком (при open / new). Пересчитывает attributedText.
     func replace(with bridge: NSDocumentBridge) {
         self.bridge = bridge
+        // v1.6.0: открытие/создание документа — всегда в визуальном режиме.
+        isMarkdownSourceMode = false
+        markdownSource = ""
         self.attributedText = bridge.model.toAttributedString(
             defaultFont: preferredDefaultFont(),
             fallbackFontName: AppPreferences.shared.favoriteFonts.first,
@@ -102,6 +140,8 @@ final class DocumentSession: ObservableObject {
     func reset() {
         self.bridge = .empty
         self.mode = AppPreferences.shared.newDocumentMode
+        isMarkdownSourceMode = false
+        markdownSource = ""
         self.attributedText = bridge.model.toAttributedString(
             defaultFont: preferredDefaultFont(),
             fallbackFontName: AppPreferences.shared.favoriteFonts.first,
@@ -137,6 +177,10 @@ final class DocumentSession: ObservableObject {
         // (footnoteId на ранах — да, но тексты — отдельная область модели),
         // поэтому переносим их вручную, как и другие метаданные.
         newModel.footnotes    = bridge.model.footnotes
+        // v1.5.15/1.5.17: концевые сноски и passthrough стилей таблиц тоже
+        // переживают пересборку (были потеряны при первой правке — латентный баг).
+        newModel.endnotes     = bridge.model.endnotes
+        newModel.preservedTableStylesXml = bridge.model.preservedTableStylesXml
         let newBridge = NSDocumentBridge(model: newModel, fileURL: bridge.fileURL)
         newBridge.isDirty = true
         self.bridge = newBridge

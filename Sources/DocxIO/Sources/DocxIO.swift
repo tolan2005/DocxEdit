@@ -611,6 +611,8 @@ private struct ParaProps {
     var listInfo: ListInfo?   = nil
     var tabStops: [TabStop]?  = nil
     var border: ParagraphBorder? = nil
+    /// v1.6.1: буквица/рамка абзаца (w:framePr) — карта атрибутов.
+    var framePr: [String: String]? = nil
 
     func apply(to base: ParagraphAttributes) -> ParagraphAttributes {
         var r = base
@@ -626,6 +628,7 @@ private struct ParaProps {
         if let v = listInfo        { r.listInfo        = v }
         if let v = tabStops        { r.tabStops        = v }
         if let v = border          { r.border          = v }
+        if let v = framePr         { r.framePr         = v }
         return r
     }
 }
@@ -1336,6 +1339,13 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
     private var inInstrText = false
     private var pendingFieldInstr: String? = nil
 
+    /// v1.6.1: OMML-формулы (m:oMath/m:oMathPara). Импортируем текст формулы
+    /// (m:t) как обычный текст — раньше содержимое формул терялось целиком.
+    /// Живой round-trip формул (обратно в OMML) не поддерживается: в отчёте
+    /// об открытии — запись (уже была).
+    private var mathDepth = 0
+    private var mathBuffer = ""
+
     /// v0.5.5 (R07): активная перекрёстная ссылка от `<w:fldSimple w:instr=" REF X \h ">`.
     /// Присваивается всем runs внутри fldSimple; сбрасывается на закрывающем теге.
     private var activeCrossRef: String? = nil
@@ -1375,7 +1385,8 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
         // в модели (`InlineImage.wrap`); ограничение — редактор пока рендерит все
         // режимы как inline (реальный anchored-layout — задача R04).
         add("w:pict",          "Legacy-объекты (VML)",  "Старый формат Word (VML/OLE). Не рендерится в редакторе.")
-        add("w:object",        "Legacy-объекты (OLE)",  "Встроенный OLE-объект (Excel-лист, формула и т.п.). Не поддерживается.")
+        add("w:object",        "Legacy-объекты (OLE)",  "Встроенный OLE-объект (Excel-лист, формула и т.п.). Импортируется картинка-превью; редактирование объекта недоступно.")
+        add("m:oMath",         "Формулы (OMML)",        "Формула Office Math — импортирована как обычный текст (обратно в формулу при сохранении не превращается).")
         add("w:sdt",           "Content Controls",      "Структурированные элементы (шаблонные поля). Содержимое импортируется как текст, оболочка теряется.")
         // v0.5.2 (R07): w:footnoteReference теперь поддерживается — не отчитываем.
         // v1.5.15: w:endnoteReference поддержан — импорт/экспорт word/endnotes.xml.
@@ -1479,6 +1490,10 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
 
         case "w:pBdr":
             if inParaProperties { inPBdr = true }
+
+        case "w:framePr":
+            // v1.6.1: буквица/рамка абзаца — сохраняем атрибуты как есть.
+            if inParaProperties { currentDirectParaProps.framePr = a }
 
         case "w:gridCol":
             if let wStr = a["w:w"], let w = Double(wStr) {
@@ -1877,6 +1892,13 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
         case "w:instrText":
             if fieldDepth > 0 { inInstrText = true }
 
+        // v1.6.1: OMML-формула. Считаем один раз на блок (outer-элемент).
+        case "m:oMath", "m:oMathPara":
+            if mathDepth == 0 { note("m:oMath"); mathBuffer = "" }
+            mathDepth += 1
+        case "m:t":
+            break  // текст формулы — в foundCharacters по mathDepth
+
         case "wp:anchor", "w:pict", "w:object",
              "mc:AlternateContent":
             note(el)
@@ -1946,6 +1968,31 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
         switch el {
         case "mc:Fallback":
             mcFallbackDepth = max(0, mcFallbackDepth - 1)
+
+        // v1.6.1: закрытие OMML. Блочная формула (oMathPara) — отдельным
+        // абзацем; строчная (oMath на верхнем уровне) — раном в текущем абзаце.
+        case "m:oMathPara":
+            mathDepth = 0
+            let text = mathBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !text.isEmpty {
+                appendBlock(.paragraph(Paragraph(
+                    runs: [Run(text: text, attributes: buildCharAttrs())],
+                    attributes: currentParagraphAttributes())))
+            }
+            mathBuffer = ""
+        case "m:oMath":
+            mathDepth = max(0, mathDepth - 1)
+            if mathDepth == 0 {
+                let text = mathBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !text.isEmpty {
+                    if currentParagraph == nil {
+                        currentParagraph = Paragraph(runs: [], attributes: currentParagraphAttributes())
+                    }
+                    currentParagraph?.runs.append(
+                        Run(text: text, attributes: buildCharAttrs()))
+                }
+                mathBuffer = ""
+            }
 
         case "wp:posOffset":
             if inPosOffset {
@@ -2179,6 +2226,8 @@ private final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
     }
 
     func parser(_ p: XMLParser, foundCharacters string: String) {
+        // v1.6.1: текст OMML-формулы (m:t внутри m:oMath[Para]).
+        if mathDepth > 0 { mathBuffer += string }
         // v1.5.12: значение wp:posOffset (позиция якоря плавающей картинки).
         if inPosOffset { anchorPosBuffer += string }
         // Fix #3: собираем текст только внутри <w:t>
@@ -2852,6 +2901,24 @@ private final class OoxmlDocumentSerializer {
     private func renderParagraphProperties(_ attrs: ParagraphAttributes, numId: Int) -> String {
         var s = "<w:pPr>"
         if let sid = attrs.styleId { s += "<w:pStyle w:val=\"\(escapeXml(sid))\"/>" }
+        // v1.6.1: буквица/рамка абзаца (атрибуты как карта, round-trip).
+        if let fp = attrs.framePr, !fp.isEmpty {
+            // Детерминированный порядок: типичные атрибуты framePr первыми.
+            let knownOrder = ["w:dropCap", "w:lines", "w:wrap", "w:vAnchor",
+                              "w:hAnchor", "w:hSpace", "w:vSpace", "w:hRule",
+                              "w:x", "w:y", "w:width", "w:height",
+                              "w:xAlign", "w:yAlign", "w:anchorLock"]
+            var fpS = "<w:framePr"
+            var emitted: Set<String> = []
+            for k in knownOrder {
+                if let v = fp[k] { fpS += " \(k)=\"\(escapeXml(v))\""; emitted.insert(k) }
+            }
+            for k in fp.keys.sorted() where !emitted.contains(k) {
+                fpS += " \(k)=\"\(escapeXml(fp[k]!))\""
+            }
+            fpS += "/>"
+            s += fpS
+        }
         switch attrs.alignment {
         case .left:    s += "<w:jc w:val=\"left\"/>"
         case .center:  s += "<w:jc w:val=\"center\"/>"
