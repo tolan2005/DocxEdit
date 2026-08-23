@@ -16,8 +16,31 @@ public enum MarkdownIO {
 
     // MARK: - Импорт
 
+    /// Префикс wiki-ссылки Obsidian в `Run.hyperlink`: "wiki:Target"
+    /// (при экспорте рендерится обратно как `[[Target]]` / `[[Target|label]]`).
+    public static let wikiLinkPrefix = "wiki:"
+
     public static func importMarkdown(string: String) throws -> DocumentModel {
-        let document = Document(parsing: string, options: .init())
+        // v1.6.2: YAML front-matter (--- \n key: value… \n ---) в начале файла —
+        // снимаем перед парсингом, сохраняем сырым в модель (passthrough
+        // при экспорте; редактирования в UI нет).
+        var yaml: String? = nil
+        var body = string
+        if string.hasPrefix("---\n") || string.hasPrefix("---\r\n") {
+            let nl = string.hasPrefix("---\r\n") ? "\r\n" : "\n"
+            let rest = String(string.dropFirst(3 + nl.count))
+            // Закрывающая строка --- на своей строке.
+            if let closeRange = rest.range(of: "\n---\(nl)") ?? rest.range(of: "\n---\n") {
+                yaml = String(rest[..<closeRange.lowerBound])
+                body = String(rest[closeRange.upperBound...])
+            }
+        }
+        // v1.6.2: wiki-ссылки Obsidian [[Target]] / [[Target|Label]] → markdown
+        // [Label](wiki:Target). swift-markdown их не знает (останутся текстом).
+        // Пропускаем строки внутри fenced code-блоков.
+        body = rewriteWikiLinks(body)
+
+        let document = Document(parsing: body, options: .init())
         var blocks: [Block] = []
 
         for child in document.children {
@@ -27,7 +50,35 @@ public enum MarkdownIO {
         if blocks.isEmpty {
             blocks.append(.paragraph(.empty))
         }
-        return DocumentModel(sections: [DocumentSection(blocks: blocks)])
+        var model = DocumentModel(sections: [DocumentSection(blocks: blocks)])
+        model.yamlFrontMatter = yaml
+        return model
+    }
+
+    /// [[Target]] / [[Target|Label]] → [Label](wiki:Target), вне code fences.
+    private static func rewriteWikiLinks(_ s: String) -> String {
+        guard let re = try? NSRegularExpression(
+            pattern: #"\[\[([^\]\|]+)(?:\|([^\]]+))?\]"#) else { return s }
+        var out: [String] = []
+        var inFence = false
+        for line in s.components(separatedBy: "\n") {
+            if line.hasPrefix("```") { inFence.toggle(); out.append(line); continue }
+            guard !inFence else { out.append(line); continue }
+            let ns = line as NSString
+            var result = ""
+            var last = 0
+            for m in re.matches(in: line, range: NSRange(location: 0, length: ns.length)) {
+                result += ns.substring(with: NSRange(location: last, length: m.range.location - last))
+                let target = ns.substring(with: m.range(at: 1))
+                let label = m.range(at: 2).location != NSNotFound
+                    ? ns.substring(with: m.range(at: 2)) : target
+                result += "[\(label)](\(wikiLinkPrefix)\(target))"
+                last = m.range.upperBound
+            }
+            result += ns.substring(from: last)
+            out.append(result)
+        }
+        return out.joined(separator: "\n")
     }
 
     public static func importMarkdown(url: URL) throws -> DocumentModel {
@@ -192,7 +243,12 @@ public enum MarkdownIO {
                 collapsed.append(line)
             }
         }
-        return collapsed.joined(separator: "\n").trimmingCharacters(in: .newlines) + "\n"
+        var result = collapsed.joined(separator: "\n").trimmingCharacters(in: .newlines) + "\n"
+        // v1.6.2: YAML front-matter — обратно в начало файла.
+        if let yaml = document.yamlFrontMatter, !yaml.isEmpty {
+            result = "---\n\(yaml)\n---\n\n" + result
+        }
+        return result
     }
 
     public static func exportMarkdown(_ document: DocumentModel, to url: URL) throws {
@@ -395,8 +451,14 @@ public enum MarkdownIO {
             if a.`subscript`         { marked = "<sub>\(marked)</sub>" }
         }
         if let url = run.hyperlink, !url.isEmpty {
-            let escapedUrl = url.replacingOccurrences(of: ")", with: "%29")
-            marked = "[\(marked)](\(escapedUrl))"
+            // v1.6.2: wiki-ссылка Obsidian — обратно в [[Target]] / [[Target|label]].
+            if url.hasPrefix(wikiLinkPrefix) {
+                let target = String(url.dropFirst(wikiLinkPrefix.count))
+                marked = (marked == target) ? "[[\(target)]]" : "[[\(target)|\(marked)]]"
+            } else {
+                let escapedUrl = url.replacingOccurrences(of: ")", with: "%29")
+                marked = "[\(marked)](\(escapedUrl))"
+            }
         }
         return marked
     }

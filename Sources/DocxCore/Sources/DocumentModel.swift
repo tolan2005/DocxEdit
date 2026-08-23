@@ -36,6 +36,11 @@ public struct DocumentModel: Codable, Equatable, Sendable {
     /// но Word/LibreOffice применит (рамки/заливки стилей таблиц не теряются).
     public var preservedTableStylesXml: String?
 
+    /// v1.6.2: YAML front-matter Markdown-документа (содержимое между `---`
+    /// разделителями, без них). Passthrough: пишется обратно при экспорте .md;
+    /// редактирования в UI нет.
+    public var yamlFrontMatter: String?
+
     /// v1.5.1 (DESIGN_HEADER_FOOTER.md): сырые части колонтитулов из исходного
     /// пакета — lossless passthrough при экспорте, если колонтитул не
     /// редактировался (`headerFooterEdited == false`). Ключ — слот:
@@ -88,7 +93,8 @@ public struct DocumentModel: Codable, Equatable, Sendable {
         preservedContentTypes: [String: String] = [:],
         preservedSettingsXml: Data? = nil,
         preservedSectPrExtras: String? = nil,
-        preservedTableStylesXml: String? = nil
+        preservedTableStylesXml: String? = nil,
+        yamlFrontMatter: String? = nil
     ) {
         self.metadata = metadata
         self.pageSettings = pageSettings
@@ -105,6 +111,7 @@ public struct DocumentModel: Codable, Equatable, Sendable {
         self.preservedSettingsXml = preservedSettingsXml
         self.preservedSectPrExtras = preservedSectPrExtras
         self.preservedTableStylesXml = preservedTableStylesXml
+        self.yamlFrontMatter = yamlFrontMatter
     }
 
     // Совместимость декодирования старых моделей без headerFooter/comments/footnotes.
@@ -125,6 +132,7 @@ public struct DocumentModel: Codable, Equatable, Sendable {
         preservedSettingsXml = try c.decodeIfPresent(Data.self, forKey: .preservedSettingsXml)
         preservedSectPrExtras = try c.decodeIfPresent(String.self, forKey: .preservedSectPrExtras)
         preservedTableStylesXml = try c.decodeIfPresent(String.self, forKey: .preservedTableStylesXml)
+        yamlFrontMatter = try c.decodeIfPresent(String.self, forKey: .yamlFrontMatter)
     }
 }
 

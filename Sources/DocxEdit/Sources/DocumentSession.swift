@@ -181,6 +181,8 @@ final class DocumentSession: ObservableObject {
         // переживают пересборку (были потеряны при первой правке — латентный баг).
         newModel.endnotes     = bridge.model.endnotes
         newModel.preservedTableStylesXml = bridge.model.preservedTableStylesXml
+        // v1.6.2: YAML front-matter тоже переживает пересборку из attributed.
+        newModel.yamlFrontMatter = bridge.model.yamlFrontMatter
         let newBridge = NSDocumentBridge(model: newModel, fileURL: bridge.fileURL)
         newBridge.isDirty = true
         self.bridge = newBridge

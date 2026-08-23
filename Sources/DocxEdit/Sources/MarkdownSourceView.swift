@@ -34,9 +34,7 @@ enum MarkdownSyntaxHighlighter {
         apply(#"(?m)^(#{1,6})(\s.*)$"#, in: storage, text: text) { m, _ in
             storage.addAttribute(.foregroundColor, value: NSColor.systemBlue,
                                  range: m.range(at: 1))
-            if let f = NSFontManager.shared.convert(baseFont, toHaveTrait: .boldFontMask) as NSFont? {
-                storage.addAttribute(.font, value: f, range: m.range)
-            }
+            storage.addAttribute(.font, value: fontWithTraits(baseFont, [.bold]), range: m.range)
         }
 
         // Fenced code blocks (```…```) — весь блок.
@@ -69,14 +67,13 @@ enum MarkdownSyntaxHighlighter {
 
         // **жирный** и *курсив*.
         apply(#"\*\*[^*\n]+\*\*"#, in: storage, text: text) { m, _ in
-            if let f = NSFontManager.shared.convert(baseFont, toHaveTrait: .boldFontMask) as NSFont? {
-                storage.addAttribute(.font, value: f, range: m.range)
-            }
+            storage.addAttribute(.font, value: fontWithTraits(baseFont, [.bold]), range: m.range)
         }
         apply(#"(?<!\*)\*[^*\n]+\*(?!\*)"#, in: storage, text: text) { m, _ in
-            if let f = NSFontManager.shared.convert(baseFont, toHaveTrait: .italicFontMask) as NSFont? {
-                storage.addAttribute(.font, value: f, range: m.range)
-            }
+            // У моноширинных шрифтов (SF Mono/Menlo) нет italic-начертания —
+            // descriptor-trait молча не применяется. Используем obliqueness
+            // (синтетический наклон), как делают редакторы кода.
+            storage.addAttribute(.obliqueness, value: 0.18, range: m.range)
         }
 
         // ~~зачёркнутый~~.
@@ -102,6 +99,18 @@ enum MarkdownSyntaxHighlighter {
         for m in re.matches(in: text as String, range: full) {
             body(m, storage)
         }
+    }
+
+    /// Применение bold/italic через NSFontDescriptor — NSFontManager.convert
+    /// не умеет системные моноширинные шрифты (возвращает nil/тот же шрифт),
+    /// из-за чего **жирный** и *курсив* не подсвечивались (обнаружено
+    /// оффскрин-рендером).
+    private static func fontWithTraits(_ base: NSFont,
+                                       _ traits: NSFontDescriptor.SymbolicTraits) -> NSFont {
+        var t = base.fontDescriptor.symbolicTraits
+        t.formUnion(traits)
+        let desc = base.fontDescriptor.withSymbolicTraits(t)
+        return NSFont(descriptor: desc, size: base.pointSize) ?? base
     }
 }
 

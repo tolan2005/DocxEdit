@@ -47,6 +47,13 @@ final class MarkdownHighlighterTests: XCTestCase {
         XCTAssertEqual(color(at: 0, in: s), .systemGreen)
     }
 
+    func testItalicViaObliqueness() {
+        // У SF Mono нет italic-начертания — курсив через obliqueness (v1.6.2).
+        let s = highlighted("текст *курсив* тут")
+        let loc = (s.string as NSString).range(of: "*курсив*").location
+        XCTAssertEqual(s.attribute(.obliqueness, at: loc, effectiveRange: nil) as? Double, 0.18)
+    }
+
     @MainActor
     func testSourceModeSessionRoundTrip() {
         // Сессия: вход в исходный режим экспортирует модель в MD, правка

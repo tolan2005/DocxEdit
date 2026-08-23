@@ -102,6 +102,7 @@ extension NSDocumentBridge {
         m.pageSettings = model.pageSettings
         m.styles = model.styles
         m.headerFooter = model.headerFooter
+        m.yamlFrontMatter = model.yamlFrontMatter
         model = m
         isDirty = true
     }
@@ -140,6 +141,13 @@ extension NSDocumentBridge {
     }
 
     var endnotes: [Footnote] { model.endnotes }
+
+    /// Добавляет концевую сноску (v1.6.2, UI-вставка).
+    func addEndnote(_ endnote: Footnote) {
+        guard !model.endnotes.contains(where: { $0.id == endnote.id }) else { return }
+        model.endnotes.append(endnote)
+        isDirty = true
+    }
 
     var footnotes: [Footnote] { model.footnotes }
 

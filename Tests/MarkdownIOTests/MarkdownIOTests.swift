@@ -272,4 +272,60 @@ final class MarkdownIOTests: XCTestCase {
         XCTAssertTrue(out.contains("==маркер=="), out)
         XCTAssertTrue(out.contains("<sup>2</sup>"), out)
     }
+
+    // MARK: - v1.6.2: YAML front-matter и wiki-ссылки
+
+    /// YAML front-matter: снимается при импорте, возвращается при экспорте
+    /// (passthrough, не попадает в текст документа).
+    func testYamlFrontMatterRoundTrip() throws {
+        let md = """
+        ---
+        title: Мой документ
+        tags: [docx, test]
+        ---
+        # Привет
+        """
+        let model = try MarkdownIO.importMarkdown(string: md)
+        XCTAssertEqual(model.yamlFrontMatter, "title: Мой документ\ntags: [docx, test]")
+        // Текст front-matter не должен попасть в абзацы.
+        let texts = model.sections.flatMap { $0.blocks }.compactMap { b -> String? in
+            if case .paragraph(let p) = b { return p.runs.map(\.text).joined() }
+            return nil
+        }.joined()
+        XCTAssertFalse(texts.contains("title:"), texts)
+        // Экспорт возвращает блок первым.
+        let out = MarkdownIO.exportMarkdown(model)
+        XCTAssertTrue(out.hasPrefix("---\ntitle: Мой документ\ntags: [docx, test]\n---"), out)
+    }
+
+    /// Wiki-ссылки Obsidian: [[Страница]] и [[Страница|Текст]] → hyperlink
+    /// "wiki:…" в модели, обратно — синтаксис [[…]].
+    func testWikiLinksRoundTrip() throws {
+        let md = "смотри [[Главная]] и [[Главная|домой]]\n"
+        let model = try MarkdownIO.importMarkdown(string: md)
+        let runs = model.sections.flatMap { $0.blocks }.flatMap { block -> [Run] in
+            if case .paragraph(let p) = block { return p.runs }
+            return []
+        }
+        let links = runs.filter { $0.hyperlink?.hasPrefix(MarkdownIO.wikiLinkPrefix) == true }
+        XCTAssertEqual(links.count, 2, "wiki-ссылки не распознаны: \(runs)")
+        XCTAssertEqual(links[0].hyperlink, "wiki:Главная")
+        XCTAssertEqual(links[0].text, "Главная")
+        XCTAssertEqual(links[1].text, "домой")
+        // Экспорт: полная форма для label≠target, короткая для совпадающих.
+        let out = MarkdownIO.exportMarkdown(model)
+        XCTAssertTrue(out.contains("[[Главная]]"), out)
+        XCTAssertTrue(out.contains("[[Главная|домой]]"), out)
+    }
+
+    /// Wiki-ссылка внутри code fence НЕ переписывается.
+    func testWikiLinkInCodeFenceUntouched() throws {
+        let md = "```\n[[не-ссылка]]\n```\n"
+        let model = try MarkdownIO.importMarkdown(string: md)
+        let texts = model.sections.flatMap { $0.blocks }.compactMap { b -> String? in
+            if case .paragraph(let p) = b { return p.runs.map(\.text).joined() }
+            return nil
+        }.joined()
+        XCTAssertTrue(texts.contains("[[не-ссылка]]"), texts)
+    }
 }

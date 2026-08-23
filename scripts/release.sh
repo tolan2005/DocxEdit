@@ -90,6 +90,15 @@ if [[ ! -f "${DMG_PATH}" ]]; then
     exit 1
 fi
 
+# 2.5. UI-смоук: открытие всех тестовых документов без краша (v1.6.3).
+# Отключить: SKIP_UI_SMOKE=1.
+if [[ "${SKIP_UI_SMOKE:-0}" == "1" ]]; then
+    echo "==> [2.5/6] UI-smoke skipped (SKIP_UI_SMOKE=1)"
+else
+    echo "==> [2.5/6] UI-smoke (открытие фикстур без краша)"
+    "${REPO_ROOT}/scripts/ui-smoke.sh" "${REPO_ROOT}/build/DocxEdit.app"
+fi
+
 # 2. Нотаризация (опционально). Пересчитываем SHA256SUMS после подписи.
 if [[ -n "${KEYCHAIN_PROFILE}" ]]; then
     echo "==> [3/6] Notarizing DMG"

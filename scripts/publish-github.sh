@@ -150,13 +150,16 @@ echo "→ Ротация: оставляю $KEEP последних релизо
 ROTATION_LIST="$(mktemp)"
 trap 'rm -f "$NOTES_FILE" "$ROTATION_LIST"' EXIT
 
-gh release list --limit 100 --json tagName,isDraft,createdAt \
-  --jq 'sort_by(.createdAt) | reverse | .[] | select(.isDraft == false) | .tagName' \
+gh release list --limit 100 --json tagName,isDraft \
+  --jq '.[] | select(.isDraft == false) | .tagName' \
+  | sed 's/^v//' | sort -Vr | sed 's/^/v/' \
   > "$ROTATION_LIST" 2>/dev/null || true
 
 # v1.5.11: только что опубликованный тег исключаем из ротации — у релизов,
 # созданных через --target на README-ветку, createdAt у GitHub может быть
 # старее существующих (дата тега), и ротация сносила свежий релиз.
+# v1.6.3: сортировка по SEMVER (sort -V), а не createdAt — та же причина
+# (createdAt искажён для target-тегов; ротация удалила v1.6.2).
 grep -vx "$TAG" "$ROTATION_LIST" > "$ROTATION_LIST.tmp" 2>/dev/null || true
 mv "$ROTATION_LIST.tmp" "$ROTATION_LIST"
 

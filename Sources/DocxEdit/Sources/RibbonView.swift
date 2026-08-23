@@ -444,6 +444,7 @@ struct RibbonView: View {
             group("Оглавление и сноски") {
                 HStack(spacing: 2) {
                     btn("textformat.superscript", "Сноска (⌘⌥F)") { appDelegate.insertFootnote() }
+                    btn("textformat.subscript", "Концевая сноска") { appDelegate.insertEndnote() }
                     btn("list.bullet.rectangle", "Оглавление") { appDelegate.insertTOC() }
                     btn("arrow.clockwise", "Обновить оглавление") { appDelegate.updateTOC() }
                 }

@@ -347,6 +347,8 @@ struct DocxEditApp: App {
                 Button("Сноска…") { appDelegate.insertFootnote() }
                     .keyboardShortcut("f", modifiers: [.command, .option])
                     .disabled(appDelegate.isMarkdownMode)
+                Button("Концевая сноска…") { appDelegate.insertEndnote() }
+                    .disabled(appDelegate.isMarkdownMode)
                 Button("Оглавление")          { appDelegate.insertTOC() }
                     .disabled(appDelegate.isMarkdownMode)
                 Button("Обновить оглавление") { appDelegate.updateTOC() }
@@ -431,10 +433,11 @@ struct DocxEditApp: App {
 /// (синхронно с §5 «История релизов» в CLAUDE.md).
 enum AboutReleaseNotes {
     static let recent: [(version: String, codename: String, summary: String)] = [
+        ("1.6.3", "Highlight Fix & UI Smoke", "**(1) Фикс подсветки MD-исходника** (найден оффскрин-визуальной проверкой v1.6.0): `**жирный**` не рендерился жирным, `*курсив*` — курсивом: NSFontManager.convert не умеет системные моноширинные шрифты (SF Mono). Жирный — через NSFontDescriptor traits (Semibold), курсив — через obliqueness (синтетический наклон, у моноширинных нет italic-начертания). **(2) UI-смоук** (`scripts/ui-smoke.sh`, шаг в release.sh): все корпусные документы (21–24, 133.docx + MD) открываются живым .app без краша — заменяет XCUITest в SPM-инфраструктуре; отключение: SKIP_UI_SMOKE=1. +2 теста (292)."),
+        ("1.6.2", "Obsidian & Endnote UI", "**(1) Obsidian-совместимость Markdown**: YAML front-matter (`---` блок с метаданными в начале .md) — снимается при импорте и возвращается при экспорте побайтово (passthrough, не засоряет текст документа); wiki-ссылки `[[Страница]]` и `[[Страница|Текст]]` распознаются как гиперссылки и пишутся обратно в том же синтаксисе (внутри code fences не трогаются). **(2) Создание концевых сносок в UI** (раньше импорт-only, v1.5.15): меню Вставка → «Концевая сноска…» + кнопка на ленте — маркер superscript римскими, текст редактируется в панели «Сноски». +3 теста (290)."),
         ("1.6.1", "Math & Drop Cap", "Бэклог DOCX (P3, завершён — форматный бэклог закрыт полностью P0–P3): **OMML-формулы** (`m:oMath`/`m:oMathPara`) — текст формулы больше не теряется при импорте (был: содержимое исчезало молча); живой round-trip в OMML не поддерживается — отметка в отчёте об открытии. **Буквица** (`w:framePr`) — атрибуты (dropCap/lines/wrap/якоря) переживают open→⌘S как карта атрибутов (в редакторе буквица не рисуется — ограничение, данные не теряются). Ранее закрыто в P3: границы страницы — passthrough sectPr-extras (v1.5.4), OLE-объекты — картинка-превью (v1.5.7) + passthrough бинарей (v1.5.2). +2 теста (287)."),
         ("1.6.0", "MD Source Mode", "**Исходный режим Markdown** — долгожданная фича для MD-пользователей: переключатель «Исходник» в статусбаре (или меню Вид → «Исходный Markdown», ⌘/) открывает сырой .md-текст моноширинным шрифтом с подсветкой синтаксиса (заголовки, **жирный**, *курсив*, `код`, ссылки, цитаты, маркеры списков, HR, fenced-блоки). Источник истины в этом режиме — текст: ⌘S пишет его напрямую, модель синхронизируется best-effort на каждую правку (статистика/автосейв живые), возврат в WYSIWYG — мгновенный. Ribbon и боковые панели скрываются. Попутный фикс: `applyAttributed` терял endnotes и passthrough стилей таблиц при правке (латентный баг v1.5.15/1.5.17). +6 тестов (285)."),
         ("1.5.18", "Find Highlight", "Расширенный поиск (⇧⌘F): **подсветка всех вхождений** — все совпадения подсвечиваются жёлтым прямо в документе (рисует DocxLayoutManager под текстом, storage не мутируется — в модель ничего не запекается, undo не затрагивается), тумблер «Подсветить все» (по умолчанию вкл); **счётчик «N из M»** — текущее совпадение из общего числа при навигации «Найти далее». Подсветка снимается при правке текста, очистке запроса и закрытии диалога."),
-        ("1.5.17", "Table Style & Vertical Text", "Бэклог DOCX (P2, завершён): **именованные стили таблиц** (`w:tblStyle` — «Light Shading», «Table Grid» и др. сторонних файлов) — имя парсится в модель и пишется обратно, а определения стилей таблиц из styles.xml переживают экспорт целиком (passthrough) — Word/LibreOffice применят их как раньше. **Вертикальный текст в ячейках** (`w:textDirection`) — round-trip сохраняется; в редакторе пока рисуется горизонтально (известное ограничение рендера, данные не теряются). +2 теста (279). Бэклог формата P0–P2 закрыт полностью."),
     ]
 }
 
@@ -1029,6 +1032,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     func showImageProperties() { NotificationCenter.default.post(name: .docxEditShowImageProperties, object: nil) }
     func showHyperlink()       { NotificationCenter.default.post(name: .docxEditShowHyperlink, object: nil) }
     func insertFootnote()      { NotificationCenter.default.post(name: .docxEditInsertFootnote, object: nil) }
+    func insertEndnote()       { NotificationCenter.default.post(name: .docxEditInsertEndnote, object: nil) }
     func insertTOC()           { NotificationCenter.default.post(name: .docxEditInsertTOC, object: nil) }
     func updateTOC()           { NotificationCenter.default.post(name: .docxEditUpdateTOC, object: nil) }
     func showCrossReference()  { NotificationCenter.default.post(name: .docxEditShowCrossReference, object: nil) }
@@ -1418,6 +1422,7 @@ extension Notification.Name {
     static let docxEditInsertImage       = Notification.Name("docxEditInsertImage")
     static let docxEditShowHyperlink     = Notification.Name("docxEditShowHyperlink")
     static let docxEditInsertFootnote      = Notification.Name("docxEditInsertFootnote")
+    static let docxEditInsertEndnote       = Notification.Name("docxEditInsertEndnote")
     static let docxEditInsertTOC           = Notification.Name("docxEditInsertTOC")
     static let docxEditUpdateTOC           = Notification.Name("docxEditUpdateTOC")
     static let docxEditShowCrossReference  = Notification.Name("docxEditShowCrossReference")

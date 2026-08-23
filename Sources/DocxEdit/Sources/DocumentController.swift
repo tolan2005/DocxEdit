@@ -2574,6 +2574,42 @@ final class DocumentController: ObservableObject {
         refreshSelectionState()
     }
 
+    // MARK: - Концевые сноски — создание (v1.6.2)
+
+    /// Вставляет концевую сноску в позицию курсора (⌥⌘E занят экспортом PDF —
+    /// только меню/лента). Маркер — superscript римскими (как у импортированных).
+    func insertEndnote(text: String) {
+        guard let tv = textView, let storage = tv.textStorage,
+              let session = session else { return }
+        let sel = tv.selectedRange()
+        let range = (sel.location == NSNotFound || sel.location > storage.length)
+            ? NSRange(location: storage.length, length: 0) : sel
+
+        let existing = session.bridge.model.endnotes.compactMap { Int($0.id) }
+        let newId = String((existing.max() ?? 0) + 1)
+
+        var attrs = tv.typingAttributes
+        if let f = attrs[.font] as? NSFont {
+            attrs[.font] = NSFontManager.shared.convert(f, toSize: f.pointSize * 0.7)
+            attrs[.baselineOffset] = f.pointSize * 0.35
+        }
+        attrs[.docxEditEndnoteId] = newId
+
+        let markerText = romanNumeral(for: newId)
+        let marker = NSAttributedString(string: markerText, attributes: attrs)
+        guard tv.shouldChangeText(in: range, replacementString: markerText) else { return }
+        storage.beginEditing()
+        storage.replaceCharacters(in: range, with: marker)
+        storage.endEditing()
+        tv.didChangeText()
+        tv.setSelectedRange(NSRange(location: range.location + marker.length, length: 0))
+
+        session.bridge.addEndnote(Footnote(id: newId, text: text))
+        session.markDirty()
+        notifyModelChange()
+        refreshSelectionState()
+    }
+
     /// v0.5.4 (R07): пересчитывает текст маркеров сносок как 1, 2, 3… в
     /// порядке появления в тексте. Атрибут `.docxEditFootnoteId` остаётся
     /// прежним (это связь с записью Footnote в модели). Меняем только видимый

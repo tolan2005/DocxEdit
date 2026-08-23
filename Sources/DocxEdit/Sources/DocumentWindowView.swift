@@ -963,6 +963,7 @@ struct TextEditorRepresentable: NSViewRepresentable {
             observeKeyZero(.docxEditInsertImage, #selector(onInsertImage))
             observeKeyZero(.docxEditShowHyperlink, #selector(onShowHyperlink))
             observeKeyZero(.docxEditInsertFootnote, #selector(onInsertFootnote))
+            observeKeyZero(.docxEditInsertEndnote, #selector(onInsertEndnote))
             observeKeyZero(.docxEditInsertTOC, #selector(onInsertTOC))
             observeKeyZero(.docxEditUpdateTOC, #selector(onUpdateTOC))
             observeKeyZero(.docxEditShowCrossReference, #selector(onShowCrossReference))
@@ -1577,6 +1578,24 @@ struct TextEditorRepresentable: NSViewRepresentable {
             guard response == .alertFirstButtonReturn else { return }
             let text = input.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
             controller.insertFootnote(text: text.isEmpty ? "Текст сноски" : text)
+        }
+
+        /// v1.6.2: концевая сноска — тот же паттерн NSAlert с полем ввода.
+        @objc private func onInsertEndnote() {
+            let alert = NSAlert()
+            alert.messageText = "Вставить концевую сноску"
+            alert.informativeText = "Текст концевой сноски"
+            alert.addButton(withTitle: "Вставить")
+            alert.addButton(withTitle: "Отмена")
+            let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 60))
+            input.placeholderString = "Например: Полный список литературы — в конце документа"
+            input.usesSingleLineMode = false
+            alert.accessoryView = input
+            NSApp.activate(ignoringOtherApps: true)
+            let response = alert.runModal()
+            guard response == .alertFirstButtonReturn else { return }
+            let text = input.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            controller.insertEndnote(text: text.isEmpty ? "Текст концевой сноски" : text)
         }
 
         @objc private func onInsertTOC() { controller.insertTableOfContents() }
