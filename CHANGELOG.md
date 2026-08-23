@@ -3,6 +3,19 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.6.5] — 2026-08-24 — Navigator & Split
+
+### Изменения
+- Навигатор: drag-and-drop разделов + подсветка текущего + контекстное меню перемещения
+- autorecover защищает MD-исходник (сырой текст приоритетен при восстановлении)
+- распил монолитов без изменения кода: DocxIO 3878→555, DocumentController 3839→1406
+- +2 теста (297)
+
+### Артефакты
+- `build/v1.6.5/DocxEdit-1.6.5.dmg`
+- `build/v1.6.5/DocxEdit-1.6.5.app.zip`
+- `build/v1.6.5/SHA256SUMS`
+
 ## [1.6.4] — 2026-08-24 — Reliability & Typora
 
 ### Изменения
