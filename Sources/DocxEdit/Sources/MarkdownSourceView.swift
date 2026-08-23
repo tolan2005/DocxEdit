@@ -186,5 +186,83 @@ struct MarkdownSourceView: NSViewRepresentable {
             tv.setSelectedRanges(sel, affinity: .downstream, stillSelecting: false)
             onChange(tv.string)
         }
+
+        // MARK: - Typora-поведение (v1.6.4)
+
+        /// Enter в пункте списка — продолжить маркер ("- ", "1. ").
+        /// Enter на ПУСТОМ пункте — выйти из списка (маркер удаляется).
+        private let markerRegex = try! NSRegularExpression(pattern: #"^(\s*)([-*+]|\d+\.)\s+"#)
+
+        func textView(_ tv: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            switch commandSelector {
+            case #selector(NSTextView.insertNewline(_:)):
+                return handleNewline(tv)
+            case #selector(NSTextView.insertTab(_:)):
+                return handleTab(tv, backtab: false)
+            case #selector(NSTextView.insertBacktab(_:)):
+                return handleTab(tv, backtab: true)
+            default:
+                return false
+            }
+        }
+
+        private func handleNewline(_ tv: NSTextView) -> Bool {
+            let sel = tv.selectedRange()
+            guard sel.length == 0 else { return false }
+            let ns = tv.string as NSString
+            let lineRange = ns.lineRange(for: NSRange(location: sel.location, length: 0))
+            let line = ns.substring(with: lineRange).trimmingCharacters(in: .newlines)
+            guard let m = markerRegex.firstMatch(
+                in: line, range: NSRange(location: 0, length: (line as NSString).length)) else {
+                return false  // не список — обычный Enter
+            }
+            let marker = (line as NSString).substring(with: m.range)
+            // Пустой пункт (только маркер) — выйти из списка: стереть маркер
+            // и вставить обычный перевод строки.
+            if line.trimmingCharacters(in: .whitespaces) ==
+                  marker.trimmingCharacters(in: .whitespaces) {
+                let markerRange = NSRange(location: lineRange.location,
+                                          length: (marker as NSString).length)
+                tv.insertText("", replacementRange: markerRange)
+                tv.insertNewline(nil)
+                return true
+            }
+            // Нумерованный — инкремент числа.
+            var nextMarker = marker
+            if let num = Int(marker.trimmingCharacters(in: .whitespaces).dropLast()) {
+                nextMarker = "\(num + 1). "
+            }
+            tv.insertText("\n" + nextMarker, replacementRange: sel)
+            return true
+        }
+
+        /// Tab — вложить строку списка (2 пробела); Shift+Tab — вынуть.
+        private func handleTab(_ tv: NSTextView, backtab: Bool) -> Bool {
+            let sel = tv.selectedRange()
+            let ns = tv.string as NSString
+            let lineRange = ns.lineRange(for: NSRange(location: sel.location, length: 0))
+            let line = ns.substring(with: lineRange)
+            guard markerRegex.firstMatch(
+                in: line, range: NSRange(location: 0, length: ns.length)) != nil else {
+                return false  // не список — обычный таб
+            }
+            if backtab {
+                // Убрать до 2 ведущих пробелов.
+                var trimmed = line
+                var removed = 0
+                while removed < 2, trimmed.hasPrefix(" ") {
+                    trimmed.removeFirst(); removed += 1
+                }
+                guard removed > 0 else { return true }
+                tv.insertText(trimmed, replacementRange: lineRange)
+            } else {
+                tv.insertText("  " + line, replacementRange: lineRange)
+            }
+            // Вернуть курсор в конец строки.
+            let newLineRange = (tv.string as NSString).lineRange(
+                for: NSRange(location: lineRange.location, length: 0))
+            tv.setSelectedRange(NSRange(location: NSMaxRange(newLineRange) - 1, length: 0))
+            return true
+        }
     }
 }

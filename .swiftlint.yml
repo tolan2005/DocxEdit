@@ -1,0 +1,42 @@
+# SwiftLint — мягкий набор для DocxEdit (код уже дисциплинированный:
+# 0 force-unwrap/try!/print). Линт закрепляет дисциплину, не воюя с легаси.
+# Запуск: swiftlint (или через release.sh, если установлен).
+
+included:
+  - Sources
+  - Tests
+
+line_length:
+  warning: 140
+  error: 200
+  ignores_comments: true
+
+type_body_length:
+  warning: 600
+  error: 1200
+
+file_length:
+  warning: 1500
+  error: 4000
+  # Монолиты DocxIO/DocumentController — известный техдолг
+  # (PROJECT_ANALYSIS.md §3.1), распил планируется; не валим сборку.
+
+function_body_length:
+  warning: 120
+  error: 250
+
+identifier_name:
+  min_length: 1   # однобуквенные в замыканиях (m, r, s) — норм для локальных
+  max_length: 60
+
+disabled_rules:
+  - todo                # TODO-маркеры — легитимные
+  - trailing_comma
+  - opening_brace       # стиль проекта: скобка на той же строке — уже так
+  - closure_spacing
+  - explicit_type_interface
+  - vertical_parameter_alignment_on_call
+
+opt_in_rules:
+  - empty_count
+  - closure_end_indentation

@@ -646,6 +646,10 @@ struct TextEditorRepresentable: NSViewRepresentable {
         textView.isRichText    = true
         textView.allowsUndo    = true
         textView.usesFindBar   = true
+        // v1.6.4: орфография/грамматика «как в Word» — красное/зелёное
+        // подчёркивание прямо в тексте (TextKit 1 рисует нативно).
+        textView.isContinuousSpellCheckingEnabled = true
+        textView.isGrammarCheckingEnabled = true
         // v0.1.84: полупрозрачное выделение — чтобы highlight (`.backgroundColor`)
         // был виден сквозь селекцию. Дефолтный `selectedTextBackgroundColor`
         // непрозрачный и полностью закрывает подсветку рана.
@@ -989,6 +993,14 @@ struct TextEditorRepresentable: NSViewRepresentable {
                 let chars = event.charactersIgnoringModifiers ?? ""
 
                 // Буквенные шорткаты — по физическому keyCode (US-позиции клавиш).
+                // v1.6.4: в MD source-режиме ⌘B/⌘I оборачивают выделение в **…** / *…*.
+                if appDelegate.currentSession?.isMarkdownSourceMode == true {
+                    switch (mods, event.keyCode) {
+                    case (.command, 11): Self.wrapMarkdownSelection("**"); return nil   // ⌘B
+                    case (.command, 34): Self.wrapMarkdownSelection("*"); return nil    // ⌘I
+                    default: break
+                    }
+                }
                 switch (mods, event.keyCode) {
                 case (.command, 11): appDelegate.toggleBold(); return nil            // ⌘B
                 case (.command, 34): appDelegate.toggleItalic(); return nil          // ⌘I
@@ -1017,6 +1029,7 @@ struct TextEditorRepresentable: NSViewRepresentable {
                 case ([.command, .option], 46): appDelegate.insertCommentAtSelection(); return nil // ⌥⌘M
                 case ([.command, .option], 15): appDelegate.toggleRuler(); return nil        // ⌥⌘R
                 case ([.command, .shift], 15): appDelegate.toggleReadingMode(); return nil   // ⇧⌘R
+                case (.command, 47): appDelegate.toggleMarkdownSourceMode(); return nil      // ⌘/ (MD source)
                 default: break
                 }
 
@@ -1043,6 +1056,32 @@ struct TextEditorRepresentable: NSViewRepresentable {
         }
 
         private var keyMonitor: Any?
+
+        /// v1.6.4: обёртка выделения в Markdown-разметку в source-режиме
+        /// (⌘B → **…**, ⌘I → *…*). Работает с first-responder NSTextView
+        /// исходника. Без выделения — вставляет пару маркеров и ставит курсор
+        /// между ними.
+        static func wrapMarkdownSelection(_ marker: String) {
+            guard let tv = NSApp.keyWindow?.firstResponder as? NSTextView else { return }
+            let sel = tv.selectedRange()
+            let storage = tv.textStorage
+            if sel.length > 0, let storage {
+                let text = storage.attributedSubstring(from: sel).string
+                // Снятие: выделение уже обёрнуто — развернуть.
+                if text.hasPrefix(marker), text.hasSuffix(marker),
+                   text.count > marker.count * 2 {
+                    let inner = String(text.dropFirst(marker.count).dropLast(marker.count))
+                    tv.insertText(inner, replacementRange: sel)
+                    return
+                }
+                tv.insertText(marker + text + marker, replacementRange: sel)
+                tv.setSelectedRange(NSRange(location: sel.location + marker.count,
+                                            length: (text as NSString).length))
+            } else {
+                tv.insertText(marker + marker, replacementRange: sel)
+                tv.setSelectedRange(NSRange(location: sel.location + marker.count, length: 0))
+            }
+        }
         var fontReplaceWindow: NSWindow?
         var headerFooterWindow: NSWindow?
         var insertTableWindow: NSWindow?

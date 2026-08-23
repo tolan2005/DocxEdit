@@ -81,6 +81,19 @@ else
     echo "    ✓ тесты пройдены"
 fi
 
+# 1.5. SwiftLint (v1.6.4): если установлен — гоняем, ошибки валидны.
+# Установка: brew install swiftlint. Не установлен — graceful skip.
+if command -v swiftlint &>/dev/null; then
+    echo "    ▶️  swiftlint"
+    if ! swiftlint --quiet; then
+        echo "ОШИБКА: swiftlint нашёл нарушения (см. выше)." >&2
+        exit 1
+    fi
+    echo "    ✓ swiftlint чист"
+else
+    echo "    ⏭  swiftlint не установлен (brew install swiftlint) — пропущен"
+fi
+
 # 2. Сборка + упаковка (build.sh: swift build, .app, smoke-тест, .zip, .dmg, SHA256SUMS).
 echo "==> [2/6] Building & packaging"
 "${REPO_ROOT}/scripts/build.sh" "${VERSION}" "$(date +%Y%m%d%H%M%S)"

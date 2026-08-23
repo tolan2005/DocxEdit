@@ -142,6 +142,12 @@ else
     ${PRERELEASE}
 fi
 
+# v1.6.4: новый релиз — всегда Latest (gh помечает Latest по createdAt,
+# а у target-тегов createdAt искажён — приходилось чинить вручную).
+if [[ -z "${PRERELEASE}" ]]; then
+  run gh release edit "$TAG" --latest || echo "   (не удалось выставить --latest, не критично)"
+fi
+
 # ── 5. Ротация: оставить только KEEP самых свежих ────────────────────────
 echo "→ Ротация: оставляю $KEEP последних релизов"
 

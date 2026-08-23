@@ -864,7 +864,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
                 let bridge = NSDocumentBridge(model: model)
                 session?.replace(with: bridge)
                 session?.markDirty()
+                // v1.6.5: если рядом есть source-копия MD (писалась в
+                // source-режиме поверх best-effort модели) — она приоритетнее:
+                // реимпортируем текст, чтобы не потерять правки исходника.
+                let mdURL = url.deletingPathExtension().appendingPathExtension("md")
+                if let mdData = try? Data(contentsOf: mdURL),
+                   let mdText = String(data: mdData, encoding: .utf8),
+                   let mdModel = try? MarkdownIO.importMarkdown(string: mdText) {
+                    session?.bridge.replaceModel(mdModel)
+                }
                 try? FileManager.default.removeItem(at: url)
+                try? FileManager.default.removeItem(at: mdURL)
                 break
             }
         } else if resp == .alertSecondButtonReturn {
