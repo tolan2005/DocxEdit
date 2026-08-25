@@ -2445,6 +2445,16 @@ final class DocxTextView: NSTextView {
     /// v0.5.5 (R07): ссылка на контроллер — нужна для Cmd+клик по cross-ref.
     weak var docxController: DocumentController?
 
+    /// v1.6.6: умная вставка Markdown (Typora-поведение). Если plain-text
+    /// буфера похож на MD-исходник — вставляется уже отформатированным;
+    /// иначе и во всех не-MD случаях работает обычный путь super.paste().
+    /// Принудительно просто: ⇧⌥⌘V (вставить без форматирования) или
+    /// настройка «Умная вставка Markdown» = выкл.
+    override func paste(_ sender: Any?) {
+        if docxController?.trySmartMarkdownPaste() == true { return }
+        super.paste(sender)
+    }
+
     // MARK: - Drag-and-drop файла документа (v1.2.1)
 
     /// Расширения, которые открываем как документ (совпадают с CFBundleDocumentTypes).

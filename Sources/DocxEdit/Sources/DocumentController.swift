@@ -537,19 +537,40 @@ final class DocumentController: ObservableObject {
     /// «Вставить из Markdown» — MD-текст буфера конвертируется в модель и
     /// вставляется в позицию курсора одним шагом undo.
     func pasteAsMarkdown() {
+        guard let md = NSPasteboard.general.string(forType: .string), !md.isEmpty else { return }
+        insertMarkdownText(md)
+    }
+
+    /// v1.6.6: общее ядро вставки Markdown-исходника (меню и умная ⌘V).
+    /// Возвращает true, если вставка выполнена.
+    @discardableResult
+    func insertMarkdownText(_ source: String) -> Bool {
         guard let textView, let storage = textView.textStorage,
-              let md = NSPasteboard.general.string(forType: .string), !md.isEmpty,
-              let model = try? MarkdownIO.importMarkdown(string: md) else { return }
+              let model = try? MarkdownIO.importMarkdown(string: MarkdownPasteSupport.sanitize(source))
+        else { return false }
         let attr = model.toAttributedString(
             defaultFont: DocumentSession.currentDefaultAttributes()[.font] as? NSFont
                 ?? NSFont.systemFont(ofSize: 12),
             fallbackFontName: AppPreferences.shared.favoriteFonts.first)
         let sel = textView.selectedRange()
-        guard textView.shouldChangeText(in: sel, replacementString: attr.string) else { return }
+        guard textView.shouldChangeText(in: sel, replacementString: attr.string) else { return false }
         storage.replaceCharacters(in: sel, with: attr)
         textView.didChangeText()
         notifyModelChange()
         refreshSelectionState()
+        return true
+    }
+
+    /// v1.6.6: умная вставка — если plain-text буфера похож на Markdown,
+    /// конвертирует и вставляет его (Typora-поведение). Вызывается из
+    /// DocxTextView.paste; false = обычная вставка super.paste().
+    func trySmartMarkdownPaste() -> Bool {
+        guard AppPreferences.shared.smartPasteMarkdown else { return false }
+        guard session?.mode != .markdown, !(session?.isMarkdownSourceMode ?? false) else { return false }
+        guard let text = NSPasteboard.general.string(forType: .string),
+              text.count >= 8,
+              MarkdownPasteSupport.looksLikeMarkdown(text) else { return false }
+        return insertMarkdownText(text)
     }
 
     /// Курсор (или его абзац) находится внутри блока списка?

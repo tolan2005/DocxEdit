@@ -56,6 +56,10 @@ struct PreferencesView: View {
                 Text("При сохранении .md колонки таблиц дополняются пробелами до одинаковой ширины (pretty-print). На рендер не влияет — только на вид исходника.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Toggle("Умная вставка Markdown (⌘V)", isOn: $prefs.smartPasteMarkdown)
+                Text("Если в буфере текст, похожий на Markdown-исходник (копирование из ChatGPT/Perplexity и т.п.), ⌘V вставляет его уже отформатированным. Обычная вставка — ⇧⌥⌘V или «Правка → Вставить из Markdown».")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Picker("Ширина текста в Markdown", selection: $prefs.markdownColumnWidth) {
                     ForEach(MarkdownColumnWidth.allCases) { w in
                         Text(w.title).tag(w)

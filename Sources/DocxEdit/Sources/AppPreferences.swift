@@ -147,6 +147,12 @@ final class AppPreferences: ObservableObject {
         didSet { UserDefaults.standard.set(markdownPrettyTables, forKey: Keys.markdownPrettyTables) }
     }
 
+    /// v1.6.6: умная вставка — ⌘V распознаёт Markdown-исходник в буфере
+    /// (копирование из ИИ-чатов) и вставляет отформатированным.
+    @Published var smartPasteMarkdown: Bool {
+        didSet { UserDefaults.standard.set(smartPasteMarkdown, forKey: Keys.smartPasteMarkdown) }
+    }
+
     /// v1.5.8: ширина текстовой колонки в MD-режиме (читаемая колонка,
     /// как в iA Writer/Typora). full — во всю ширину окна.
     @Published var markdownColumnWidth: MarkdownColumnWidth {
@@ -193,6 +199,7 @@ final class AppPreferences: ObservableObject {
         showWelcomeOnLaunch = (ud.object(forKey: Keys.showWelcomeOnLaunch) as? Bool) ?? true
         newDocumentMode = DocumentMode(rawValue: ud.string(forKey: Keys.newDocumentMode) ?? "") ?? .docx
         markdownPrettyTables = (ud.object(forKey: Keys.markdownPrettyTables) as? Bool) ?? true
+        smartPasteMarkdown = (ud.object(forKey: Keys.smartPasteMarkdown) as? Bool) ?? true
         markdownColumnWidth = MarkdownColumnWidth(rawValue: ud.string(forKey: Keys.markdownColumnWidth) ?? "") ?? .medium
     }
 
@@ -217,6 +224,7 @@ final class AppPreferences: ObservableObject {
         static let showWelcomeOnLaunch     = "pref.showWelcomeOnLaunch"
         static let newDocumentMode         = "pref.newDocumentMode"
         static let markdownPrettyTables    = "pref.markdownPrettyTables"
+        static let smartPasteMarkdown      = "pref.smartPasteMarkdown"
         static let markdownColumnWidth     = "pref.markdownColumnWidth"
     }
 }
