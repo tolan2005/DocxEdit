@@ -3,6 +3,17 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.8.1] — 2026-09-14 — Compact Ribbon
+
+### Изменения
+- сворачивание ленты (⌃F1 / двойной клик по активной вкладке)
+- AppPreferences.ribbonCollapsed персист
+
+### Артефакты
+- `build/v1.8.1/DocxEdit-1.8.1.dmg`
+- `build/v1.8.1/DocxEdit-1.8.1.app.zip`
+- `build/v1.8.1/SHA256SUMS`
+
 ## [1.8.0] — 2026-09-14 — Command Palette
 
 ### Изменения
