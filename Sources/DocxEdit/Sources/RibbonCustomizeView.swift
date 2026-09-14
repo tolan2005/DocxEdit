@@ -53,25 +53,65 @@ struct RibbonCustomizeView: View {
                 }
                 .frame(minWidth: 220, idealWidth: 240)
 
-                // Правая колонка — «Избранное».
+                // Правая колонка — «Избранное»: сверху добавленные (в порядке
+                // пользователя, стрелки ↑↓ для reorder), снизу — доступные для добавления.
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Группа «Избранное»")
                             .font(.subheadline).bold()
-                        Text("Отмеченные команды появятся отдельной группой в конце вкладки «Главная» — быстрый доступ без переключения вкладок.")
+                        Text("Отмеченные команды появятся отдельной группой в конце вкладки «Главная». Стрелки ↑↓ меняют порядок.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        ForEach(RibbonCommandDef.all) { cmd in
-                            Toggle(isOn: favoriteBinding(cmd.id)) {
-                                Label(cmd.title, systemImage: cmd.symbol)
+                        if !prefs.ribbonFavorites.isEmpty {
+                            Text("В избранном").font(.caption2).foregroundStyle(.secondary).padding(.top, 4)
+                            ForEach(Array(prefs.ribbonFavorites.enumerated()), id: \.element) { idx, id in
+                                if let cmd = RibbonCommandDef.find(id: id) {
+                                    HStack(spacing: 6) {
+                                        Label(cmd.title, systemImage: cmd.symbol)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                        Button {
+                                            move(idx, by: -1)
+                                        } label: { Image(systemName: "chevron.up") }
+                                            .buttonStyle(.borderless)
+                                            .disabled(idx == 0)
+                                            .help("Переместить вверх")
+                                        Button {
+                                            move(idx, by: +1)
+                                        } label: { Image(systemName: "chevron.down") }
+                                            .buttonStyle(.borderless)
+                                            .disabled(idx == prefs.ribbonFavorites.count - 1)
+                                            .help("Переместить вниз")
+                                        Button {
+                                            prefs.ribbonFavorites.removeAll { $0 == id }
+                                        } label: { Image(systemName: "xmark.circle") }
+                                            .buttonStyle(.borderless)
+                                            .foregroundStyle(.secondary)
+                                            .help("Убрать из избранного")
+                                    }
+                                }
                             }
-                            .toggleStyle(.checkbox)
+                            Divider()
+                        }
+                        Text("Доступно").font(.caption2).foregroundStyle(.secondary)
+                        ForEach(RibbonCommandDef.all.filter { !prefs.ribbonFavorites.contains($0.id) }) { cmd in
+                            Button {
+                                prefs.ribbonFavorites.append(cmd.id)
+                            } label: {
+                                HStack {
+                                    Image(systemName: "plus.circle")
+                                        .foregroundStyle(.secondary)
+                                    Label(cmd.title, systemImage: cmd.symbol)
+                                    Spacer()
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(minWidth: 260, idealWidth: 300)
+                .frame(minWidth: 300, idealWidth: 340)
             }
 
             Divider()
@@ -101,22 +141,12 @@ struct RibbonCustomizeView: View {
         )
     }
 
-    /// Binding «команда в избранном». Порядок хранится по каталогу.
-    private func favoriteBinding(_ id: String) -> Binding<Bool> {
-        Binding(
-            get: { prefs.ribbonFavorites.contains(id) },
-            set: { on in
-                if on {
-                    if !prefs.ribbonFavorites.contains(id) {
-                        // Вставляем, сохраняя порядок каталога.
-                        let ordered = RibbonCommandDef.all.map(\.id)
-                        var favs = Set(prefs.ribbonFavorites); favs.insert(id)
-                        prefs.ribbonFavorites = ordered.filter { favs.contains($0) }
-                    }
-                } else {
-                    prefs.ribbonFavorites.removeAll { $0 == id }
-                }
-            }
-        )
+    /// v1.8.2: переместить элемент избранного на ±1 позицию.
+    private func move(_ idx: Int, by delta: Int) {
+        var favs = prefs.ribbonFavorites
+        let target = idx + delta
+        guard idx >= 0, idx < favs.count, target >= 0, target < favs.count else { return }
+        favs.swapAt(idx, target)
+        prefs.ribbonFavorites = favs
     }
 }
