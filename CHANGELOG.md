@@ -3,6 +3,18 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.7.3] — 2026-09-14 — Open Multi + Recents
+
+### Изменения
+- multi-select в Cmd+O (каждый файл в своё окно, multi-doc)
+- дата и размер файла в Welcome/Recent
+- иконка по расширению
+
+### Артефакты
+- `build/v1.7.3/DocxEdit-1.7.3.dmg`
+- `build/v1.7.3/DocxEdit-1.7.3.app.zip`
+- `build/v1.7.3/SHA256SUMS`
+
 ## [1.7.2] — 2026-09-14 — UX Polish 2
 
 ### Изменения
