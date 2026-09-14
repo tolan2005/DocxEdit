@@ -10,6 +10,50 @@
 
 import SwiftUI
 import AppKit
+import QuickLookThumbnailing
+
+/// v1.7.5: QuickLook-превью первой страницы файла для Welcome/Recent.
+/// Асинхронно генерирует thumbnail 48×60pt через `QLThumbnailGenerator`
+/// (нативный macOS API — использует QL-плагины Word/Pages/Preview для DOCX,
+/// системный TextEdit для RTF/TXT, marked для MD и т.п.). Не блокирует UI:
+/// на время генерации показывает fallback-иконку типа.
+struct RecentThumbnail: View {
+    let url: URL
+    let fallbackSymbol: String
+    @State private var image: NSImage?
+
+    var body: some View {
+        Group {
+            if let img = image {
+                Image(nsImage: img)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 40, height: 52)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                    .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.secondary.opacity(0.25), lineWidth: 0.5))
+            } else {
+                Image(systemName: fallbackSymbol)
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 40, height: 52)
+            }
+        }
+        .task(id: url.absoluteString) { await load() }
+    }
+
+    private func load() async {
+        // На retina хочется 2x-качество; QL сам считает scale.
+        let size = CGSize(width: 40, height: 52)
+        let scale = NSScreen.main?.backingScaleFactor ?? 2
+        let req = QLThumbnailGenerator.Request(
+            fileAt: url, size: size, scale: scale, representationTypes: .thumbnail)
+        do {
+            let rep = try await QLThumbnailGenerator.shared.generateBestRepresentation(for: req)
+            self.image = rep.nsImage
+        } catch {
+            // Оставляем nil — покажется fallback-иконка.
+        }
+    }
+}
 
 struct WelcomeView: View {
     let recentURLs: [URL]
@@ -89,9 +133,10 @@ struct WelcomeView: View {
                                 Button {
                                     onOpenRecent(url)
                                 } label: {
-                                    HStack(spacing: 8) {
-                                        Image(systemName: iconName(for: url))
-                                            .foregroundStyle(Color.accentColor)
+                                    HStack(spacing: 10) {
+                                        // v1.7.5: QuickLook-превью первой страницы;
+                                        // fallback — иконка типа (v1.7.3).
+                                        RecentThumbnail(url: url, fallbackSymbol: iconName(for: url))
                                         VStack(alignment: .leading, spacing: 1) {
                                             Text(url.lastPathComponent)
                                                 .font(.system(size: 13))
