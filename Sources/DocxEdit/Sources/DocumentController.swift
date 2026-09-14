@@ -98,6 +98,13 @@ final class DocumentController: ObservableObject {
     /// v0.4.3 (R06): режим «Чтение» — только view-состояние (`isEditable=false`
     /// + скрытие ribbon, увеличенные поля через zoom). Модели не касается.
     @Published var isReadingMode: Bool = false
+    /// v1.8.4: режим фокуса — все абзацы кроме текущего приглушены до
+    /// tertiary-контраста через `NSLayoutManager.setTemporaryAttributes`
+    /// (не мутирует модель, только рендер). Обновляется в refreshSelectionState.
+    @Published var isFocusMode: Bool = false {
+        didSet { refreshFocusMode() }
+    }
+    func toggleFocusMode() { isFocusMode.toggle() }
 
     func toggleRuler() {
         showsRuler.toggle()

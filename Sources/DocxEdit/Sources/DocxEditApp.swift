@@ -424,6 +424,9 @@ struct DocxEditApp: App {
 
                 Divider()
 
+                // v1.8.4: режим фокуса — приглушение окружающих абзацев.
+                Button("Режим фокуса") { appDelegate.toggleFocusMode() }
+                    .keyboardShortcut("f", modifiers: [.control, .option])
                 Button("Режим чтения") { appDelegate.toggleReadingMode() }
                     .keyboardShortcut("r", modifiers: [.command, .shift])
             }
@@ -446,9 +449,9 @@ struct DocxEditApp: App {
 /// (синхронно с §5 «История релизов» в CLAUDE.md).
 enum AboutReleaseNotes {
     static let recent: [(version: String, codename: String, summary: String)] = [
+        ("1.8.4", "Focus Mode", "**Режим фокуса** (⌃⌥F, паттерн Byword/iA Writer) — все абзацы кроме текущего приглушены до `tertiaryLabelColor`, текущий подсвечен `labelColor`. Реализация через `NSLayoutManager.setTemporaryAttributes(_:forCharacterRange:)` — временные атрибуты рендера, модель не мутируется, отмена — просто `removeTemporaryAttribute`. Автоматически обновляется при перемещении курсора (хук в `refreshSelectionState`). Меню Обзор → «Режим фокуса»."),
         ("1.8.3", "MD Split", "**Markdown split-режим** (⌘\\, паттерн Typora) — сырой Markdown слева, WYSIWYG-превью справа, обновление live: каждая правка исходника переверстает превью в реальном времени через существующий `applyMarkdownSource` (best-effort, `swift-markdown` отказоустойчив к недописанному синтаксису). `HSplitView` — можно менять пропорции. Меню Вид → «Markdown split». Взаимоисключим с обычным source-режимом (⌘/): включение split-режима выходит из source и наоборот. Только для документов `mode == .markdown`."),
         ("1.8.2", "Ribbon Favorites Reorder", "**Переупорядочивание Избранного** в диалоге настройки ленты. Раньше порядок избранных команд был жёстко привязан к порядку в каталоге `RibbonCommandDef.all` (правка «сохраняем порядок каталога» в favoriteBinding). Теперь: правая колонка диалога разделена на «В избранном» (в порядке добавления пользователя, с кнопками ↑↓ для reorder и × для удаления) и «Доступно» (одним кликом добавляется в конец). Rendering ленты уже работал по массиву — сохранился, менять не пришлось."),
-        ("1.8.1", "Compact Ribbon", "**Сворачивание ленты** — как в MS Word (⌃F1 или двойной клик по активной вкладке). Свёрнутая лента оставляет только полосу вкладок, добавляя ~90pt высоты для текста (важно на ноутбуках 13-дюймовых). Меню Вид → «Свернуть ленту» (⌃F1). Кнопка chevron.up/down в правом углу tab-bar рядом с иконкой настройки. Персистится через `AppPreferences.ribbonCollapsed` — при следующем запуске возвращается прежнее состояние."),
         ("1.6.6", "Smart Paste", "**Умная вставка Markdown (⌘V)** — копирование из ИИ-чатов (ChatGPT/Perplexity) больше не даёт «сырых» звёздочек: если в буфере текст, похожий на Markdown-исходник, ⌘V вставляет его уже отформатированным (заголовки/списки/таблицы/**жирный**/ссылки) — и в DOCX-, и в MD-режиме (Typora-поведение). Санитайзер чинит артефакты вида `***Текст ***` (пробел перед закрывающим разделителем ломал парсер) и вычищает zero-width символы. Обычная вставка — ⇧⌥⌘V; отключается настройкой «Умная вставка Markdown». +12 тестов (309)."),
                     ]
 }
@@ -1152,6 +1155,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     func toggleStylesSidebar()       { NotificationCenter.default.post(name: .docxEditToggleStylesSidebar, object: nil) }
     func toggleNavigatorSidebar()    { NotificationCenter.default.post(name: .docxEditToggleNavigatorSidebar, object: nil) }
     func toggleReadingMode()         { NotificationCenter.default.post(name: .docxEditToggleReadingMode,   object: nil) }
+    /// v1.8.4: режим фокуса — прямой вызов, состояние per-window.
+    func toggleFocusMode() { currentSession?.attachedController?.toggleFocusMode() }
     func toggleCommentsSidebar()     { NotificationCenter.default.post(name: .docxEditToggleCommentsSidebar, object: nil) }
     func toggleFootnotesSidebar()    { NotificationCenter.default.post(name: .docxEditToggleFootnotesSidebar, object: nil) }
     func insertCommentAtSelection()  { NotificationCenter.default.post(name: .docxEditInsertComment,       object: nil) }

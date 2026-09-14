@@ -584,6 +584,30 @@ extension DocumentController {
             setSpellCheckLanguage(bcp)
             lastAppliedSpellLanguage = lang
         }
+        // v1.8.4: пересчитать focus-подсветку (текущий абзац сменился).
+        if isFocusMode { refreshFocusMode() }
+    }
+
+    /// v1.8.4: обновить временные атрибуты рендера для focus-mode.
+    /// Без мутации модели: `NSLayoutManager.setTemporaryAttributes` меняет
+    /// только цвет глифов при отрисовке. Текущий абзац — labelColor, остальные
+    /// — tertiaryLabel. Выключение — очистить temp-атрибуты по всему тексту.
+    func refreshFocusMode() {
+        guard let textView, let storage = textView.textStorage,
+              let lm = textView.layoutManager, storage.length > 0 else { return }
+        let full = NSRange(location: 0, length: storage.length)
+        if !isFocusMode {
+            lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: full)
+            return
+        }
+        let ns = storage.string as NSString
+        let caret = min(textView.selectedRange().location, storage.length)
+        let currentPara = ns.paragraphRange(for: NSRange(location: caret, length: 0))
+        let dim: [NSAttributedString.Key: Any] = [.foregroundColor: NSColor.tertiaryLabelColor]
+        let normal: [NSAttributedString.Key: Any] = [.foregroundColor: NSColor.labelColor]
+        // Сначала на весь текст — приглушить, потом восстановить текущий.
+        lm.setTemporaryAttributes(dim, forCharacterRange: full)
+        lm.setTemporaryAttributes(normal, forCharacterRange: currentPara)
     }
 
     /// Обновляет published-состояние списка (тип + вариант галереи) по стилю абзаца
