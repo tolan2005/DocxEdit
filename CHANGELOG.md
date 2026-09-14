@@ -3,6 +3,17 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.7.5] — 2026-09-14 — Recent Preview
+
+### Изменения
+- QuickLook-превью первой страницы в Welcome/Recent через QLThumbnailGenerator (нативный macOS API)
+- асинхронная загрузка, fallback на иконку типа
+
+### Артефакты
+- `build/v1.7.5/DocxEdit-1.7.5.dmg`
+- `build/v1.7.5/DocxEdit-1.7.5.app.zip`
+- `build/v1.7.5/SHA256SUMS`
+
 ## [1.7.4] — 2026-09-14 — Mini Toolbar
 
 ### Изменения
