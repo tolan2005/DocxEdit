@@ -62,7 +62,7 @@
 
 Чёткие критерии успеха позволяют действовать самостоятельно. Расплывчатые критерии (“сделай, чтобы работало”) требуют постоянных уточнений.
 
-> Автоматически обновляется при выпуске релизов. Последнее обновление: 2026-09-14 (v1.8.0)
+> Автоматически обновляется при выпуске релизов. Последнее обновление: 2026-09-14 (v1.8.1)
 
 ## 1. Обзор
 
@@ -197,11 +197,11 @@
 
 ## 4. Текущий релиз
 
-- **Активная версия:** `1.8.0` — Command Palette
+- **Активная версия:** `1.8.1` — Compact Ribbon
 - **Репозиторий:** [https://github.com/tolan2005/DocxEdit](https://github.com/tolan2005/DocxEdit)
 - **Статус:** Milestone-релиз: multi-document (каждый документ — своё окно, Pages/Word-style). ADR-048 — WindowGroup(for: UUID.self) + DocumentWindowRoot (StateObject Session per window) + SessionAnchor (переключает AppDelegate.currentSession на didBecomeMain своего окна) + Coordinator.observeKeyZero/observeKeyNote (фильтр по isKeyWindow заменил 76 глобальных подписок). ⌘N/⌘O спавнят новое окно. Undo/save/toolbar per-window; форматирование только в key window.
 - **Сборка:** arm64 (текущая машина), macOS 14 Sonoma+
-- **Артефакты:** `build/v1.8.0/DocxEdit-1.8.0.dmg` + `build/v1.8.0/DocxEdit-1.8.0.app.zip` + `build/v1.8.0/SHA256SUMS`
+- **Артефакты:** `build/v1.8.1/DocxEdit-1.8.1.dmg` + `build/v1.8.1/DocxEdit-1.8.1.app.zip` + `build/v1.8.1/SHA256SUMS`
 
 ## 5. История релизов
 
