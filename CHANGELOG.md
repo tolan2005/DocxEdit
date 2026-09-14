@@ -3,6 +3,18 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.7.0] — 2026-09-14 — Silent Autorecover
+
+### Изменения
+- диалог восстановления только после аварий: session.marker создаётся при старте, удаляется в applicationWillTerminate
+- чистый сеанс — автосейвы удаляются молча
+- «Не сохранять» очищает backup сессии
+
+### Артефакты
+- `build/v1.7.0/DocxEdit-1.7.0.dmg`
+- `build/v1.7.0/DocxEdit-1.7.0.app.zip`
+- `build/v1.7.0/SHA256SUMS`
+
 ## [1.6.9] — 2026-09-14 — MD Zoom Reset
 
 ### Изменения
