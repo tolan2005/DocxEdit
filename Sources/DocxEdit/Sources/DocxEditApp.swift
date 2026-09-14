@@ -433,9 +433,9 @@ struct DocxEditApp: App {
 /// (синхронно с §5 «История релизов» в CLAUDE.md).
 enum AboutReleaseNotes {
     static let recent: [(version: String, codename: String, summary: String)] = [
+        ("1.7.0", "Silent Autorecover", "**Диалог восстановления только после аварий.** Раньше после закрытия документа с «Не сохранять» при следующем запуске всё равно спрашивали «Восстановить?» — раздражало. Теперь: (1) маркер чистого завершения в `~/Library/Application Support/DocxEdit/session.marker` создаётся при старте и удаляется в `applicationWillTerminate`; если при старте маркера нет — сеанс был чистым, оставшиеся автосейвы тихо удаляются. (2) «Не сохранять» в диалоге закрытия окна теперь удаляет и autorecover-копию этого документа (иначе она бы засветилась при крахе других окон). Диалог покажется только после реального падения приложения / kill / выключения ОС."),
         ("1.6.9", "MD Zoom Reset", "Фикс v1.6.8: при переключении из DOCX в MD после авто-фита (v1.6.7 подгоняет масштаб DOCX-листа под ~75% ширины окна, например 191%) MD-«лента» уезжала вправо на половину окна — колонка 720pt рисовалась в неотмасштабированных координатах, а окно масштабировалось иначе. Теперь при переключении режима MD↔DOCX масштаб сбрасывается к дефолту (MD: 100%; DOCX: авто-фит под ширину окна)."),
         ("1.6.8", "MD Ribbon", "**Видимые границы редактируемой области в MD-режиме** (по паттерну Typora/iA Writer): текст лежит на центрированной белой «ленте» шириной 720pt (настройка Preferences → Основные: узкая 600 / средняя 720 / широкая 900 / во всю ширину), фон окна — приглушённый серый, у колонки — лёгкая тень. Раньше фон окна и фон текста совпадали — визуально было непонятно, где кончается редактируемая область."),
-        ("1.6.7", "Fit & MD Paste Fix", "**(1) Авто-масштаб при открытии DOCX**: при открытии файла или создании нового документа лист занимает ~75% ширины окна (раньше стартовый 100% на широком мониторе делал лист непропорционально узким, а на узком — обрезал). Считается по фактической ширине viewport с учётом текущего magnification. **(2) Фикс умной вставки в MD-режиме**: в WYSIWYG-режиме .md-документа ⌘V теперь конвертирует markdown-текст из буфера так же, как в DOCX (раньше гвард пропускал MD-документы целиком, вставка падала как plain-text). Source-режим (сырой .md) по-прежнему принимает plain."),
         ("1.6.6", "Smart Paste", "**Умная вставка Markdown (⌘V)** — копирование из ИИ-чатов (ChatGPT/Perplexity) больше не даёт «сырых» звёздочек: если в буфере текст, похожий на Markdown-исходник, ⌘V вставляет его уже отформатированным (заголовки/списки/таблицы/**жирный**/ссылки) — и в DOCX-, и в MD-режиме (Typora-поведение). Санитайзер чинит артефакты вида `***Текст ***` (пробел перед закрывающим разделителем ломал парсер) и вычищает zero-width символы. Обычная вставка — ⇧⌥⌘V; отключается настройкой «Умная вставка Markdown». +12 тестов (309)."),
                     ]
 }
@@ -654,9 +654,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     private var didReorganizeMenus = false
 
+    /// v1.7.0: маркер чистого завершения сеанса. Создаётся при старте, удаляется
+    /// в `applicationWillTerminate`. Если при следующем запуске файл ещё существует —
+    /// прошлый сеанс завершился аварийно (крах приложения / kill / выключение ОС).
+    /// Тогда и только тогда показываем диалог восстановления; при чистом выходе
+    /// оставшиеся автосейвы тихо удаляются.
+    static var sessionMarkerURL: URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let dir = base.appendingPathComponent("DocxEdit", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("session.marker")
+    }
+    /// true, если при запуске марkeр отсутствовал — прошлый сеанс завершился чисто.
+    private(set) var previousShutdownWasClean: Bool = true
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+        // v1.7.0: проверить/поставить маркер сеанса. Порядок важен: сначала
+        // читаем состояние ДО себя, потом пишем свой маркер.
+        let marker = Self.sessionMarkerURL
+        previousShutdownWasClean = !FileManager.default.fileExists(atPath: marker.path)
+        FileManager.default.createFile(atPath: marker.path, contents: Data(), attributes: nil)
         loadRecentURLs()
         // v1.3.0: openInitialDocumentFromCommandLine теперь вызывается из
         // attachSession() первого окна (didPerformInitialWindowActions guard),
@@ -745,6 +764,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     private var editMenuCleanupDelegate: EditMenuCleanupDelegate?
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
+    /// v1.7.0: чистое завершение — удаляем маркер сеанса, чтобы следующий
+    /// запуск не показал диалог восстановления по несуществующему инциденту.
+    func applicationWillTerminate(_ notification: Notification) {
+        try? FileManager.default.removeItem(at: Self.sessionMarkerURL)
+    }
 
     func openInitialDocumentFromCommandLine() {
         for arg in CommandLine.arguments.dropFirst() {
@@ -837,6 +862,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
               !entries.isEmpty else { return }
         let files = entries.filter { $0.pathExtension == "json" }
         guard !files.isEmpty else { return }
+        // v1.7.0: если прошлый сеанс завершился чисто (пользователь закрыл
+        // приложение штатно, applicationWillTerminate убрал маркер) — оставшиеся
+        // автосейвы это документы, закрытые с ответом «Не сохранять». Не
+        // спрашиваем ничего, тихо удаляем их вместе с MD-компаньонами.
+        if previousShutdownWasClean {
+            for url in files {
+                try? FileManager.default.removeItem(at: url)
+                let mdURL = url.deletingPathExtension().appendingPathExtension("md")
+                try? FileManager.default.removeItem(at: mdURL)
+            }
+            return
+        }
         let sorted = files.sorted {
             let a = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
             let b = (try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
