@@ -69,8 +69,8 @@
 #### App / lifecycle
 | Файл | Назначение |
 |---|---|
-| [DocxEditApp.swift](Sources/DocxEdit/Sources/DocxEditApp.swift) | Entry point, AppDelegate, меню, Notification-имена, About |
-| [DocumentSession.swift](Sources/DocxEdit/Sources/DocumentSession.swift) | ObservableObject поверх NSDocumentBridge; mode DOCX/MD |
+| [DocxEditApp.swift](Sources/DocxEdit/Sources/DocxEditApp.swift) | Entry point, AppDelegate, меню, Notification-имена, About, session.marker (ADR-055) |
+| [DocumentSession.swift](Sources/DocxEdit/Sources/DocumentSession.swift) | ObservableObject поверх NSDocumentBridge; mode DOCX/MD; source/split (ADR-059); attachedController weak (ADR-058); lastSavedAt (ADR-056) |
 | [NSDocumentBridge.swift](Sources/DocxEdit/Sources/NSDocumentBridge.swift) | Модель + URL + isDirty + мутаторы (markSaved/markDirty) |
 | [DocumentMode.swift](Sources/DocxEdit/Sources/DocumentMode.swift) | Enum DOCX/Markdown (ADR-049) |
 | [AppPreferences.swift](Sources/DocxEdit/Sources/AppPreferences.swift) | UserDefaults: шрифты, страница, колонка MD, обновления |
@@ -103,9 +103,14 @@
 #### Ribbon
 | Файл | Назначение |
 |---|---|
-| [RibbonView.swift](Sources/DocxEdit/Sources/RibbonView.swift) | Ribbon с 6 вкладками (ADR-043) + кастомизация |
-| [RibbonCustomization.swift](Sources/DocxEdit/Sources/RibbonCustomization.swift) | Каталог групп + команд для настройки тулбара |
-| [RibbonCustomizeView.swift](Sources/DocxEdit/Sources/RibbonCustomizeView.swift) | Диалог настройки ribbon (.sheet) |
+| [RibbonView.swift](Sources/DocxEdit/Sources/RibbonView.swift) | Ribbon с 6 вкладками (ADR-043) + кастомизация + compact-режим ⌃F1 (ADR-059) |
+| [RibbonCustomization.swift](Sources/DocxEdit/Sources/RibbonCustomization.swift) | Каталог групп + команд (50 команд, расширено для CommandPalette в v1.8.0) |
+| [RibbonCustomizeView.swift](Sources/DocxEdit/Sources/RibbonCustomizeView.swift) | Диалог настройки ribbon (.sheet), «В избранном» с ↑↓/× (ADR-059) |
+
+#### Command Palette
+| Файл | Назначение |
+|---|---|
+| [CommandPaletteView.swift](Sources/DocxEdit/Sources/CommandPaletteView.swift) | ⌘⇧P: FuzzyMatcher (subsequence + streak-bonus), CommandPaletteView, CommandPaletteWindow singleton NSPanel — ADR-058 |
 
 #### Сайдбары / панели
 | Файл | Назначение |
