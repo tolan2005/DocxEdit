@@ -3,6 +3,17 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.8.2] — 2026-09-14 — Ribbon Favorites Reorder
+
+### Изменения
+- reorder Избранного стрелками ↑↓ в диалоге настройки ленты
+- правая колонка разделена на «В избранном» и «Доступно»
+
+### Артефакты
+- `build/v1.8.2/DocxEdit-1.8.2.dmg`
+- `build/v1.8.2/DocxEdit-1.8.2.app.zip`
+- `build/v1.8.2/SHA256SUMS`
+
 ## [1.8.1] — 2026-09-14 — Compact Ribbon
 
 ### Изменения
