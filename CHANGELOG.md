@@ -3,6 +3,18 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.7.4] — 2026-09-14 — Mini Toolbar
+
+### Изменения
+- плавающая панель Ж/К/Ч/З/подсветка/⌘K над выделением через NSPopover (Word/Notion-паттерн)
+- anchor через layoutManager.boundingRect
+- скрытие в reading/source-режимах и над изображением
+
+### Артефакты
+- `build/v1.7.4/DocxEdit-1.7.4.dmg`
+- `build/v1.7.4/DocxEdit-1.7.4.app.zip`
+- `build/v1.7.4/SHA256SUMS`
+
 ## [1.7.3] — 2026-09-14 — Open Multi + Recents
 
 ### Изменения
