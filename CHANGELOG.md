@@ -3,6 +3,20 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.7.1] — 2026-09-14 — UX Polish 1
+
+### Изменения
+- индикатор сохранения в статусбаре
+- empty state в пустом документе
+- убрана дубл. * в тайтле
+- плюрализация «N копий»
+- Esc в диалоге восстановления
+
+### Артефакты
+- `build/v1.7.1/DocxEdit-1.7.1.dmg`
+- `build/v1.7.1/DocxEdit-1.7.1.app.zip`
+- `build/v1.7.1/SHA256SUMS`
+
 ## [1.7.0] — 2026-09-14 — Silent Autorecover
 
 ### Изменения
