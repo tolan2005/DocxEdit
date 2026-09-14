@@ -103,11 +103,17 @@ final class DocumentSession: ObservableObject {
     /// сессии, используется чтобы найти и удалить бэкап при явном сохранении.
     var autorecoverFileName: String { "\(sessionId.uuidString).docxedit-autosave.json" }
 
-    /// Заголовок окна: имя файла + `*` для несохранённых изменений.
+    /// Заголовок окна: имя файла. Индикатор «есть несохранённые изменения»
+    /// — родная точка в traffic light (`window.isDocumentEdited`, ставится в
+    /// `WindowCloseGuard.updateNSView`); дублировать через «*» в тайтле не нужно
+    /// (v1.7.1 полировка: избыточная звёздочка убрана).
     var windowTitle: String {
-        let name = bridge.fileURL?.lastPathComponent ?? "Без имени"
-        return bridge.isDirty ? "\(name) *" : name
+        bridge.fileURL?.lastPathComponent ?? "Без имени"
     }
+
+    /// v1.7.1: время последнего явного сохранения (⌘S / autorecover-restore).
+    /// Используется для индикатора «Сохранено 2 мин назад» в статусбаре.
+    @Published var lastSavedAt: Date? = nil
 
     /// Помечает документ сохранённым по URL. Явно уведомляет наблюдателей —
     /// `NSDocumentBridge` это class, мутация его полей не триггерит `@Published`.
@@ -115,6 +121,7 @@ final class DocumentSession: ObservableObject {
         objectWillChange.send()
         bridge.fileURL = url
         bridge.isDirty = false
+        lastSavedAt = Date()
     }
 
     /// Помечает документ гряным (например, после правки `bridge.model.styles`

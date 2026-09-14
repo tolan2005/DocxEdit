@@ -77,8 +77,18 @@ struct DocumentWindowView: View {
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                TextEditorRepresentable(controller: controller, session: session)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                ZStack {
+                    TextEditorRepresentable(controller: controller, session: session)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    // v1.7.1: подсказка на пустом документе (empty state).
+                    // Скрывается при первом keystroke — attributedText.length > 0.
+                    // allowsHitTesting=false, чтобы клик уходил в редактор.
+                    if session.attributedText.length == 0, session.bridge.fileURL == nil {
+                        EmptyDocumentHint(mode: session.mode)
+                            .allowsHitTesting(false)
+                            .transition(.opacity)
+                    }
+                }
                 }
                 if controller.showsStylesSidebar && !session.isMarkdownSourceMode {
                     SidebarResizer(width: $controller.stylesSidebarWidth)
@@ -399,6 +409,10 @@ struct StatusBar: View {
             LanguageIndicator(controller: controller)
             Divider().frame(height: 12)
             ModeIndicator(session: session)
+            // v1.7.1: индикатор сохранения. Показывает «Изменения не сохранены»
+            // (⌘S), «Сохранено только что / N мин / чч:мм» — как в Pages/Notion.
+            Divider().frame(height: 12)
+            SavedIndicator(session: session)
             // v1.6.0: исходный Markdown (только в MD-режиме) — ⌘/.
             if session.mode == .markdown {
                 Divider().frame(height: 12)
@@ -615,6 +629,109 @@ private struct ModeIndicator: View {
         // v1.6.0: выходим из исходного режима при смене формата.
         if session.isMarkdownSourceMode { session.exitMarkdownSourceMode() }
         session.mode = m
+    }
+}
+
+/// v1.7.1: подсказка в пустом документе — исчезает при первом keystroke.
+/// Позиционирование по центру верхней трети — не мешает курсору, читается сразу.
+private struct EmptyDocumentHint: View {
+    let mode: DocumentMode
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: mode == .markdown ? "m.square" : "doc.text")
+                .font(.system(size: 44, weight: .light))
+                .foregroundStyle(.tertiary)
+            Text(mode == .markdown ? "Начните печатать Markdown" : "Начните печатать")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                shortcutRow("⌘V", "вставить текст из буфера (умная вставка Markdown)")
+                shortcutRow("⌘O", "открыть существующий документ")
+                shortcutRow(mode == .markdown ? "⌘/" : "⌘⌥1", mode == .markdown ? "переключить исходный Markdown" : "заголовок 1")
+                shortcutRow("⌘,", "настройки")
+            }
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+            .padding(.top, 6)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .padding(.top, 120)
+    }
+
+    private func shortcutRow(_ keys: String, _ text: String) -> some View {
+        HStack(spacing: 8) {
+            Text(keys)
+                .font(.system(.caption, design: .monospaced))
+                .padding(.horizontal, 5).padding(.vertical, 1)
+                .background(RoundedRectangle(cornerRadius: 3).stroke(Color.secondary.opacity(0.3)))
+                .frame(minWidth: 38, alignment: .center)
+            Text(text)
+        }
+    }
+}
+
+/// v1.7.1: индикатор сохранения в статусбаре (паттерн Pages/Notion).
+/// Три состояния:
+/// - несохранённый новый (fileURL == nil, isDirty) — «Не сохранён»
+/// - грязный после явного сохранения — «Не сохранено с HH:MM»
+/// - чистый и сохранённый — «Сохранено N мин / Сохранено HH:MM».
+/// Обновляется раз в 30с общим таймером-тиком (реюзаем autorecover-каденс).
+private struct SavedIndicator: View {
+    @ObservedObject var session: DocumentSession
+    @State private var tick = Date()
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: iconName)
+                .font(.system(size: 10))
+            Text(label)
+                .font(.caption)
+        }
+        .foregroundStyle(color)
+        .help(hint)
+        .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { tick = $0 }
+    }
+
+    private var iconName: String {
+        if session.bridge.isDirty { return "circle.fill" }
+        return session.lastSavedAt == nil ? "circle" : "checkmark.circle"
+    }
+    private var color: Color {
+        session.bridge.isDirty ? .orange : .secondary
+    }
+    private var label: String {
+        if session.bridge.fileURL == nil, session.lastSavedAt == nil {
+            return session.bridge.isDirty ? "Не сохранён" : "Черновик"
+        }
+        if let ts = session.lastSavedAt {
+            let ago = tick.timeIntervalSince(ts)
+            let stamp = savedStamp(ago: ago, at: ts)
+            return session.bridge.isDirty ? "Не сохранено, было \(stamp)" : "Сохранено \(stamp)"
+        }
+        return session.bridge.isDirty ? "Не сохранено" : "Сохранено"
+    }
+    private var hint: String {
+        if session.bridge.isDirty { return "В документе есть несохранённые изменения (⌘S — сохранить)" }
+        return "Документ сохранён"
+    }
+    private func savedStamp(ago: TimeInterval, at date: Date) -> String {
+        if ago < 5 { return "только что" }
+        if ago < 60 { return "\(Int(ago)) с назад" }
+        if ago < 3600 {
+            let m = Int(ago / 60)
+            let suf = pluralMinutes(m)
+            return "\(m) \(suf) назад"
+        }
+        let df = DateFormatter()
+        df.dateFormat = "HH:mm"
+        return "в \(df.string(from: date))"
+    }
+    private func pluralMinutes(_ n: Int) -> String {
+        let mod10 = n % 10, mod100 = n % 100
+        if mod10 == 1, mod100 != 11 { return "мин" }        // 1 мин
+        if (2...4).contains(mod10), !(12...14).contains(mod100) { return "мин" }
+        return "мин"
     }
 }
 
