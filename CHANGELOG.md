@@ -3,6 +3,17 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.6.7] — 2026-09-14 — Fit & MD Paste Fix
+
+### Изменения
+- авто-масштаб при открытии DOCX (лист занимает ~75% ширины окна)
+- фикс умной вставки Markdown в WYSIWYG-режиме .md-документа (гвард пропускал MD целиком, вставка падала как plain-text)
+
+### Артефакты
+- `build/v1.6.7/DocxEdit-1.6.7.dmg`
+- `build/v1.6.7/DocxEdit-1.6.7.app.zip`
+- `build/v1.6.7/SHA256SUMS`
+
 ## [1.6.6] — 2026-08-25 — Smart Paste
 
 ### Изменения
