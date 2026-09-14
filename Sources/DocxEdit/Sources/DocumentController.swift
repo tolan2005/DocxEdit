@@ -42,6 +42,12 @@ final class DocumentController: ObservableObject {
     // По умолчанию — «Вид страницы» (лист как при печати), как в мейнстрим-редакторов.
     @Published var isPageView: Bool = true
     @Published var zoomLevel: Double = 1.0
+    /// v1.6.7: при открытии/создании DOCX-документа подогнать масштаб так,
+    /// чтобы лист занимал ~75% ширины окна. Флаг сбрасывается после первого
+    /// применения из `applyPageViewStyle`, когда известна ширина viewport.
+    var pendingInitialFit: Bool = true
+    /// Целевая доля ширины окна, которую должен занимать лист при авто-подгонке.
+    static let initialFitFraction: Double = 0.75
     /// Тип списка в текущем абзаце/выделении (nil — обычный абзац).
     @Published var currentListType: ListType? = nil
     /// Вариант многоуровневого списка текущего абзаца (id пресета галереи, nil — не распознан).
@@ -149,6 +155,7 @@ final class DocumentController: ObservableObject {
 
     func attach(session: DocumentSession) {
         self.session = session
+        pendingInitialFit = true
         refreshStatus()
         startAutorecover()
         applyCustomDictionary()
@@ -566,7 +573,9 @@ final class DocumentController: ObservableObject {
     /// DocxTextView.paste; false = обычная вставка super.paste().
     func trySmartMarkdownPaste() -> Bool {
         guard AppPreferences.shared.smartPasteMarkdown else { return false }
-        guard session?.mode != .markdown, !(session?.isMarkdownSourceMode ?? false) else { return false }
+        // В source-режиме сырой markdown — источник истины, plain-вставка корректна.
+        // В WYSIWYG (в т.ч. mode == .markdown) конвертируем как в DOCX.
+        guard !(session?.isMarkdownSourceMode ?? false) else { return false }
         guard let text = NSPasteboard.general.string(forType: .string),
               text.count >= 8,
               MarkdownPasteSupport.looksLikeMarkdown(text) else { return false }

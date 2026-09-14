@@ -721,6 +721,28 @@ struct TextEditorRepresentable: NSViewRepresentable {
                 textView.typingAttributes = DocumentSession.currentDefaultAttributes()
             }
             context.coordinator.isInternalUpdate = false
+            // v1.6.7: внешняя замена документа (open/new/reset) — при следующей
+            // раскладке подогнать масштаб под ширину окна.
+            controller.pendingInitialFit = true
+        }
+
+        // v1.6.9: смена режима MD↔DOCX сбрасывает масштаб к дефолту режима.
+        // Иначе авто-фит DOCX (v1.6.7) уносит zoom (например, 191%), и MD-«лента»
+        // при переключении в MD рисуется в масштабе, при котором колонка не
+        // помещается и уезжает за край окна.
+        if context.coordinator.lastRenderedMode != session.mode {
+            let prev = context.coordinator.lastRenderedMode
+            context.coordinator.lastRenderedMode = session.mode
+            if prev != nil {
+                switch session.mode {
+                case .markdown:
+                    controller.pendingInitialFit = false
+                    nsView.magnification = 1.0
+                    controller.zoomLevel = 1.0
+                case .docx:
+                    controller.pendingInitialFit = true
+                }
+            }
         }
 
         // v1.2.4: applyPageViewStyle читает usedRect() для расчёта pageCount и
@@ -761,6 +783,21 @@ struct TextEditorRepresentable: NSViewRepresentable {
             let viewW = max(size.width + 80, scroll.contentSize.width)
             textView.frame.origin.x = 0
             textView.frame.size.width = viewW
+
+            // v1.6.7: авто-подгонка масштаба при первом открытии — лист должен
+            // занимать ~75% ширины окна. Учитываем текущий magnification: viewport
+            // в неотмасштабированных координатах = clipView.frame.width / magn.
+            if controller.pendingInitialFit,
+               scroll.contentSize.width > 40, size.width > 0 {
+                let currentMagn = max(scroll.magnification, 0.01)
+                let unscaledViewportW = scroll.contentSize.width / currentMagn
+                let target = DocumentController.initialFitFraction * unscaledViewportW / size.width
+                let clamped = max(0.25, min(4.0, Double(target)))
+                controller.pendingInitialFit = false
+                DispatchQueue.main.async {
+                    controller.setZoom(clamped)
+                }
+            }
             if let dt = textView as? DocxTextView {
                 dt.showsPageSheet = true
                 dt.pageSheetWidth = size.width
@@ -831,9 +868,17 @@ struct TextEditorRepresentable: NSViewRepresentable {
             // Preferences → Основные; full — во всю ширину (поведение до v1.5.8).
             let mdColW: CGFloat? = (session.mode == .markdown)
                 ? AppPreferences.shared.markdownColumnWidth.points : nil
-            scroll.backgroundColor = .textBackgroundColor
-            textView.drawsBackground = true
-            textView.backgroundColor = .textBackgroundColor
+            // v1.6.8: если активна MD-«лента» — серое поле окна + белая колонка
+            // (границы редактируемой области). Фон textView отключаем: его
+            // рисует DocxTextView.drawBackground.
+            if mdColW != nil {
+                scroll.backgroundColor = DocxTextView.sheetField
+                textView.drawsBackground = false
+            } else {
+                scroll.backgroundColor = .textBackgroundColor
+                textView.drawsBackground = true
+                textView.backgroundColor = .textBackgroundColor
+            }
             textView.autoresizingMask = [.width]
             textView.isHorizontallyResizable = false
             textView.isVerticallyResizable = true
@@ -869,6 +914,10 @@ struct TextEditorRepresentable: NSViewRepresentable {
         let controller: DocumentController
         var isInternalUpdate = false
         weak var scrollView: NSScrollView?
+        /// v1.6.9: последний режим, для которого выполнялся applyPageViewStyle.
+        /// При переключении MD↔DOCX сбрасываем масштаб к дефолту режима
+        /// (иначе авто-фит DOCX уносит zoom, и MD-«лента» уезжает за край окна).
+        var lastRenderedMode: DocumentMode?
 
         /// v1.3.0 multi-doc: уведомления форматирования обрабатывает только Coordinator
         /// текущего key window. Иначе ⌘B из одного окна применил бы жирный во всех окнах.
@@ -2553,6 +2602,31 @@ final class DocxTextView: NSTextView {
     }
 
     override func drawBackground(in rect: NSRect) {
+        // v1.6.8: MD-«лента» — серое поле + центрированная белая колонка
+        // (визуальные границы редактируемой области, как в Typora/iA Writer).
+        if !showsPageSheet, mdColumnWidth > 0 {
+            let isPrinting = !(NSGraphicsContext.current?.isDrawingToScreen ?? true)
+            if !isPrinting {
+                Self.sheetField.setFill()
+                rect.fill()
+                let colLeft = max(4, (bounds.width - mdColumnWidth) / 2)
+                let colRect = NSRect(x: colLeft, y: rect.minY,
+                                     width: mdColumnWidth, height: rect.height)
+                if let ctx = NSGraphicsContext.current?.cgContext {
+                    ctx.saveGState()
+                    let shadow = NSShadow()
+                    shadow.shadowColor = NSColor.black.withAlphaComponent(0.18)
+                    shadow.shadowBlurRadius = 8
+                    shadow.shadowOffset = NSSize(width: 0, height: -2)
+                    shadow.set()
+                    DocxTextView.sheetPaper.setFill()
+                    colRect.fill()
+                    ctx.restoreGState()
+                }
+            }
+            drawFloatingBehind(in: rect)
+            return
+        }
         guard showsPageSheet, pageSheetWidth > 0, sheetPageHeight > 0 else {
             super.drawBackground(in: rect)
             drawFloatingBehind(in: rect)
