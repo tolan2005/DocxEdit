@@ -3,6 +3,16 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.6.8] — 2026-09-14 — MD Ribbon
+
+### Изменения
+- видимые границы редактируемой области в MD-режиме: серое поле окна + центрированная белая колонка (600/720/900/full — настройка Preferences)
+
+### Артефакты
+- `build/v1.6.8/DocxEdit-1.6.8.dmg`
+- `build/v1.6.8/DocxEdit-1.6.8.app.zip`
+- `build/v1.6.8/SHA256SUMS`
+
 ## [1.6.7] — 2026-09-14 — Fit & MD Paste Fix
 
 ### Изменения
