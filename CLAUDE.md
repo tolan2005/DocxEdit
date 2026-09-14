@@ -62,7 +62,7 @@
 
 Чёткие критерии успеха позволяют действовать самостоятельно. Расплывчатые критерии (“сделай, чтобы работало”) требуют постоянных уточнений.
 
-> Автоматически обновляется при выпуске релизов. Последнее обновление: 2026-09-14 (v1.6.7)
+> Автоматически обновляется при выпуске релизов. Последнее обновление: 2026-09-14 (v1.6.8)
 
 ## 1. Обзор
 
@@ -194,11 +194,11 @@
 
 ## 4. Текущий релиз
 
-- **Активная версия:** `1.6.7` — Fit - **Активная версия:** 1.3.1 — Empty Doc By Default MD Paste Fix
+- **Активная версия:** `1.6.8` — MD Ribbon
 - **Репозиторий:** [https://github.com/tolan2005/DocxEdit](https://github.com/tolan2005/DocxEdit)
 - **Статус:** Milestone-релиз: multi-document (каждый документ — своё окно, Pages/Word-style). ADR-048 — WindowGroup(for: UUID.self) + DocumentWindowRoot (StateObject Session per window) + SessionAnchor (переключает AppDelegate.currentSession на didBecomeMain своего окна) + Coordinator.observeKeyZero/observeKeyNote (фильтр по isKeyWindow заменил 76 глобальных подписок). ⌘N/⌘O спавнят новое окно. Undo/save/toolbar per-window; форматирование только в key window.
 - **Сборка:** arm64 (текущая машина), macOS 14 Sonoma+
-- **Артефакты:** `build/v1.6.7/DocxEdit-1.6.7.dmg` + `build/v1.6.7/DocxEdit-1.6.7.app.zip` + `build/v1.6.7/SHA256SUMS`
+- **Артефакты:** `build/v1.6.8/DocxEdit-1.6.8.dmg` + `build/v1.6.8/DocxEdit-1.6.8.app.zip` + `build/v1.6.8/SHA256SUMS`
 
 ## 5. История релизов
 
