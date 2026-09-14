@@ -3,6 +3,16 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.8.4] — 2026-09-14 — Focus Mode
+
+### Изменения
+- режим фокуса (⌃⌥F): окружающие абзацы приглушены до tertiary через setTemporaryAttributes, не мутирует модель
+
+### Артефакты
+- `build/v1.8.4/DocxEdit-1.8.4.dmg`
+- `build/v1.8.4/DocxEdit-1.8.4.app.zip`
+- `build/v1.8.4/SHA256SUMS`
+
 ## [1.8.3] — 2026-09-14 — MD Split
 
 ### Изменения
