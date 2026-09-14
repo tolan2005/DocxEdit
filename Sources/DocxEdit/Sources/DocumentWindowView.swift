@@ -85,7 +85,19 @@ struct DocumentWindowView: View {
                     SidebarResizer(width: $controller.navigatorSidebarWidth, leading: true)
                 }
                 // v1.6.0: исходный Markdown — вместо WYSIWYG-редактора.
-                if session.isMarkdownSourceMode {
+                // v1.8.3: split-режим — source слева, WYSIWYG-превью справа.
+                if session.isMarkdownSplitMode {
+                    HSplitView {
+                        MarkdownSourceView(
+                            text: $session.markdownSource,
+                            onChange: { session.applyMarkdownSource($0) }
+                        )
+                        .frame(minWidth: 240)
+                        TextEditorRepresentable(controller: controller, session: session)
+                            .frame(minWidth: 240)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if session.isMarkdownSourceMode {
                     MarkdownSourceView(
                         text: $session.markdownSource,
                         onChange: { session.applyMarkdownSource($0) }

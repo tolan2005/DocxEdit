@@ -35,17 +35,41 @@ final class DocumentSession: ObservableObject {
         markdownSource = MarkdownIO.exportMarkdown(bridge.model,
                                                    prettyTables: AppPreferences.shared.markdownPrettyTables)
         isMarkdownSourceMode = true
+        isMarkdownSplitMode = false   // v1.8.3: split и source взаимоисключимы.
     }
+
+    /// v1.8.3: включить split-режим (source | preview рядом).
+    func enterMarkdownSplitMode() {
+        guard mode == .markdown else { return }
+        markdownSource = MarkdownIO.exportMarkdown(bridge.model,
+                                                   prettyTables: AppPreferences.shared.markdownPrettyTables)
+        isMarkdownSourceMode = false
+        isMarkdownSplitMode = true
+    }
+    func exitMarkdownSplitMode() { isMarkdownSplitMode = false }
 
     /// Правка исходника: текст + best-effort синхронизация модели
     /// (swift-markdown отказоустойчив к недописанному синтаксису).
+    /// v1.8.3: если открыт split-режим, дополнительно обновляем attributedText
+    /// — превью справа переверстается в реальном времени по мере правок слева.
     func applyMarkdownSource(_ text: String) {
         markdownSource = text
         if let model = try? MarkdownIO.importMarkdown(string: text) {
             bridge.replaceModel(model)
+            if isMarkdownSplitMode {
+                attributedText = model.toAttributedString(
+                    defaultFont: preferredDefaultFont(),
+                    fallbackFontName: AppPreferences.shared.favoriteFonts.first,
+                    usableWidth: bridge.model.pageSettings.usableWidthInPoints)
+            }
         }
         markDirty()
     }
+
+    /// v1.8.3: split-режим MD — source слева, превью WYSIWYG справа
+    /// (Typora-паттерн). Только для документов в mode == .markdown.
+    /// Взаимоисключим с isMarkdownSourceMode: split = оба одновременно.
+    @Published var isMarkdownSplitMode: Bool = false
 
     /// Выйти в WYSIWYG: перестроить attributedText из модели.
     func exitMarkdownSourceMode() {
