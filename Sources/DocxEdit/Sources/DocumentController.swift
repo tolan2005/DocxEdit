@@ -155,6 +155,7 @@ final class DocumentController: ObservableObject {
 
     func attach(session: DocumentSession) {
         self.session = session
+        session.attachedController = self  // v1.8.0: обратная ссылка для CommandPalette.
         pendingInitialFit = true
         refreshStatus()
         startAutorecover()

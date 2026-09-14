@@ -70,7 +70,38 @@ struct RibbonCommandDef: Identifiable {
 
     /// Каталог команд, доступных для добавления в «Избранное».
     /// Порядок каталога = порядок отображения выбранных в группе.
+    /// v1.8.0: используется также командной палитрой (⌘⇧P) — поиск по title.
     static let all: [RibbonCommandDef] = [
+        // v1.8.0: файловые операции (не в «Избранное» ribbon, но в палитре нужны).
+        .init(id: "new",         title: "Новый документ",   symbol: "doc.badge.plus") { _, a in a.newDocument() },
+        .init(id: "newMD",       title: "Новый Markdown",   symbol: "m.square") { _, a in a.newMarkdownDocument() },
+        .init(id: "open",        title: "Открыть…",         symbol: "folder") { _, a in a.openDocument() },
+        .init(id: "save",        title: "Сохранить",        symbol: "arrow.down.doc") { _, a in a.saveDocument() },
+        .init(id: "saveAs",      title: "Сохранить как…",   symbol: "arrow.down.doc.on.rectangle") { _, a in a.saveDocumentAs() },
+        .init(id: "exportDOCX",  title: "Экспорт в DOCX…",  symbol: "doc.richtext") { _, a in a.exportDOCX() },
+        .init(id: "exportRTF",   title: "Экспорт в RTF…",   symbol: "doc.plaintext") { _, a in a.exportRTF() },
+        .init(id: "exportMD",    title: "Экспорт в Markdown…", symbol: "text.alignleft") { _, a in a.exportMarkdown() },
+        .init(id: "exportTXT",   title: "Экспорт в TXT…",   symbol: "text.quote") { _, a in a.exportTXT() },
+        .init(id: "exportODT",   title: "Экспорт в ODT…",   symbol: "doc") { _, a in a.exportODT() },
+        .init(id: "preferences", title: "Настройки…",       symbol: "gear") { _, _ in NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil) },
+        // Форматирование (публикуют notifications — исполняет Coordinator key window).
+        .init(id: "bold",        title: "Полужирный",       symbol: "bold") { _, _ in NotificationCenter.default.post(name: .docxEditToggleBold, object: nil) },
+        .init(id: "italic",      title: "Курсив",           symbol: "italic") { _, _ in NotificationCenter.default.post(name: .docxEditToggleItalic, object: nil) },
+        .init(id: "underline",   title: "Подчёркнутый",     symbol: "underline") { _, _ in NotificationCenter.default.post(name: .docxEditToggleUnderline, object: nil) },
+        .init(id: "strike",      title: "Зачёркнутый",      symbol: "strikethrough") { _, _ in NotificationCenter.default.post(name: .docxEditToggleStrikethrough, object: nil) },
+        .init(id: "clearFmt",    title: "Очистить форматирование", symbol: "clear") { _, _ in NotificationCenter.default.post(name: .docxEditClearFormatting, object: nil) },
+        // Панели (toggle).
+        .init(id: "navigator",   title: "Навигатор",        symbol: "list.bullet.indent") { c, _ in c.toggleNavigatorSidebar() },
+        .init(id: "stylesPanel", title: "Панель стилей",    symbol: "list.bullet.rectangle.portrait") { c, _ in c.toggleStylesSidebar() },
+        .init(id: "commentsPanel", title: "Панель комментариев", symbol: "bubble.left.and.bubble.right") { c, _ in c.toggleCommentsSidebar() },
+        .init(id: "footnotesPanel", title: "Панель сносок", symbol: "text.append") { c, _ in c.toggleFootnotesSidebar() },
+        // Вид.
+        .init(id: "pageView",    title: "Вид страницы (переключить)", symbol: "doc.richtext") { c, _ in c.togglePageView() },
+        .init(id: "zoomIn",      title: "Увеличить масштаб", symbol: "plus.magnifyingglass") { c, _ in c.zoomIn() },
+        .init(id: "zoomOut",     title: "Уменьшить масштаб", symbol: "minus.magnifyingglass") { c, _ in c.zoomOut() },
+        .init(id: "zoom100",     title: "Масштаб 100%",     symbol: "1.magnifyingglass") { c, _ in c.setZoom(1.0) },
+        .init(id: "fitWidth",    title: "По ширине страницы", symbol: "arrow.left.and.right") { c, _ in c.fitPageWidth() },
+        // Остальные — как раньше.
         .init(id: "pageBreak",   title: "Разрыв страницы",  symbol: "arrow.turn.up.right") { c, _ in c.insertPageBreak() },
         .init(id: "headerFooter", title: "Колонтитулы…",    symbol: "rectangle.topthird.inset.filled") { _, a in a.showHeaderFooter() },
         .init(id: "pageNumbers", title: "Номера страниц",   symbol: "number.circle") { _, a in a.togglePageNumbers() },

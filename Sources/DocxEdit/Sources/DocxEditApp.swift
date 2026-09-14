@@ -93,6 +93,10 @@ struct DocxEditApp: App {
                 Button("Копировать как Markdown") { appDelegate.copyAsMarkdown() }
                 Button("Вставить из Markdown")   { appDelegate.pasteAsMarkdown() }
                 Divider()
+                // v1.8.0: командная палитра — быстрый доступ к ~40 командам.
+                Button("Команда…") { appDelegate.showCommandPalette() }
+                    .keyboardShortcut("p", modifiers: [.command, .shift])
+                Divider()
                 Menu("Найти") {
                     Button("Найти…")    { appDelegate.findInDocument() }
                         .keyboardShortcut("f", modifiers: .command)
@@ -433,9 +437,9 @@ struct DocxEditApp: App {
 /// (синхронно с §5 «История релизов» в CLAUDE.md).
 enum AboutReleaseNotes {
     static let recent: [(version: String, codename: String, summary: String)] = [
+        ("1.8.0", "Command Palette", "**Командная палитра (⌘⇧P)** — как в VS Code/Notion/Xcode. Единый быстрый доступ ко ВСЕМ командам (~50): файловые (New/Open/Save/Save As/Export DOCX/RTF/MD/TXT/ODT), форматирование (Ж/К/Ч/З/Clear), панели (Навигатор/Стили/Комментарии/Сноски), вид (Page View/Zoom In/Out/100%/Fit width), вставки (изображение, таблица, символ, сноска, гиперссылка, закладка, cross-ref, TOC, разрыв страницы, колонтитулы, номера страниц), инструменты (статистика, поиск, «Перейти к», «Стили…», регистр, «Заменить шрифты…», режим чтения, track changes, линейка, непечатаемые). Fuzzy-поиск по названию с бонусом за раннее совпадение и точную подстроку. Навигация ↑↓ Enter Esc. NSPanel floating над key window."),
         ("1.7.5", "Recent Preview", "**QuickLook-превью в Welcome/Recent** — вместо иконки типа теперь показывается миниатюра первой страницы (40×52pt, retina-качество). Реализация через `QLThumbnailGenerator.generateBestRepresentation` (нативный macOS API, использует QL-плагины — Word для DOCX, TextEdit для RTF/TXT, marked для MD). Асинхронная загрузка через `.task(id:)` — не блокирует UI. Fallback на прежнюю иконку типа, если QL не смог сгенерировать (шифрованный/битый файл, нет плагина). Кэш ведёт сам QuickLook — приложение ничего не хранит."),
         ("1.7.4", "Mini Toolbar", "**Mini-toolbar над выделением** (Word/Notion-паттерн) — при выделении текста над ним появляется плавающая панель с частыми командами: **Ж / К / Ч / З** (жирный/курсив/подчёркнутый/зачёркнутый), подсветка жёлтым (toggle), гиперссылка (⌘K). Позиция считается через `layoutManager.boundingRect(forGlyphRange:in:)`, окно — `NSPopover` с `behavior=.applicationDefined` (мы полностью контролируем показ). Скрывается при пустом выделении, в режиме чтения, source-режиме и над выделенным изображением (там своя overlay-панель). Кнопки идут через ту же NotificationCenter-шину, что меню/ribbon."),
-        ("1.7.3", "Open Multi + Recents", "**(1) Multi-select в ⌘O**: панель открытия принимает несколько файлов — каждый открывается в своё окно (multi-doc с v1.3.0). Раньше `allowsMultipleSelection = false` — открыть 5 файлов = 5 раз выбрать. **(2) ODT** добавлен в список типов ⌘O (уже поддерживался с R09 через OdtIO, но в панели не был выставлен). **(3) Welcome и Recent — дата и размер файла** в правой колонке (как в Finder): «сегодня 14:32», «вчера 09:10», «12 сен · 2,4 МБ». Иконка левее теперь отражает тип по расширению (m.square для MD, doc.richtext для DOCX, doc.plaintext для RTF)."),
         ("1.6.6", "Smart Paste", "**Умная вставка Markdown (⌘V)** — копирование из ИИ-чатов (ChatGPT/Perplexity) больше не даёт «сырых» звёздочек: если в буфере текст, похожий на Markdown-исходник, ⌘V вставляет его уже отформатированным (заголовки/списки/таблицы/**жирный**/ссылки) — и в DOCX-, и в MD-режиме (Typora-поведение). Санитайзер чинит артефакты вида `***Текст ***` (пробел перед закрывающим разделителем ломал парсер) и вычищает zero-width символы. Обычная вставка — ⇧⌥⌘V; отключается настройкой «Умная вставка Markdown». +12 тестов (309)."),
                     ]
 }
@@ -1090,6 +1094,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     func tableShowRowHeight()   { NotificationCenter.default.post(name: .docxEditShowRowHeight, object: nil) }
     func showParagraphIndents() { NotificationCenter.default.post(name: .docxEditShowParagraphIndents, object: nil) }
     func showFindReplace()      { NotificationCenter.default.post(name: .docxEditShowFindReplace, object: nil) }
+    /// v1.8.0: командная палитра (⌘⇧P). Контроллер берётся из
+    /// currentSession.attachedController (ставится в DocumentController.attach).
+    func showCommandPalette() {
+        guard let controller = currentSession?.attachedController else { NSSound.beep(); return }
+        CommandPaletteWindow.shared.toggle(controller: controller, appDelegate: self)
+    }
     func showImageCrop()        { NotificationCenter.default.post(name: .docxEditShowImageCrop, object: nil) }
     func showDocumentProperties() { NotificationCenter.default.post(name: .docxEditShowDocumentProperties, object: nil) }
     func showBookmarks()          { NotificationCenter.default.post(name: .docxEditShowBookmarks, object: nil) }

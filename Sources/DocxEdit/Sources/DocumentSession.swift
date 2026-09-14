@@ -115,6 +115,13 @@ final class DocumentSession: ObservableObject {
     /// Используется для индикатора «Сохранено 2 мин назад» в статусбаре.
     @Published var lastSavedAt: Date? = nil
 
+    /// v1.8.0: обратная ссылка на контроллер окна, заполняется в
+    /// `DocumentController.attach(session:)`. Нужна командной палитре, чтобы
+    /// исполнить run-closures, которым требуется прямой доступ к DocumentController
+    /// (toggle sidebars, zoom, insertPageBreak и т.п.). Weak — контроллер живёт
+    /// в @StateObject окна, а session — в другом; циклов нет, но защищаемся.
+    weak var attachedController: DocumentController?
+
     /// Помечает документ сохранённым по URL. Явно уведомляет наблюдателей —
     /// `NSDocumentBridge` это class, мутация его полей не триггерит `@Published`.
     func markSaved(url: URL) {
