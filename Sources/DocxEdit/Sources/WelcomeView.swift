@@ -90,7 +90,7 @@ struct WelcomeView: View {
                                     onOpenRecent(url)
                                 } label: {
                                     HStack(spacing: 8) {
-                                        Image(systemName: "doc.text")
+                                        Image(systemName: iconName(for: url))
                                             .foregroundStyle(Color.accentColor)
                                         VStack(alignment: .leading, spacing: 1) {
                                             Text(url.lastPathComponent)
@@ -103,6 +103,13 @@ struct WelcomeView: View {
                                                 .truncationMode(.middle)
                                         }
                                         Spacer()
+                                        // v1.7.3: дата последнего изменения файла + размер, как в Finder.
+                                        if let meta = fileMeta(for: url) {
+                                            Text(meta)
+                                                .font(.system(size: 10))
+                                                .foregroundStyle(.tertiary)
+                                                .monospacedDigit()
+                                        }
                                     }
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 5)
@@ -123,6 +130,46 @@ struct WelcomeView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(width: 620, height: 360)
+    }
+
+    /// v1.7.3: иконка типа по расширению — .md/.docx/.txt/.rtf/.odt/.pdf.
+    private func iconName(for url: URL) -> String {
+        switch url.pathExtension.lowercased() {
+        case "md", "markdown": return "m.square"
+        case "docx", "doc":    return "doc.richtext"
+        case "rtf":            return "doc.plaintext"
+        case "odt":            return "doc"
+        case "pdf":            return "doc.viewfinder"
+        default:               return "doc.text"
+        }
+    }
+
+    /// v1.7.3: правая колонка — «дата · размер», как в Finder.
+    /// Формат даты: сегодня «сегодня 14:32», иначе — короткий локализованный.
+    private func fileMeta(for url: URL) -> String? {
+        guard let vals = try? url.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey]),
+              let date = vals.contentModificationDate else { return nil }
+        let cal = Calendar.current
+        let df = DateFormatter()
+        if cal.isDateInToday(date) {
+            df.dateFormat = "'сегодня' HH:mm"
+        } else if cal.isDateInYesterday(date) {
+            df.dateFormat = "'вчера' HH:mm"
+        } else {
+            df.locale = Locale(identifier: "ru_RU")
+            df.dateFormat = "d MMM"
+        }
+        var text = df.string(from: date)
+        if let size = vals.fileSize, size > 0 {
+            text += " · \(sizeString(size))"
+        }
+        return text
+    }
+    private func sizeString(_ bytes: Int) -> String {
+        let f = ByteCountFormatter()
+        f.allowedUnits = [.useKB, .useMB]
+        f.countStyle = .file
+        return f.string(fromByteCount: Int64(bytes))
     }
 }
 

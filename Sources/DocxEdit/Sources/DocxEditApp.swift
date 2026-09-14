@@ -433,9 +433,9 @@ struct DocxEditApp: App {
 /// (синхронно с §5 «История релизов» в CLAUDE.md).
 enum AboutReleaseNotes {
     static let recent: [(version: String, codename: String, summary: String)] = [
+        ("1.7.3", "Open Multi + Recents", "**(1) Multi-select в ⌘O**: панель открытия принимает несколько файлов — каждый открывается в своё окно (multi-doc с v1.3.0). Раньше `allowsMultipleSelection = false` — открыть 5 файлов = 5 раз выбрать. **(2) ODT** добавлен в список типов ⌘O (уже поддерживался с R09 через OdtIO, но в панели не был выставлен). **(3) Welcome и Recent — дата и размер файла** в правой колонке (как в Finder): «сегодня 14:32», «вчера 09:10», «12 сен · 2,4 МБ». Иконка левее теперь отражает тип по расширению (m.square для MD, doc.richtext для DOCX, doc.plaintext для RTF)."),
         ("1.7.2", "UX Polish 2", "Вторая пачка UX-полировки. **(1) Тост «Сохранено/Экспортировано»** после ⌘S / экспорта — неблокирующий баннер снизу окна с кнопкой «Показать в Finder» (NSWorkspace.activateFileViewerSelecting), автоскрытие через 3.5 с. Работает только в key window (иначе дублировался бы во всех окнах). **(2) Баннер «Шрифт по умолчанию изменён»** — при смене в Preferences в открытых окнах появляется полоса «Применить к этому документу?» с одной кнопкой. Раньше открытые документы жили со старым шрифтом, о смене никто не сообщал. **(3) Внутренние Notification-имена** `docxEditShowSaveToast` и `docxEditDefaultFontChanged` — для будущих подсистем."),
         ("1.7.1", "UX Polish 1", "Первая пачка UX-полировки по аудиту. **(1) Индикатор сохранения** в статусбаре — «Сохранено 2 мин назад» / «Не сохранено» с иконкой (оранжевая точка = грязный, галочка = сохранён), обновляется раз в 30 с. **(2) Empty state** в новом документе — при пустом документе центральная подсказка со шрткатами (⌘V/⌘O/⌘⌥1/⌘,), исчезает при первом keystroke. **(3) Убрана дублирующая «*»** из заголовка окна — родная точка в traffic light-е уже показывает `isDocumentEdited`. **(4) Плюрализация «Найдена 1 копия / Найдено 2-4 копии / Найдено 5+ копий»** в диалоге восстановления. **(5) Esc → «Позже»** в диалоге восстановления (закрыть без действия)."),
-        ("1.7.0", "Silent Autorecover", "**Диалог восстановления только после аварий.** Раньше после закрытия документа с «Не сохранять» при следующем запуске всё равно спрашивали «Восстановить?» — раздражало. Теперь: (1) маркер чистого завершения в `~/Library/Application Support/DocxEdit/session.marker` создаётся при старте и удаляется в `applicationWillTerminate`; если при старте маркера нет — сеанс был чистым, оставшиеся автосейвы тихо удаляются. (2) «Не сохранять» в диалоге закрытия окна теперь удаляет и autorecover-копию этого документа (иначе она бы засветилась при крахе других окон). Диалог покажется только после реального падения приложения / kill / выключения ОС."),
         ("1.6.6", "Smart Paste", "**Умная вставка Markdown (⌘V)** — копирование из ИИ-чатов (ChatGPT/Perplexity) больше не даёт «сырых» звёздочек: если в буфере текст, похожий на Markdown-исходник, ⌘V вставляет его уже отформатированным (заголовки/списки/таблицы/**жирный**/ссылки) — и в DOCX-, и в MD-режиме (Typora-поведение). Санитайзер чинит артефакты вида `***Текст ***` (пробел перед закрывающим разделителем ломал парсер) и вычищает zero-width символы. Обычная вставка — ⇧⌥⌘V; отключается настройкой «Умная вставка Markdown». +12 тестов (309)."),
                     ]
 }
@@ -941,10 +941,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             .init(filenameExtension: "rtf")  ?? .data,
             .init(filenameExtension: "md")   ?? .data,
             .init(filenameExtension: "txt")  ?? .data,
+            .init(filenameExtension: "odt")  ?? .data,
         ]
-        panel.allowsMultipleSelection = false
+        // v1.7.3: multi-select — каждый файл открывается в отдельном окне
+        // (multi-doc с v1.3.0). Первый — в текущее окно, если оно пустое;
+        // остальные — spawnNewWindow → didBecomeMain подхватит из pendingOpenURL.
+        panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
-        if panel.runModal() == .OK, let url = panel.url { loadFromURL(url) }
+        panel.showsHiddenFiles = false
+        guard panel.runModal() == .OK else { return }
+        for url in panel.urls { loadFromURL(url) }
     }
 
     func saveDocument() {
