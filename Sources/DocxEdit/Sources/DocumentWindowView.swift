@@ -677,6 +677,65 @@ private struct ModeIndicator: View {
     }
 }
 
+/// v1.7.4: mini-toolbar над выделением — Word/Notion-паттерн. Плавающая
+/// панелька с частыми командами: B / I / U / S / Highlight / ⌘K.
+/// Постит те же Notification'ы, что меню/ribbon, — key window фильтр в шине
+/// доставит команду именно этой сессии.
+private struct MiniToolbarView: View {
+    @ObservedObject var controller: DocumentController
+
+    var body: some View {
+        HStack(spacing: 2) {
+            btn("Ж", tip: "Полужирный (⌘B)", on: controller.isBold) {
+                NotificationCenter.default.post(name: .docxEditToggleBold, object: nil)
+            }
+            .font(.system(size: 12, weight: .bold))
+            btn("К", tip: "Курсив (⌘I)", on: controller.isItalic) {
+                NotificationCenter.default.post(name: .docxEditToggleItalic, object: nil)
+            }
+            .font(.system(size: 12, weight: .regular).italic())
+            btn("Ч", tip: "Подчёркнутый (⌘U)", on: controller.isUnderline) {
+                NotificationCenter.default.post(name: .docxEditToggleUnderline, object: nil)
+            }
+            btn("З", tip: "Зачёркнутый (⌘⇧X)", on: controller.isStrikethrough) {
+                NotificationCenter.default.post(name: .docxEditToggleStrikethrough, object: nil)
+            }
+            Divider().frame(height: 16)
+            iconBtn("highlighter", tip: "Подсветка жёлтым (повтор — снять)") {
+                // Toggle: если уже подсвечено — снять (nil); иначе жёлтый.
+                let color: NSColor? = controller.highlightColor == nil
+                    ? NSColor(srgbRed: 1, green: 1, blue: 0, alpha: 1) : nil
+                NotificationCenter.default.post(name: .docxEditApplyHighlight, object: color)
+            }
+            iconBtn("link", tip: "Гиперссылка (⌘K)") {
+                NotificationCenter.default.post(name: .docxEditShowHyperlink, object: nil)
+            }
+        }
+        .padding(.horizontal, 6).padding(.vertical, 3)
+    }
+
+    private func btn(_ label: String, tip: String, on: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .frame(width: 24, height: 22)
+                .contentShape(Rectangle())
+                .background(RoundedRectangle(cornerRadius: 4).fill(on ? Color.accentColor.opacity(0.2) : .clear))
+        }
+        .buttonStyle(.plain)
+        .help(tip)
+    }
+    private func iconBtn(_ system: String, tip: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: system)
+                .font(.system(size: 12))
+                .frame(width: 24, height: 22)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(tip)
+    }
+}
+
 /// v1.7.2: состояние тоста «Сохранено/Экспортировано» с кнопкой Finder.
 struct SaveToastState: Equatable {
     let id: UUID = UUID()
@@ -2421,7 +2480,51 @@ struct TextEditorRepresentable: NSViewRepresentable {
             guard !isInternalUpdate else { return }
             controller.refreshSelectionState()
             updateImageResizeOverlay()
+            // v1.7.4: mini-toolbar над выделением (Word/Notion-паттерн).
+            updateSelectionMiniToolbar()
         }
+
+        // v1.7.4: NSPopover с mini-toolbar. Ленивая инициализация — окно
+        // создаётся при первом непустом выделении.
+        private var miniToolbarPopover: NSPopover?
+        /// Показывает/скрывает mini-toolbar в зависимости от текущего выделения.
+        /// Debounce не нужен: NSPopover.show при уже показанном молча обновляет position.
+        func updateSelectionMiniToolbar() {
+            guard let sv = scrollView, let tv = sv.documentView as? NSTextView else { return }
+            let sel = tv.selectedRange()
+            // Скрываем: пустое выделение, режим чтения, source-режим, поповер уже закрыт.
+            if sel.length == 0 || controller.isReadingMode {
+                miniToolbarPopover?.performClose(nil)
+                return
+            }
+            // Не показывать над изображением (там своя overlay-панель ресайза).
+            if sel.length == 1, let storage = tv.textStorage,
+               (storage.attribute(.attachment, at: sel.location, effectiveRange: nil) as? NSTextAttachment) != nil {
+                miniToolbarPopover?.performClose(nil)
+                return
+            }
+            // Anchor rect в координатах textView.
+            guard let lm = tv.layoutManager, let container = tv.textContainer else { return }
+            let glyphRange = lm.glyphRange(forCharacterRange: sel, actualCharacterRange: nil)
+            var rect = lm.boundingRect(forGlyphRange: glyphRange, in: container)
+            let origin = tv.textContainerOrigin
+            rect.origin.x += origin.x
+            rect.origin.y += origin.y
+            // Anchor — небольшой прямоугольник по центру верхнего края выделения.
+            let anchor = NSRect(x: rect.midX - 1, y: rect.minY - 2, width: 2, height: 2)
+            let popover = miniToolbarPopover ?? {
+                let p = NSPopover()
+                p.behavior = .applicationDefined
+                p.animates = false
+                let hosting = NSHostingController(rootView: MiniToolbarView(controller: controller))
+                hosting.view.frame = NSRect(x: 0, y: 0, width: 240, height: 34)
+                p.contentViewController = hosting
+                miniToolbarPopover = p
+                return p
+            }()
+            popover.show(relativeTo: anchor, of: tv, preferredEdge: .minY)
+        }
+        func closeMiniToolbar() { miniToolbarPopover?.performClose(nil) }
 
         /// Показывает overlay с ручками, если выделен ровно один символ-attachment
         /// (inline-изображение); иначе — прячет. v0.1.67.
