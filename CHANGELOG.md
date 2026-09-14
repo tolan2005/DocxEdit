@@ -3,6 +3,18 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.8.0] — 2026-09-14 — Command Palette
+
+### Изменения
+- ⌘⇧P — fuzzy-поиск по ~50 командам приложения (файловые, форматирование, панели, вид, вставки, инструменты)
+- NSPanel-обёртка, клавиатура ↑↓ Enter Esc
+- RibbonCommandDef.all расширен
+
+### Артефакты
+- `build/v1.8.0/DocxEdit-1.8.0.dmg`
+- `build/v1.8.0/DocxEdit-1.8.0.app.zip`
+- `build/v1.8.0/SHA256SUMS`
+
 ## [1.7.5] — 2026-09-14 — Recent Preview
 
 ### Изменения
