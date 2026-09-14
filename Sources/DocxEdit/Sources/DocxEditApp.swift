@@ -433,9 +433,9 @@ struct DocxEditApp: App {
 /// (синхронно с §5 «История релизов» в CLAUDE.md).
 enum AboutReleaseNotes {
     static let recent: [(version: String, codename: String, summary: String)] = [
+        ("1.7.2", "UX Polish 2", "Вторая пачка UX-полировки. **(1) Тост «Сохранено/Экспортировано»** после ⌘S / экспорта — неблокирующий баннер снизу окна с кнопкой «Показать в Finder» (NSWorkspace.activateFileViewerSelecting), автоскрытие через 3.5 с. Работает только в key window (иначе дублировался бы во всех окнах). **(2) Баннер «Шрифт по умолчанию изменён»** — при смене в Preferences в открытых окнах появляется полоса «Применить к этому документу?» с одной кнопкой. Раньше открытые документы жили со старым шрифтом, о смене никто не сообщал. **(3) Внутренние Notification-имена** `docxEditShowSaveToast` и `docxEditDefaultFontChanged` — для будущих подсистем."),
         ("1.7.1", "UX Polish 1", "Первая пачка UX-полировки по аудиту. **(1) Индикатор сохранения** в статусбаре — «Сохранено 2 мин назад» / «Не сохранено» с иконкой (оранжевая точка = грязный, галочка = сохранён), обновляется раз в 30 с. **(2) Empty state** в новом документе — при пустом документе центральная подсказка со шрткатами (⌘V/⌘O/⌘⌥1/⌘,), исчезает при первом keystroke. **(3) Убрана дублирующая «*»** из заголовка окна — родная точка в traffic light-е уже показывает `isDocumentEdited`. **(4) Плюрализация «Найдена 1 копия / Найдено 2-4 копии / Найдено 5+ копий»** в диалоге восстановления. **(5) Esc → «Позже»** в диалоге восстановления (закрыть без действия)."),
         ("1.7.0", "Silent Autorecover", "**Диалог восстановления только после аварий.** Раньше после закрытия документа с «Не сохранять» при следующем запуске всё равно спрашивали «Восстановить?» — раздражало. Теперь: (1) маркер чистого завершения в `~/Library/Application Support/DocxEdit/session.marker` создаётся при старте и удаляется в `applicationWillTerminate`; если при старте маркера нет — сеанс был чистым, оставшиеся автосейвы тихо удаляются. (2) «Не сохранять» в диалоге закрытия окна теперь удаляет и autorecover-копию этого документа (иначе она бы засветилась при крахе других окон). Диалог покажется только после реального падения приложения / kill / выключения ОС."),
-        ("1.6.9", "MD Zoom Reset", "Фикс v1.6.8: при переключении из DOCX в MD после авто-фита (v1.6.7 подгоняет масштаб DOCX-листа под ~75% ширины окна, например 191%) MD-«лента» уезжала вправо на половину окна — колонка 720pt рисовалась в неотмасштабированных координатах, а окно масштабировалось иначе. Теперь при переключении режима MD↔DOCX масштаб сбрасывается к дефолту (MD: 100%; DOCX: авто-фит под ширину окна)."),
         ("1.6.6", "Smart Paste", "**Умная вставка Markdown (⌘V)** — копирование из ИИ-чатов (ChatGPT/Perplexity) больше не даёт «сырых» звёздочек: если в буфере текст, похожий на Markdown-исходник, ⌘V вставляет его уже отформатированным (заголовки/списки/таблицы/**жирный**/ссылки) — и в DOCX-, и в MD-режиме (Typora-поведение). Санитайзер чинит артефакты вида `***Текст ***` (пробел перед закрывающим разделителем ломал парсер) и вычищает zero-width символы. Обычная вставка — ⇧⌥⌘V; отключается настройкой «Умная вставка Markdown». +12 тестов (309)."),
                     ]
 }
@@ -1320,6 +1320,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             addRecentURL(url)
             // v0.2.6: успешно сохранили — убираем автосейв.
             NotificationCenter.default.post(name: .docxEditClearAutorecover, object: nil)
+            // v1.7.2: неблокирующий тост с кнопкой «Показать в Finder».
+            NotificationCenter.default.post(name: .docxEditShowSaveToast, object: nil,
+                userInfo: ["text": "Сохранено: \(url.lastPathComponent)", "url": url])
         } catch { presentError(error) }
     }
 
@@ -1355,6 +1358,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
                 case .txt:      try exportPlainText(session.bridge.model, to: url, encoding: selectedTxtEncoding)
                 case .odt:      try OdtIO.exportODT(session.bridge.model, to: url)
                 }
+                // v1.7.2: тост об успешном экспорте — с кнопкой «Показать в Finder».
+                NotificationCenter.default.post(name: .docxEditShowSaveToast, object: nil,
+                    userInfo: ["text": "Экспортировано: \(url.lastPathComponent)", "url": url])
             } catch { presentError(error) }
         }
     }
@@ -1538,6 +1544,12 @@ extension Notification.Name {
     static let docxEditShowBookmarks          = Notification.Name("docxEditShowBookmarks")
     static let docxEditShowCustomDictionary   = Notification.Name("docxEditShowCustomDictionary")
     static let docxEditClearAutorecover       = Notification.Name("docxEditClearAutorecover")
+    /// v1.7.2: тост «Сохранено / Экспортировано …». userInfo:
+    /// `text: String` — что показать, `url: URL?` — куда перейти по кнопке «Показать в Finder».
+    static let docxEditShowSaveToast          = Notification.Name("docxEditShowSaveToast")
+    /// v1.7.2: настройка defaultFontName изменилась в Preferences. userInfo:
+    /// `newFontName: String` — предложить применить в открытых окнах.
+    static let docxEditDefaultFontChanged     = Notification.Name("docxEditDefaultFontChanged")
 }
 
 /// Делегат меню «Правка», удаляющий системные пункты (Автозаполнение/Диктовка/

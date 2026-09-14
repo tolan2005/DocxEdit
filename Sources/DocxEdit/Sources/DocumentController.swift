@@ -169,6 +169,18 @@ final class DocumentController: ObservableObject {
     /// Применяет шрифт к выделенному диапазону (или к typingAttributes, если выделения нет).
     /// Меняет только семейство шрифта — размер и начертание каждого рана сохраняются
     /// (NSFontManager.convert(_:toFamily:) вместо построения одного общего NSFont на весь диапазон).
+    /// v1.7.2: применить семейство шрифта ко всему документу (баннер смены
+    /// шрифта по умолчанию). Сохраняет размер/начертание/цвет каждого рана.
+    func applyFontToWholeDocument(name: String) {
+        guard let textView, let storage = textView.textStorage, storage.length > 0 else { return }
+        let range = NSRange(location: 0, length: storage.length)
+        guard textView.shouldChangeText(in: range, replacementString: nil) else { return }
+        applyFontFamily(name, range: range)
+        textView.didChangeText()
+        notifyModelChange()
+        AppPreferences.shared.noteUsedFont(name)
+    }
+
     func applyFont(name: String) {
         fontName = name
         hasMixedFonts = false

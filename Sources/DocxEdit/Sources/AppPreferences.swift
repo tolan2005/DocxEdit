@@ -35,7 +35,17 @@ final class AppPreferences: ObservableObject {
     // MARK: - Шрифт и размер по умолчанию
 
     @Published var defaultFontName: String {
-        didSet { UserDefaults.standard.set(defaultFontName, forKey: Keys.defaultFontName) }
+        didSet {
+            UserDefaults.standard.set(defaultFontName, forKey: Keys.defaultFontName)
+            // v1.7.2: подсказать открытым окнам про смену шрифта.
+            // Skip первую инициализацию (didSet стреляет с одинаковым значением при init).
+            guard defaultFontName != oldValue else { return }
+            NotificationCenter.default.post(
+                name: Notification.Name("docxEditDefaultFontChanged"),
+                object: nil,
+                userInfo: ["newFontName": defaultFontName]
+            )
+        }
     }
 
     @Published var defaultFontSize: Double {

@@ -53,12 +53,27 @@ struct DocumentWindowView: View {
     @StateObject private var controller = DocumentController()
     @ObservedObject private var prefs = AppPreferences.shared
 
+    @State private var saveToast: SaveToastState? = nil
+    @State private var pendingDefaultFont: String? = nil
+
     var body: some View {
         VStack(spacing: 0) {
             // v0.4.3 (R06): режим «Чтение» скрывает ribbon.
             // v1.6.0: исходный MD-режим тоже (форматирование неприменимо к исходнику).
             if !controller.isReadingMode && !session.isMarkdownSourceMode {
                 RibbonView(controller: controller, prefs: prefs, appDelegate: appDelegate, session: session)
+                Divider()
+            }
+            // v1.7.2: баннер «Шрифт по умолчанию изменён — применить к этому документу?».
+            if let font = pendingDefaultFont {
+                DefaultFontChangedBanner(
+                    fontName: font,
+                    onApply: {
+                        controller.applyFontToWholeDocument(name: font)
+                        pendingDefaultFont = nil
+                    },
+                    onDismiss: { pendingDefaultFont = nil }
+                )
                 Divider()
             }
 
@@ -117,7 +132,37 @@ struct DocumentWindowView: View {
         }
         .navigationTitle(session.windowTitle)
         .background(WindowCloseGuard(session: session, appDelegate: appDelegate))
+        .overlay(alignment: .bottom) {
+            if let t = saveToast {
+                SaveToastView(state: t) {
+                    if let url = t.url { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+                }
+                .padding(.bottom, 40)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
         .onAppear { controller.attach(session: session) }
+        // v1.7.2: тост о сохранении. Только key window — иначе тост дублируется во всех окнах.
+        .onReceive(NotificationCenter.default.publisher(for: .docxEditShowSaveToast)) { note in
+            guard controller.textView?.window?.isKeyWindow == true,
+                  let text = note.userInfo?["text"] as? String else { return }
+            let url = note.userInfo?["url"] as? URL
+            withAnimation(.easeOut(duration: 0.18)) { saveToast = SaveToastState(text: text, url: url) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                withAnimation(.easeIn(duration: 0.25)) {
+                    if saveToast?.id == note.userInfo?["_id"] as? UUID || saveToast != nil {
+                        saveToast = nil
+                    }
+                }
+            }
+        }
+        // v1.7.2: смена defaultFontName в Preferences → баннер в открытых окнах,
+        // если у документа есть контент (пустой — не имеет смысла применять).
+        .onReceive(NotificationCenter.default.publisher(for: .docxEditDefaultFontChanged)) { note in
+            guard let name = note.userInfo?["newFontName"] as? String,
+                  session.attributedText.length > 0 else { return }
+            pendingDefaultFont = name
+        }
         // v0.1.48: строка быстрого доступа (Создать/Открыть/Сохранить/Печать/⌘Z/⌘⇧Z)
         // — в системный title bar (как в Mac-подобных редакторов). Через SwiftUI `.toolbar`
         // + `.windowToolbarStyle(.unifiedCompact)` на Scene: NSToolbar встраивается
@@ -629,6 +674,70 @@ private struct ModeIndicator: View {
         // v1.6.0: выходим из исходного режима при смене формата.
         if session.isMarkdownSourceMode { session.exitMarkdownSourceMode() }
         session.mode = m
+    }
+}
+
+/// v1.7.2: состояние тоста «Сохранено/Экспортировано» с кнопкой Finder.
+struct SaveToastState: Equatable {
+    let id: UUID = UUID()
+    let text: String
+    let url: URL?
+}
+
+private struct SaveToastView: View {
+    let state: SaveToastState
+    let onReveal: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+            Text(state.text)
+                .font(.callout)
+                .lineLimit(1)
+            if state.url != nil {
+                Button("Показать в Finder", action: onReveal)
+                    .buttonStyle(.link)
+                    .font(.caption)
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 9)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(.regularMaterial)
+                .shadow(color: .black.opacity(0.15), radius: 6, y: 2)
+        )
+    }
+}
+
+/// v1.7.2: баннер «Шрифт по умолчанию изменён» — предлагает применить к
+/// текущему документу. Единственное действие + кнопка закрыть.
+private struct DefaultFontChangedBanner: View {
+    let fontName: String
+    let onApply: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "textformat")
+                .foregroundStyle(.blue)
+            Text("Шрифт по умолчанию изменён на «\(fontName)». Применить к этому документу?")
+                .font(.callout)
+                .lineLimit(2)
+            Spacer()
+            Button("Применить", action: onApply)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            Button {
+                onDismiss()
+            } label: {
+                Image(systemName: "xmark")
+            }
+            .buttonStyle(.plain)
+            .help("Закрыть баннер")
+        }
+        .padding(.horizontal, 12).padding(.vertical, 6)
+        .background(Color.blue.opacity(0.08))
     }
 }
 
