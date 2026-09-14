@@ -34,6 +34,11 @@ final class AppPreferences: ObservableObject {
 
     // MARK: - Шрифт и размер по умолчанию
 
+    /// v1.8.1: свёрнута ли лента (compact ribbon, ⌃F1). Персистится.
+    @Published var ribbonCollapsed: Bool {
+        didSet { UserDefaults.standard.set(ribbonCollapsed, forKey: Keys.ribbonCollapsed) }
+    }
+
     @Published var defaultFontName: String {
         didSet {
             UserDefaults.standard.set(defaultFontName, forKey: Keys.defaultFontName)
@@ -180,6 +185,7 @@ final class AppPreferences: ObservableObject {
         favoriteFonts = ud.stringArray(forKey: Keys.favoriteFonts) ?? ["Roboto", "Montserrat"]
         recentFonts   = ud.stringArray(forKey: Keys.recentFonts)   ?? []
         defaultFontName = ud.string(forKey: Keys.defaultFontName)   ?? "Times New Roman"
+        ribbonCollapsed = ud.bool(forKey: Keys.ribbonCollapsed)
         defaultFontSize = ud.object(forKey: Keys.defaultFontSize) as? Double ?? 12.0
         let hf = ud.string(forKey: Keys.headingFontName)
         headingFontName = (hf?.isEmpty ?? true) ? nil : hf
@@ -219,6 +225,7 @@ final class AppPreferences: ObservableObject {
         static let favoriteFonts      = "pref.favoriteFonts"
         static let recentFonts        = "pref.recentFonts"
         static let defaultFontName    = "pref.defaultFontName"
+        static let ribbonCollapsed    = "pref.ribbonCollapsed"
         static let defaultFontSize    = "pref.defaultFontSize"
         static let headingFontName    = "pref.headingFontName"
         static let defaultPageSettings = "pref.defaultPageSettings"

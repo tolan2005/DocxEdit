@@ -38,19 +38,23 @@ struct RibbonView: View {
             // (v0.1.48, как в Mac-подобных редакторов). Ribbon начинается с закладок.
             tabBar
             Divider()
-            Group {
-                switch tab {
-                case .home:   homeTab
-                case .insert: insertTab
-                case .layout: layoutTab
-                case .table:  tableTab
-                case .review: reviewTab
-                case .view:   viewTab
+            // v1.8.1: свёрнутый ribbon — только tab-bar, содержимое групп скрыто.
+            // Двойной клик по активной вкладке или ⌃F1 разворачивает обратно.
+            if !prefs.ribbonCollapsed {
+                Group {
+                    switch tab {
+                    case .home:   homeTab
+                    case .insert: insertTab
+                    case .layout: layoutTab
+                    case .table:  tableTab
+                    case .review: reviewTab
+                    case .view:   viewTab
+                    }
                 }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(.background)
         .contextMenu {
@@ -86,7 +90,11 @@ struct RibbonView: View {
         HStack(spacing: 4) {
             // v1.4.1: в MD-режиме вкладка «Разметка» скрыта (нет страниц/колонтитулов).
             ForEach(Tab.allCases.filter { !isMarkdown || $0 != .layout }) { t in
-                Button { tab = t } label: {
+                Button {
+                    // v1.8.1: клик по активной вкладке в свёрнутом состоянии — развернуть.
+                    // Клик по активной в развёрнутом — свернуть (Word-паттерн).
+                    if tab == t { prefs.ribbonCollapsed.toggle() } else { tab = t; if prefs.ribbonCollapsed { prefs.ribbonCollapsed = false } }
+                } label: {
                     Text(t.rawValue)
                         .font(.system(size: 12, weight: tab == t ? .semibold : .regular))
                         .foregroundStyle(tab == t ? Color.accentColor : Color.primary)
@@ -99,8 +107,22 @@ struct RibbonView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .help(tab == t
+                      ? (prefs.ribbonCollapsed ? "Развернуть ленту" : "Свернуть ленту")
+                      : t.rawValue)
             }
             Spacer(minLength: 0)
+            // v1.8.1: кнопка свернуть/развернуть ленту (⌃F1).
+            Button { prefs.ribbonCollapsed.toggle() } label: {
+                Image(systemName: prefs.ribbonCollapsed ? "chevron.down" : "chevron.up")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 5)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(prefs.ribbonCollapsed ? "Развернуть ленту (⌃F1)" : "Свернуть ленту (⌃F1)")
             Button {
                 showCustomize = true
             } label: {
