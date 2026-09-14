@@ -3,6 +3,17 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.8.3] — 2026-09-14 — MD Split
+
+### Изменения
+- split-режим MD: сырой markdown слева, WYSIWYG-превью справа (⌘\, паттерн Typora)
+- live-обновление через applyMarkdownSource
+
+### Артефакты
+- `build/v1.8.3/DocxEdit-1.8.3.dmg`
+- `build/v1.8.3/DocxEdit-1.8.3.app.zip`
+- `build/v1.8.3/SHA256SUMS`
+
 ## [1.8.2] — 2026-09-14 — Ribbon Favorites Reorder
 
 ### Изменения
