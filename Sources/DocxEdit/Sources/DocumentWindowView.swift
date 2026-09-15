@@ -2655,11 +2655,23 @@ struct TextEditorRepresentable: NSViewRepresentable {
                 floatingImageViews.removeValue(forKey: idx)
             }
 
-            // exclusionPaths — только при изменении (иначе лишние relayout'ы).
-            let signature = exclusionRects.map { "\($0)" }.joined(separator: "|")
+            // v1.8.5: округляем exclusionRects до 0.5pt перед сравнением/применением.
+            // Причина (155.docx, 32 плавающих изображения): установка exclusionPaths
+            // инвалидирует layout, lineFragmentRect якорных глифов на следующем цикле
+            // сдвигается на микро-величины (~0.001pt), full-precision "\($0)"-сигнатура
+            // всегда различалась → exclusionPaths переустанавливались бесконечно →
+            // экран мерцал. Округление обрывает feedback-loop, точность 0.5pt для
+            // обтекания незаметна.
+            let rounded = exclusionRects.map {
+                NSRect(x: (($0.origin.x * 2).rounded() / 2),
+                       y: (($0.origin.y * 2).rounded() / 2),
+                       width: (($0.width * 2).rounded() / 2),
+                       height: (($0.height * 2).rounded() / 2))
+            }
+            let signature = rounded.map { "\($0)" }.joined(separator: "|")
             if signature != lastExclusionSignature {
                 lastExclusionSignature = signature
-                container.exclusionPaths = exclusionRects.map { NSBezierPath(rect: $0) }
+                container.exclusionPaths = rounded.map { NSBezierPath(rect: $0) }
             }
 
             if let dt = tv as? DocxTextView {
