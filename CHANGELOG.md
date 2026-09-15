@@ -3,6 +3,18 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.8.7] — 2026-09-15 — Open & Flicker Fixes
+
+### Изменения
+- фикс второго пустого окна при открытии файла из Finder на уже запущенном приложении (гонка в attachSession)
+- фикс мерцания масштаба 100%↔160% на 155.docx (убрано повторное взведение pendingInitialFit в updateNSView
+- guard на frame FloatingImageNSView)
+
+### Артефакты
+- `build/v1.8.7/DocxEdit-1.8.7.dmg`
+- `build/v1.8.7/DocxEdit-1.8.7.app.zip`
+- `build/v1.8.7/SHA256SUMS`
+
 ## [1.8.6] — 2026-09-15 — Layout Loop Fix
 
 ### Изменения
