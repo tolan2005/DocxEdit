@@ -449,6 +449,7 @@ struct DocxEditApp: App {
 /// (синхронно с §5 «История релизов» в CLAUDE.md).
 enum AboutReleaseNotes {
     static let recent: [(version: String, codename: String, summary: String)] = [
+        ("1.8.7", "Open & Flicker Fixes", "**Два бага, найденных пользователем на v1.8.6.** (1) При открытии файла из Finder на уже запущенном приложении рядом с загруженным появлялось второе пустое окно. Первопричина — гонка в `attachSession`: новое окно, подхватывающее `pendingOpenURL`, не становилось `currentSession` до пробрасывания в `loadFromURL` → внутренняя проверка видела старое непустое окно и спавнила ещё одно. Фикс: `currentSession = session` перед вызовом. (2) Мерцание масштаба 100%↔160% на 155.docx (v1.8.6 закрыл loop через container, но остались две дыры). Убрано взведение `pendingInitialFit = true` в ветке re-sync `updateNSView` — она срабатывала не только на open/new/reset и повторный autofit отматывал пользовательский зум. Fit теперь взводится явно в `DocumentSession.replace/reset`. Плюс guard `if view.frame != rectTV` на `FloatingImageNSView.frame` в `updateFloatingImages` — присвоение frame subview'а NSTextView даже тем же значением триггерило `scrollView.layout()` и сброс magnification."),
         ("1.8.6", "Layout Loop Fix", "**Настоящий фикс мерцания 155.docx** (v1.8.5 диагноз с exclusionPaths был неполным). Sample показал 826/1356 CPU-samples в `applyPageViewStyle → ensureLayout → _rangeOfTextTableRow → _lineBreakBeforeIndex`; 99% CPU. Первопричина: `applyPageViewStyle` **безусловно** присваивал `container.containerSize`, `pageStride`, `pageContentHeight`, `textView.frame.size.width/height` при каждом вызове — присвоение (даже того же значения) инвалидирует layout NSTextContainer/NSView, что каскадно триггерит SwiftUI `updateNSView` заново → бесконечный loop на документах с богатой раскладкой. Фикс: guard'ы `if abs(oldValue - newValue) > tolerance` вокруг каждого присваивания в DOCX-ветке `applyPageViewStyle`. Проверено: `build/DocxEdit.app` открывает 155.docx с 0% CPU (было 99.4%)."),
         ("1.8.5", "Flicker Fix", "**Фикс мерцания при открытии документов с большим числом плавающих изображений** (пример: 155.docx, 32 anchor-изображения с обтеканием square/tight/topAndBottom). Корень: `updateFloatingImages` устанавливает `container.exclusionPaths` из `lineFragmentRect` глифа-якоря; установка exclusionPaths инвалидирует layout, следующий цикл `updateNSView` пересчитывает lineFragmentRect с микро-разницей ~0.001pt, full-precision `\"\\($0)\"`-сигнатура всегда различалась → exclusionPaths переустанавливались бесконечно → экран мерцал, работа блокировалась. Фикс: округление exclusionRects до 0.5pt перед сравнением сигнатур и применением — обрывает feedback-loop, точность 0.5pt для обтекания незаметна."),
         ("1.8.4", "Focus Mode", "**Режим фокуса** (⌃⌥F, паттерн Byword/iA Writer) — все абзацы кроме текущего приглушены до `tertiaryLabelColor`, текущий подсвечен `labelColor`. Реализация через `NSLayoutManager.setTemporaryAttributes(_:forCharacterRange:)` — временные атрибуты рендера, модель не мутируется, отмена — просто `removeTemporaryAttribute`. Автоматически обновляется при перемещении курсора (хук в `refreshSelectionState`). Меню Обзор → «Режим фокуса»."),
@@ -613,8 +614,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             openInitialDocumentFromCommandLine()
         }
         // Если открытие файла ждёт готового окна — теперь можно.
+        // v1.8.7: свежесозданное окно, подхватывающее pendingOpenURL, должно
+        // сразу стать currentSession. Иначе гонка: currentSession остаётся
+        // старой (непустой), loadFromURL внутри снова видит «текущее окно с
+        // контентом» и спавнит ЕЩЁ ОДНО окно (баг 1 — второе пустое окно
+        // при открытии из Finder на уже запущенном приложении).
         if let url = pendingOpenURL {
             pendingOpenURL = nil
+            currentSession = session
             loadFromURL(url)
         }
         // v1.4.0: свежесозданному окну — явно запрошенный режим (⇧⌘N).

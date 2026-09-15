@@ -1026,9 +1026,14 @@ struct TextEditorRepresentable: NSViewRepresentable {
                 textView.typingAttributes = DocumentSession.currentDefaultAttributes()
             }
             context.coordinator.isInternalUpdate = false
-            // v1.6.7: внешняя замена документа (open/new/reset) — при следующей
-            // раскладке подогнать масштаб под ширину окна.
-            controller.pendingInitialFit = true
+            // v1.8.7: НЕ взводим pendingInitialFit здесь. Ветка re-sync может
+            // сработать не только при open/new/reset, но и при любом расхождении
+            // storage↔session.attributedText (например, побочные эффекты
+            // updateFloatingImages / applyPageViewStyle на 155.docx). Если
+            // autofit срабатывает повторно, он «отматывает» пользовательский
+            // зум обратно к 75% → мерцание 100%↔160% (баг 2, v1.8.6 не закрыл
+            // до конца). Fit взводится только явно — в attach(session:) и в
+            // DocumentSession.replace(...) / reset().
         }
 
         // v1.6.9: смена режима MD↔DOCX сбрасывает масштаб к дефолту режима.
@@ -2660,7 +2665,13 @@ struct TextEditorRepresentable: NSViewRepresentable {
                         floatingImageViews[range.location] = view
                     }
                     view.image = img
-                    view.frame = rectTV
+                    // v1.8.7: guard на равенство. Присвоение frame subview'а
+                    // NSTextView даже тем же значением может триггерить layout()
+                    // scrollView → magnification сбрасывается / SwiftUI дёргает
+                    // updateNSView заново → цикл на 155.docx (32 плавающих),
+                    // усугубляемый повторным autofit'ом. Тот же паттерн, что
+                    // ADR-060/v1.8.6 закрыл для контейнера/frame textView.
+                    if view.frame != rectTV { view.frame = rectTV }
                     view.isHidden = false
                 }
 

@@ -172,6 +172,10 @@ final class DocumentSession: ObservableObject {
             defaultFont: preferredDefaultFont(),
             fallbackFontName: AppPreferences.shared.favoriteFonts.first,
             usableWidth: bridge.model.pageSettings.usableWidthInPoints)
+        // v1.8.7: явно взводим авто-фит только на реальную замену документа
+        // (ранее это делала ветка re-sync в updateNSView, но она могла
+        // срабатывать повторно и отматывать пользовательский зум — см. баг 2).
+        attachedController?.pendingInitialFit = true
     }
 
     /// Полный сброс на пустой документ.
@@ -184,6 +188,7 @@ final class DocumentSession: ObservableObject {
             defaultFont: preferredDefaultFont(),
             fallbackFontName: AppPreferences.shared.favoriteFonts.first,
             usableWidth: bridge.model.pageSettings.usableWidthInPoints)
+        attachedController?.pendingInitialFit = true
     }
 
     /// Применяет новое attributed-представление (после правки пользователем в NSTextView).
