@@ -3,6 +3,16 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.8.5] — 2026-09-15 — Flicker Fix
+
+### Изменения
+- фикс мерцания при открытии документов с плавающими изображениями и обтеканием: округление exclusionRects до 0.5pt обрывает layout feedback-loop
+
+### Артефакты
+- `build/v1.8.5/DocxEdit-1.8.5.dmg`
+- `build/v1.8.5/DocxEdit-1.8.5.app.zip`
+- `build/v1.8.5/SHA256SUMS`
+
 ## [1.8.4] — 2026-09-14 — Focus Mode
 
 ### Изменения
