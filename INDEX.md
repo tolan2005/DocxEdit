@@ -96,7 +96,7 @@
 #### Окно / редактор
 | Файл | Назначение |
 |---|---|
-| [DocumentWindowView.swift](Sources/DocxEdit/Sources/DocumentWindowView.swift) | Окно, TextEditorRepresentable, DocxTextView (drawBackground листов + MD-«ленты»), Coordinator, applyPageViewStyle |
+| [DocumentWindowView.swift](Sources/DocxEdit/Sources/DocumentWindowView.swift) | Окно, TextEditorRepresentable, DocxTextView (drawBackground листов + MD-«ленты»), Coordinator, applyPageViewStyle (guard'ы equality-check против layout-loop, ADR-060), updateFloatingImages |
 | [MarkdownSourceView.swift](Sources/DocxEdit/Sources/MarkdownSourceView.swift) | Source-режим MD: подсветка синтаксиса, Typora-поведение |
 | [MarkdownPasteSupport.swift](Sources/DocxEdit/Sources/MarkdownPasteSupport.swift) | Умная вставка MD (Typora-паттерн, v1.6.6): looksLikeMarkdown + sanitize |
 
