@@ -1079,15 +1079,33 @@ struct TextEditorRepresentable: NSViewRepresentable {
             textView.isVerticallyResizable = false
             textView.minSize = NSSize(width: 0, height: 0)
             textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-            container?.widthTracksTextView = false
-            container?.containerSize = NSSize(width: usableW, height: CGFloat.greatestFiniteMagnitude)
-            container?.paged = true
-            container?.pageStride = size.height + gap
-            container?.pageContentHeight = usableH
+            // v1.8.6: устанавливаем свойства контейнера/frame ТОЛЬКО при реальном
+            // изменении. Прежняя безусловная запись containerSize/pageStride/
+            // pageContentHeight/frame.size инвалидировала layout NSTextContainer,
+            // каскадно триггерила SwiftUI updateNSView заново → бесконечный loop
+            // на документах с богатой раскладкой (155.docx с 32 плавающими +
+            // таблицами держал 99% CPU и вызывал видимое мерцание).
+            if container?.widthTracksTextView != false {
+                container?.widthTracksTextView = false
+            }
+            let newContainerSize = NSSize(width: usableW, height: CGFloat.greatestFiniteMagnitude)
+            if let c = container, c.containerSize != newContainerSize {
+                c.containerSize = newContainerSize
+            }
+            if container?.paged != true { container?.paged = true }
+            let newPageStride = size.height + gap
+            if let c = container, abs(c.pageStride - newPageStride) > 0.01 {
+                c.pageStride = newPageStride
+            }
+            if let c = container, abs(c.pageContentHeight - usableH) > 0.01 {
+                c.pageContentHeight = usableH
+            }
 
             let viewW = max(size.width + 80, scroll.contentSize.width)
-            textView.frame.origin.x = 0
-            textView.frame.size.width = viewW
+            if textView.frame.origin.x != 0 { textView.frame.origin.x = 0 }
+            if abs(textView.frame.size.width - viewW) > 0.5 {
+                textView.frame.size.width = viewW
+            }
 
             // v1.6.7: авто-подгонка масштаба при первом открытии — лист должен
             // занимать ~75% ширины окна. Учитываем текущий magnification: viewport
@@ -1164,7 +1182,11 @@ struct TextEditorRepresentable: NSViewRepresentable {
                 }
                 // Высота вью = все листы + промежутки (последний лист виден целиком).
                 let totalH = gap + CGFloat(dt.pageCount) * (size.height + gap)
-                textView.frame.size.height = totalH
+                // v1.8.6: guard от лишних setFrameSize → updateSheetInset →
+                // layout-invalidate каскада (см. ADR-060, комментарий выше).
+                if abs(textView.frame.size.height - totalH) > 0.5 {
+                    textView.frame.size.height = totalH
+                }
                 dt.needsDisplay = true
             }
         } else {
