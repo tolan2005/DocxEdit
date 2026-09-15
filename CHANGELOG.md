@@ -3,6 +3,16 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.8.6] — 2026-09-15 — Layout Loop Fix
+
+### Изменения
+- настоящий фикс мерцания 155.docx: guard'ы if abs(old-new)>eps перед присваиванием containerSize/pageStride/frame — предотвращает layout invalidation loop (99.4% CPU → 0%)
+
+### Артефакты
+- `build/v1.8.6/DocxEdit-1.8.6.dmg`
+- `build/v1.8.6/DocxEdit-1.8.6.app.zip`
+- `build/v1.8.6/SHA256SUMS`
+
 ## [1.8.5] — 2026-09-15 — Flicker Fix
 
 ### Изменения
