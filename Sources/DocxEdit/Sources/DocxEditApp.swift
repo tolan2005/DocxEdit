@@ -31,6 +31,11 @@ struct DocxEditApp: App {
                 .environmentObject(appDelegate)
                 .frame(minWidth: 720, minHeight: 480)
         }
+        // v1.8.8: не давать WindowGroup авто-обрабатывать URL-open events.
+        // Иначе на cold-start-с-файлом SwiftUI создаёт ВТОРОЕ окно для документа
+        // рядом со стартовым untitled — итог 2 окна. Все ODOC-events обрабатывает
+        // AppDelegate.application(_:open:) → loadFromURL.
+        .handlesExternalEvents(matching: [])
         // v0.1.48: строка быстрого доступа встроена в системный title bar
         // (см. .toolbar в DocumentWindowView). unifiedCompact — как в Mac-подобных редакторов.
         .windowToolbarStyle(.unifiedCompact)
@@ -449,6 +454,7 @@ struct DocxEditApp: App {
 /// (синхронно с §5 «История релизов» в CLAUDE.md).
 enum AboutReleaseNotes {
     static let recent: [(version: String, codename: String, summary: String)] = [
+        ("1.8.8", "No Ghost Window", "**Настоящий фикс бага «второе пустое окно» после провалов v1.8.7.** Через runtime-trace найдено, что окно B создавалось не нашим кодом: SwiftUI `WindowGroup(id:for:UUID.self)` в ответ на ODOC Apple Event сам открывал ВТОРОЕ окно, плюс NSApplication по дефолту открывал untitled-окно на launch. Итог cold-start-с-файлом: SwiftUI-untitled + окно-для-ODOC = 2 окна. Фикс — `WindowGroup.handlesExternalEvents(matching: [])` (запрет SwiftUI-обработки ODOC-events) + `applicationShouldOpenUntitledFile → false` (запрет untitled на launch). Добавлен регрессионный тест в `scripts/ui-smoke.sh` — считает окна через `CGWindowListCopyWindowInfo` после `open -a <app> <file>` (3 сценария: .md, .docx, без файла — каждый должен дать 1 окно). Тест теперь гейт релиза. **Урок**: диагностика без runtime-теста ведёт к слепым правкам."),
         ("1.8.7", "Open & Flicker Fixes", "**Два бага, найденных пользователем на v1.8.6.** (1) При открытии файла из Finder на уже запущенном приложении рядом с загруженным появлялось второе пустое окно. Первопричина — гонка в `attachSession`: новое окно, подхватывающее `pendingOpenURL`, не становилось `currentSession` до пробрасывания в `loadFromURL` → внутренняя проверка видела старое непустое окно и спавнила ещё одно. Фикс: `currentSession = session` перед вызовом. (2) Мерцание масштаба 100%↔160% на 155.docx (v1.8.6 закрыл loop через container, но остались две дыры). Убрано взведение `pendingInitialFit = true` в ветке re-sync `updateNSView` — она срабатывала не только на open/new/reset и повторный autofit отматывал пользовательский зум. Fit теперь взводится явно в `DocumentSession.replace/reset`. Плюс guard `if view.frame != rectTV` на `FloatingImageNSView.frame` в `updateFloatingImages` — присвоение frame subview'а NSTextView даже тем же значением триггерило `scrollView.layout()` и сброс magnification."),
         ("1.8.6", "Layout Loop Fix", "**Настоящий фикс мерцания 155.docx** (v1.8.5 диагноз с exclusionPaths был неполным). Sample показал 826/1356 CPU-samples в `applyPageViewStyle → ensureLayout → _rangeOfTextTableRow → _lineBreakBeforeIndex`; 99% CPU. Первопричина: `applyPageViewStyle` **безусловно** присваивал `container.containerSize`, `pageStride`, `pageContentHeight`, `textView.frame.size.width/height` при каждом вызове — присвоение (даже того же значения) инвалидирует layout NSTextContainer/NSView, что каскадно триггерит SwiftUI `updateNSView` заново → бесконечный loop на документах с богатой раскладкой. Фикс: guard'ы `if abs(oldValue - newValue) > tolerance` вокруг каждого присваивания в DOCX-ветке `applyPageViewStyle`. Проверено: `build/DocxEdit.app` открывает 155.docx с 0% CPU (было 99.4%)."),
         ("1.8.5", "Flicker Fix", "**Фикс мерцания при открытии документов с большим числом плавающих изображений** (пример: 155.docx, 32 anchor-изображения с обтеканием square/tight/topAndBottom). Корень: `updateFloatingImages` устанавливает `container.exclusionPaths` из `lineFragmentRect` глифа-якоря; установка exclusionPaths инвалидирует layout, следующий цикл `updateNSView` пересчитывает lineFragmentRect с микро-разницей ~0.001pt, full-precision `\"\\($0)\"`-сигнатура всегда различалась → exclusionPaths переустанавливались бесконечно → экран мерцал, работа блокировалась. Фикс: округление exclusionRects до 0.5pt перед сравнением сигнатур и применением — обрывает feedback-loop, точность 0.5pt для обтекания незаметна."),
@@ -787,6 +793,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     private var editMenuCleanupDelegate: EditMenuCleanupDelegate?
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
+    /// v1.8.8 (ADR-062): не создавать пустое untitled-окно при cold-start.
+    /// SwiftUI `WindowGroup(id:for:UUID.self)` без `.handlesExternalEvents`
+    /// сам открывает окно для ODOC-URL, а NSApplication по дефолту ещё и
+    /// создаёт untitled — итог два окна. Мы отключили обработку ODOC у
+    /// WindowGroup через `.handlesExternalEvents(matching: [])` (App scene) —
+    /// но встроенное «untitled на launch» остаётся; отключаем и его. Пустое
+    /// стартовое окно теперь заводится нами явно из
+    /// `restoreSessionOrShowWelcome` / welcome-панели.
+    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        false
+    }
 
     /// v1.7.0: чистое завершение — удаляем маркер сеанса, чтобы следующий
     /// запуск не показал диалог восстановления по несуществующему инциденту.
