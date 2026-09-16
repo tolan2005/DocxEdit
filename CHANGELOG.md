@@ -3,6 +3,18 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.8.8] — 2026-09-17 — No Ghost Window
+
+### Изменения
+- фикс второго пустого окна при cold-start открытии .md/.docx из Finder — SwiftUI WindowGroup сам обрабатывал ODOC-event и открывал окно поверх стартового untitled
+- фикс .handlesExternalEvents(matching: []) на WindowGroup + applicationShouldOpenUntitledFile → false
+- ADR-062
+
+### Артефакты
+- `build/v1.8.8/DocxEdit-1.8.8.dmg`
+- `build/v1.8.8/DocxEdit-1.8.8.app.zip`
+- `build/v1.8.8/SHA256SUMS`
+
 ## [1.8.7] — 2026-09-15 — Open & Flicker Fixes
 
 ### Изменения
