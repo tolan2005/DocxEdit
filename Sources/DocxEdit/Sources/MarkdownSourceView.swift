@@ -139,6 +139,57 @@ final class MarkdownTextView: NSTextView {
             img.draw(in: NSRect(x: line.minX + tc.lineFragmentPadding, y: line.minY, width: width, height: line.height),
                      from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
         }
+        storage.enumerateAttribute(MarkdownHybridRenderer.tableKey,
+                                   in: NSRange(location: 0, length: storage.length)) { value, range, _ in
+            guard let table = value as? MarkdownHybridRenderer.MarkdownTable else { return }
+            let glyphs = lm.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+            guard glyphs.length > 0 else { return }
+            let line = lm.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
+                .offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y)
+            let origin = NSPoint(x: line.minX + tc.lineFragmentPadding, y: line.minY)
+            let bounds = NSRect(origin: origin, size: NSSize(width: tc.size.width - 2 * tc.lineFragmentPadding,
+                                                             height: CGFloat(table.rows.count) * table.rowHeight))
+            if bounds.intersects(dirtyRect) { drawTable(table, in: bounds) }
+        }
+    }
+
+    private func drawTable(_ table: MarkdownHybridRenderer.MarkdownTable, in bounds: NSRect) {
+        let bold = NSFontManager.shared.convert(table.font, toHaveTrait: .boldFontMask)
+        let columns = table.rows.map(\.count).max() ?? 0
+        guard columns > 0 else { return }
+        var widths = (0..<columns).map { c in
+            table.rows.enumerated().map { r, row in
+                c < row.count ? (row[c] as NSString).size(withAttributes: [.font: r == 0 ? bold : table.font]).width : 0
+            }.max()! + 16
+        }
+        let total = widths.reduce(0, +)
+        if total > bounds.width { widths = widths.map { $0 * bounds.width / total } }
+
+        let lineHeight = table.font.ascender - table.font.descender
+        for (r, row) in table.rows.enumerated() {
+            var x = bounds.minX
+            let y = bounds.minY + CGFloat(r) * table.rowHeight
+            for c in 0..<columns {
+                let cell = NSRect(x: x, y: y, width: widths[c], height: table.rowHeight)
+                if r == 0 {
+                    NSColor.quaternaryLabelColor.withAlphaComponent(0.3).setFill()
+                    cell.fill()
+                }
+                NSColor.separatorColor.setStroke()
+                NSBezierPath(rect: cell.insetBy(dx: 0.25, dy: 0.25)).stroke()
+                if c < row.count {
+                    let ps = NSMutableParagraphStyle()
+                    ps.alignment = c < table.alignments.count ? table.alignments[c] : .left
+                    ps.lineBreakMode = .byTruncatingTail
+                    (row[c] as NSString).draw(
+                        in: NSRect(x: cell.minX + 8, y: y + (table.rowHeight - lineHeight) / 2,
+                                   width: cell.width - 16, height: lineHeight),
+                        withAttributes: [.font: r == 0 ? bold : table.font,
+                                         .foregroundColor: NSColor.labelColor, .paragraphStyle: ps])
+                }
+                x += widths[c]
+            }
+        }
     }
 }
 

@@ -24,6 +24,29 @@ enum MarkdownHybridRenderer {
     /// NSImage, которое текстовый вид рисует поверх скрытой строки `![…](…)`.
     static let imageKey = NSAttributedString.Key("docxEditMarkdownImage")
     private static let imageCache = NSCache<NSURL, NSImage>()
+    /// MarkdownTable, которую текстовый вид рисует сеткой поверх скрытых строк таблицы.
+    static let tableKey = NSAttributedString.Key("docxEditMarkdownTable")
+
+    final class MarkdownTable: NSObject {
+        let rows: [[String]]                  // [0] — шапка
+        let alignments: [NSTextAlignment]
+        let font: NSFont
+        let rowHeight: CGFloat
+        init(rows: [[String]], alignments: [NSTextAlignment], font: NSFont, rowHeight: CGFloat) {
+            self.rows = rows; self.alignments = alignments; self.font = font; self.rowHeight = rowHeight
+        }
+    }
+
+    static func tableCells(_ line: String) -> [String] {
+        var t = line.trimmingCharacters(in: .whitespaces)
+        if t.hasPrefix("|") { t.removeFirst() }
+        if t.hasSuffix("|") { t.removeLast() }
+        return t.components(separatedBy: "|").map {
+            $0.trimmingCharacters(in: .whitespaces)
+              .replacingOccurrences(of: "**", with: "")
+              .replacingOccurrences(of: "`", with: "")
+        }
+    }
 
     /// Только локальные файлы (офлайн по умолчанию, ADR-008); путь — относительно документа.
     static func loadImage(_ path: String, baseURL: URL?) -> NSImage? {
@@ -154,6 +177,37 @@ enum MarkdownHybridRenderer {
             storage.addAttributes(hiddenAttributes, range: m.range)
             storage.addAttributes([imageKey: img, .paragraphStyle: ps], range: m.range)
             codeRanges.append(m.range)   // inline-разметка (ссылка) внутри скрытой строки не нужна
+        }
+
+        // Таблицы GFM: строки скрыты, высота зарезервирована, сетку рисует текстовый вид.
+        matches(#"(?m)^(\|[^\n]*\|)[ \t]*\n(\|[ \t:|-]*-[ \t:|-]*\|)[ \t]*(?:\n((?:\|[^\n]*\|[ \t]*(?:\n|$))*))?"#, text) { m in
+            guard !inCode(m.range) else { return }
+            if isActive(m.range) {   // редактирование: моноширинный, чтобы колонки `|` выравнивались
+                storage.addAttribute(.font, value: mono, range: m.range)
+                codeRanges.append(m.range)
+                return
+            }
+            let sep = tableCells(text.substring(with: m.range(at: 2)))
+            let alignments: [NSTextAlignment] = sep.map { c in
+                let l = c.hasPrefix(":"), r = c.hasSuffix(":")
+                return l && r ? .center : (r ? .right : .left)
+            }
+            var rows = [tableCells(text.substring(with: m.range(at: 1)))]
+            if m.range(at: 3).location != NSNotFound {
+                rows += text.substring(with: m.range(at: 3)).split(separator: "\n").map { tableCells(String($0)) }
+            }
+            let rowHeight = ceil(baseFont.ascender - baseFont.descender + baseFont.leading) + 10
+            let table = MarkdownTable(rows: rows, alignments: alignments, font: baseFont, rowHeight: rowHeight)
+            storage.addAttributes(hiddenAttributes, range: m.range)
+            storage.addAttribute(tableKey, value: table, range: m.range)
+            text.enumerateSubstrings(in: m.range, options: [.byLines, .substringNotRequired]) { _, _, enclosing, _ in
+                let ps = NSMutableParagraphStyle()
+                let isSeparator = enclosing.location == m.range(at: 2).location
+                ps.minimumLineHeight = isSeparator ? 0.01 : rowHeight
+                ps.maximumLineHeight = isSeparator ? 0.01 : rowHeight
+                storage.addAttribute(.paragraphStyle, value: ps, range: enclosing)
+            }
+            codeRanges.append(m.range)
         }
 
         // Горизонтальная линия.

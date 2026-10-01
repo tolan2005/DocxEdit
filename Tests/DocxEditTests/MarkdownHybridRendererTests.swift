@@ -150,3 +150,39 @@ final class MarkdownHybridImageTests: XCTestCase {
         XCTAssertNil(s.attribute(MarkdownHybridRenderer.imageKey, at: 16, effectiveRange: nil))
     }
 }
+
+final class MarkdownHybridTableTests: XCTestCase {
+    private let src = "| Имя | **Кол-во** |\n|:---|---:|\n| яблоко | 3 |\n| груша | 12 |\n\nx"
+
+    private func render(caret: Int) -> NSTextStorage {
+        let s = NSTextStorage(string: src)
+        MarkdownHybridRenderer.render(s, baseFont: .systemFont(ofSize: 15),
+            active: MarkdownHybridRenderer.activeRange(in: src as NSString, selection: NSRange(location: caret, length: 0)))
+        return s
+    }
+
+    func testTableOutsideCaretIsParsedAndHidden() throws {
+        let s = render(caret: (src as NSString).length)
+        let table = try XCTUnwrap(s.attribute(MarkdownHybridRenderer.tableKey, at: 0, effectiveRange: nil)
+                                  as? MarkdownHybridRenderer.MarkdownTable)
+        XCTAssertEqual(table.rows, [["Имя", "Кол-во"], ["яблоко", "3"], ["груша", "12"]])
+        XCTAssertEqual(table.alignments, [.left, .right])
+        XCTAssertEqual(s.attribute(.foregroundColor, at: 2, effectiveRange: nil) as? NSColor, .clear)
+        let rowLine = s.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle
+        XCTAssertEqual(rowLine?.minimumLineHeight ?? 0, table.rowHeight, accuracy: 0.01)
+        let sepAt = (src as NSString).range(of: "|:---").location
+        let sepLine = s.attribute(.paragraphStyle, at: sepAt, effectiveRange: nil) as? NSParagraphStyle
+        XCTAssertLessThan(sepLine?.maximumLineHeight ?? 99, 1)
+    }
+
+    func testTableUnderCaretShowsMarkdown() {
+        let s = render(caret: (src as NSString).range(of: "груша").location)
+        XCTAssertNil(s.attribute(MarkdownHybridRenderer.tableKey, at: 0, effectiveRange: nil))
+    }
+
+    func testPipeTextWithoutSeparatorIsNotATable() {
+        let s = NSTextStorage(string: "| просто текст |\n\nx")
+        MarkdownHybridRenderer.render(s, baseFont: .systemFont(ofSize: 15), active: NSRange(location: 18, length: 0))
+        XCTAssertNil(s.attribute(MarkdownHybridRenderer.tableKey, at: 0, effectiveRange: nil))
+    }
+}
