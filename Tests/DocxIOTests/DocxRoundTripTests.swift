@@ -117,6 +117,17 @@ final class DocxRoundTripTests: XCTestCase {
         XCTAssertEqual(try firstParagraph(out).attributes.styleId, "Heading1")
     }
 
+    func testParagraphStyleOverrideSurvives() throws {
+        var m = doc([.paragraph(Paragraph(runs: [Run(text: "x", attributes: .init())]))])
+        var def = try XCTUnwrap(StandardParagraphStyle.find(id: "Heading1")?.def)
+        def.fontSize = 30
+        def.italic = true
+        m.styles.paragraphStyles["Heading1"] = def
+        let got = try XCTUnwrap(roundTrip(m).styles.paragraphStyles["Heading1"])
+        XCTAssertEqual(got.fontSize, 30)
+        XCTAssertEqual(got.italic, true)
+    }
+
     // v1.4.2 (ADR-049): Markdown-стили абзацев (Цитата/Блок кода/HR) —
     // round-trip через <w:pStyle> + styles.xml.
     func testMarkdownParagraphStylesSurvive() throws {
