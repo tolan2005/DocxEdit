@@ -77,7 +77,8 @@ else
         echo "ОШИБКА: snapshot-эталоны в ${SNAP_DIR} не найдены. Проверь, что каталог закоммичен." >&2
         exit 1
     fi
-    swift test
+    # .build в ~/Documents получает xattr-«detritus» → codesign .xctest падает; собираем вне проекта.
+    swift test --scratch-path "${TMPDIR:-/tmp}/docxedit-test-build"
     echo "    ✓ тесты пройдены"
 fi
 
