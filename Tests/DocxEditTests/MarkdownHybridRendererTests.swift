@@ -68,4 +68,40 @@ final class MarkdownHybridRendererTests: XCTestCase {
         let src = "# H\n**b** *i* `c` [l](u)\n> q\n---"
         XCTAssertEqual(render(src).string, src)
     }
+
+    private func glyph(_ s: NSTextStorage, _ at: Int) -> String? {
+        s.attribute(MarkdownHybridRenderer.glyphKey, at: at, effectiveRange: nil) as? String
+    }
+
+    func testBulletRendersAsDotWithHangingIndent() {
+        let s = render("- пункт\n  * вложенный\n\nx")
+        XCTAssertEqual(glyph(s, 0), "•")
+        XCTAssertEqual(glyph(s, ("- пункт\n  " as NSString).length), "•")
+        let ps = s.attribute(.paragraphStyle, at: 2, effectiveRange: nil) as? NSParagraphStyle
+        XCTAssertGreaterThan(ps?.headIndent ?? 0, 0)
+    }
+
+    func testTaskItemsRenderAsCheckboxes() {
+        let src = "- [ ] купить\n- [x] готово\n\nx"
+        let s = render(src)
+        XCTAssertTrue(isHidden(s, 0))
+        XCTAssertTrue(isHidden(s, 2))
+        XCTAssertEqual(glyph(s, 3), "☐")
+        XCTAssertNotNil(s.attribute(.link, at: 3, effectiveRange: nil))
+        let doneBox = ("- [ ] купить\n- [" as NSString).length
+        XCTAssertEqual(glyph(s, doneBox), "☑")
+        let doneText = (src as NSString).range(of: "готово").location
+        XCTAssertNotNil(s.attribute(.strikethroughStyle, at: doneText, effectiveRange: nil))
+    }
+
+    func testNumberedListGetsHangingIndentAndNoGlyph() {
+        let s = render("1. первый\n2. второй\n\nx")
+        XCTAssertNil(glyph(s, 0))
+        let ps = s.attribute(.paragraphStyle, at: 4, effectiveRange: nil) as? NSParagraphStyle
+        XCTAssertGreaterThan(ps?.headIndent ?? 0, 0)
+    }
+
+    func testHorizontalRuleIsNotABullet() {
+        XCTAssertNil(glyph(render("---\n\nx"), 0))
+    }
 }

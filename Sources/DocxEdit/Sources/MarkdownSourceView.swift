@@ -127,7 +127,10 @@ struct MarkdownSourceView: NSViewRepresentable {
         scroll.drawsBackground = true
         scroll.backgroundColor = .textBackgroundColor
 
-        let tv = NSTextView()
+        // TextKit 1: гибриду нужна подмена глифов (маркер списка → «•») через NSLayoutManagerDelegate.
+        let tv = NSTextView(usingTextLayoutManager: false)
+        tv.layoutManager?.delegate = context.coordinator
+        tv.linkTextAttributes = [.cursor: NSCursor.pointingHand]
         tv.isRichText = false
         tv.importsGraphics = false
         tv.allowsUndo = true
@@ -171,7 +174,7 @@ struct MarkdownSourceView: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(onChange: onChange) }
 
-    final class Coordinator: NSObject, NSTextViewDelegate {
+    final class Coordinator: NSObject, NSTextViewDelegate, NSLayoutManagerDelegate {
         weak var textView: NSTextView?
         var hybrid = false
         private var lastActive = NSRange(location: NSNotFound, length: 0)
@@ -196,6 +199,8 @@ struct MarkdownSourceView: NSViewRepresentable {
                 MarkdownHybridRenderer.render(storage, baseFont: font, active: lastActive)
                 tv.typingAttributes = [.font: font, .foregroundColor: NSColor.labelColor]
             } else {
+                // Сброс атрибутов гибрида (glyphKey, link, отступы) — подсветка только добавляет свои.
+                storage.setAttributes([:], range: NSRange(location: 0, length: storage.length))
                 MarkdownSyntaxHighlighter.highlight(storage, baseFont: Self.monoFont)
                 tv.typingAttributes = [.font: Self.monoFont, .foregroundColor: NSColor.labelColor]
             }
@@ -214,6 +219,49 @@ struct MarkdownSourceView: NSViewRepresentable {
             let active = MarkdownHybridRenderer.activeRange(in: tv.string as NSString,
                                                            selection: tv.selectedRange())
             if active != lastActive { restyle() }
+        }
+
+        /// Гибрид: глифы знаков с glyphKey рисуются другим символом (текст не меняется).
+        func layoutManager(_ layoutManager: NSLayoutManager,
+                           shouldGenerateGlyphs glyphs: UnsafePointer<CGGlyph>,
+                           properties props: UnsafePointer<NSLayoutManager.GlyphProperty>,
+                           characterIndexes charIndexes: UnsafePointer<Int>,
+                           font aFont: NSFont,
+                           forGlyphRange glyphRange: NSRange) -> Int {
+            guard let storage = layoutManager.textStorage else { return 0 }
+            var newGlyphs: [CGGlyph]?
+            var newProps: [NSLayoutManager.GlyphProperty]?
+            for i in 0..<glyphRange.length {
+                let ci = charIndexes[i]
+                guard ci < storage.length,
+                      let sym = storage.attribute(MarkdownHybridRenderer.glyphKey, at: ci, effectiveRange: nil) as? String
+                else { continue }
+                var units = Array(sym.utf16)
+                var g: [CGGlyph] = Array(repeating: 0, count: units.count)
+                guard CTFontGetGlyphsForCharacters(aFont, &units, &g, units.count), g[0] != 0 else { continue }
+                if newGlyphs == nil {
+                    newGlyphs = Array(UnsafeBufferPointer(start: glyphs, count: glyphRange.length))
+                    newProps = Array(UnsafeBufferPointer(start: props, count: glyphRange.length))
+                }
+                newGlyphs![i] = g[0]
+                newProps![i] = []
+            }
+            guard let ng = newGlyphs, let np = newProps else { return 0 }
+            layoutManager.setGlyphs(ng, properties: np, characterIndexes: charIndexes,
+                                    font: aFont, forGlyphRange: glyphRange)
+            return glyphRange.length
+        }
+
+        /// Клик по чекбоксу задачи: «[ ]» ⇄ «[x]» обычной правкой текста (с undo).
+        func textView(_ tv: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
+            guard (link as? URL)?.scheme == MarkdownHybridRenderer.taskScheme else { return false }
+            let r = NSRange(location: charIndex, length: 1)
+            let done = (tv.string as NSString).substring(with: r) != " "
+            if tv.shouldChangeText(in: r, replacementString: done ? " " : "x") {
+                tv.textStorage?.replaceCharacters(in: r, with: done ? " " : "x")
+                tv.didChangeText()
+            }
+            return true
         }
 
         // MARK: - Typora-поведение (v1.6.4)

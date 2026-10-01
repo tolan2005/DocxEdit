@@ -31,12 +31,28 @@ final class DocumentSession: ObservableObject {
     /// v1.9.0: гибридный (Typora) рендер поверх исходника — тот же source-режим
     /// (текст = источник истины), но разметка вне блока с курсором скрыта.
     @Published var isMarkdownHybrid: Bool = false
+    /// markdownSource соответствует модели (исходный текст файла или правки в source).
+    /// false — модель правили визуально, исходник нужно пересобрать экспортом.
+    private var markdownSourceIsCurrent = false
+
+    /// Исходный текст открытого .md: source/гибрид показывают файл как есть,
+    /// без пересборки через модель (она теряет задачи, нумерацию, пустые строки).
+    func loadMarkdownSource(_ text: String) {
+        markdownSource = text
+        markdownSourceIsCurrent = true
+    }
+
+    private func refreshMarkdownSourceIfStale() {
+        guard !markdownSourceIsCurrent else { return }
+        markdownSource = MarkdownIO.exportMarkdown(bridge.model,
+                                                   prettyTables: AppPreferences.shared.markdownPrettyTables)
+        markdownSourceIsCurrent = true
+    }
 
     /// Войти в исходный режим: экспорт текущей модели в Markdown.
     func enterMarkdownSourceMode() {
         guard mode == .markdown else { return }
-        markdownSource = MarkdownIO.exportMarkdown(bridge.model,
-                                                   prettyTables: AppPreferences.shared.markdownPrettyTables)
+        refreshMarkdownSourceIfStale()
         isMarkdownSourceMode = true
         isMarkdownSplitMode = false   // v1.8.3: split и source взаимоисключимы.
         isMarkdownHybrid = false
@@ -53,8 +69,7 @@ final class DocumentSession: ObservableObject {
     /// v1.8.3: включить split-режим (source | preview рядом).
     func enterMarkdownSplitMode() {
         guard mode == .markdown else { return }
-        markdownSource = MarkdownIO.exportMarkdown(bridge.model,
-                                                   prettyTables: AppPreferences.shared.markdownPrettyTables)
+        refreshMarkdownSourceIfStale()
         isMarkdownSourceMode = false
         isMarkdownHybrid = false
         isMarkdownSplitMode = true
@@ -67,6 +82,7 @@ final class DocumentSession: ObservableObject {
     /// — превью справа переверстается в реальном времени по мере правок слева.
     func applyMarkdownSource(_ text: String) {
         markdownSource = text
+        markdownSourceIsCurrent = true
         if let model = try? MarkdownIO.importMarkdown(string: text) {
             bridge.replaceModel(model)
             if isMarkdownSplitMode {
@@ -184,6 +200,7 @@ final class DocumentSession: ObservableObject {
         isMarkdownSourceMode = false
         isMarkdownHybrid = false
         markdownSource = ""
+        markdownSourceIsCurrent = false
         self.attributedText = bridge.model.toAttributedString(
             defaultFont: preferredDefaultFont(),
             fallbackFontName: AppPreferences.shared.favoriteFonts.first,
@@ -201,6 +218,7 @@ final class DocumentSession: ObservableObject {
         isMarkdownSourceMode = false
         isMarkdownHybrid = false
         markdownSource = ""
+        markdownSourceIsCurrent = false
         self.attributedText = bridge.model.toAttributedString(
             defaultFont: preferredDefaultFont(),
             fallbackFontName: AppPreferences.shared.favoriteFonts.first,
@@ -216,6 +234,7 @@ final class DocumentSession: ObservableObject {
     /// override стандартных стилей (баг #6 фидбека v0.1.36 — override стиля в
     /// диалоге «Стили…» сбрасывался при следующей же правке текста).
     func applyAttributed(_ attributed: NSAttributedString) {
+        markdownSourceIsCurrent = false
         var newModel = DocumentModel.from(attributed: attributed)
         newModel.pageSettings = bridge.model.pageSettings
         newModel.metadata     = bridge.model.metadata

@@ -17,6 +17,10 @@ enum MarkdownHybridRenderer {
         .foregroundColor: NSColor.clear,
     ]
     static let markerColor = NSColor.tertiaryLabelColor
+    /// Символ, которым рисуется глиф этого знака (подмена в NSLayoutManagerDelegate).
+    static let glyphKey = NSAttributedString.Key("docxEditMarkdownGlyph")
+    /// URL-схема клика по чекбоксу задачи (`- [ ]`).
+    static let taskScheme = "docxedit-task"
     private static let headingScale: [CGFloat] = [2.0, 1.6, 1.35, 1.15, 1.0, 0.9]
 
     /// Блок, в котором разметка остаётся видимой: абзац(ы) под выделением.
@@ -83,6 +87,42 @@ enum MarkdownHybridRenderer {
             storage.addAttributes([.paragraphStyle: ps, .foregroundColor: NSColor.secondaryLabelColor],
                                   range: m.range)
             marker(m.range(at: 1), visible: isActive(m.range))
+        }
+
+        // Списки: маркер → «•», задачи → ☐/☑, висячий отступ для переносов.
+        func hangingIndent(_ visiblePrefix: String, _ r: NSRange) {
+            let ps = NSMutableParagraphStyle()
+            ps.headIndent = (visiblePrefix as NSString).size(withAttributes: [.font: baseFont]).width
+            storage.addAttribute(.paragraphStyle, value: ps, range: r)
+        }
+        matches(#"(?m)^([ \t]*)([-*+])([ \t]+)(?:(\[)([ xX])(\])([ \t]+))?(.*)$"#, text) { m in
+            guard !inCode(m.range) else { return }
+            let indent = text.substring(with: m.range(at: 1))
+            if m.range(at: 5).location != NSNotFound {
+                let done = text.substring(with: m.range(at: 5)) != " "
+                storage.addAttributes(hiddenAttributes, range: NSUnionRange(m.range(at: 2), m.range(at: 4)))
+                storage.addAttributes(hiddenAttributes, range: m.range(at: 6))
+                let box = NSFont(name: "Apple Symbols", size: baseFont.pointSize * 1.2) ?? baseFont
+                storage.addAttributes([.font: box, .foregroundColor: NSColor.secondaryLabelColor,
+                                       glyphKey: done ? "☑" : "☐",
+                                       .link: URL(string: "\(taskScheme)://toggle")!],
+                                      range: m.range(at: 5))
+                if done {
+                    storage.addAttributes([.strikethroughStyle: NSUnderlineStyle.single.rawValue,
+                                           .foregroundColor: NSColor.secondaryLabelColor], range: m.range(at: 8))
+                }
+                hangingIndent(indent + "☐ ", m.range)
+            } else {
+                storage.addAttributes([glyphKey: "•", .foregroundColor: NSColor.secondaryLabelColor],
+                                      range: m.range(at: 2))
+                hangingIndent(indent + "• ", m.range)
+            }
+        }
+        matches(#"(?m)^([ \t]*)(\d+[.)])([ \t]+)(.*)$"#, text) { m in
+            guard !inCode(m.range) else { return }
+            storage.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: m.range(at: 2))
+            hangingIndent(text.substring(with: NSRange(location: m.range.location,
+                                                       length: m.range(at: 4).location - m.range.location)), m.range)
         }
 
         // Горизонтальная линия.
