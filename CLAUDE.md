@@ -62,7 +62,7 @@
 
 Чёткие критерии успеха позволяют действовать самостоятельно. Расплывчатые критерии (“сделай, чтобы работало”) требуют постоянных уточнений.
 
-> Автоматически обновляется при выпуске релизов. Последнее обновление: 2026-09-17 (v1.8.8)
+> Автоматически обновляется при выпуске релизов. Последнее обновление: 2026-10-01 (v1.8.9)
 
 ## 1. Обзор
 
@@ -221,11 +221,11 @@
 
 ## 4. Текущий релиз
 
-- **Активная версия:** `1.8.8` — No Ghost Window
+- **Активная версия:** `1.8.9` — UI Tests
 - **Репозиторий:** [https://github.com/tolan2005/DocxEdit](https://github.com/tolan2005/DocxEdit)
 - **Статус:** Настоящий фикс бага «второе пустое окно при cold-start открытии файла» после двух провалов в v1.8.7. Через runtime-trace (запись в /tmp) найдено, что второе окно создавалось **не нашим кодом**: SwiftUI `WindowGroup(id:for:UUID.self)` в ответ на ODOC-event сам открывал окно, плюс NSApplication по дефолту создавал untitled на launch. Фикс — `.handlesExternalEvents(matching: [])` на WindowGroup (запрет SwiftUI-обработки ODOC) + `applicationShouldOpenUntitledFile → false` (запрет untitled на launch). ADR-062. Проверено вручную через `open -a` + `CGWindowListCopyWindowInfo` на трёх сценариях (cold-start .md, cold-start .docx, cold-start без файла) — все дают 1 doc-окно.
 - **Сборка:** arm64 (текущая машина), macOS 14 Sonoma+
-- **Артефакты:** `build/v1.8.8/DocxEdit-1.8.8.dmg` + `build/v1.8.8/DocxEdit-1.8.8.app.zip` + `build/v1.8.8/SHA256SUMS`
+- **Артефакты:** `build/v1.8.9/DocxEdit-1.8.9.dmg` + `build/v1.8.9/DocxEdit-1.8.9.app.zip` + `build/v1.8.9/SHA256SUMS`
 
 ## 5. История релизов
 
