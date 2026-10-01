@@ -170,7 +170,7 @@
 | DocxIOTests/ | DOCX round-trip, fuzz, реальный корпус (21-24.docx) |
 | RtfIOTests/ | RTF импорт/экспорт |
 | MarkdownIOTests/ | MD импорт/экспорт |
-| DocxEditTests/ | Мост NSAttributedString, property-based, snapshot, SmartMarkdownPaste, гибридный рендер MD (MarkdownHybridRendererTests), исходник .md без потерь и гибрид по умолчанию (MarkdownSourceFidelityTests) |
+| DocxEditTests/ | Мост NSAttributedString, property-based, snapshot, SmartMarkdownPaste, гибридный рендер MD (MarkdownHybridRendererTests), исходник .md без потерь и гибрид по умолчанию (MarkdownSourceFidelityTests), «Не сохранять» не оставляет автосейв (AutorecoverDiscardTests) |
 | [UITests/](UITests/) | XCUITest: `project.yml` (XcodeGen → DocxEditUI.xcodeproj, в git не хранится), `run-ui-tests.sh` (SwiftPM-сборка с bundle id `…uitestspm`), `DocxEditUITests/` — cold-start с файлом = 1 окно, набор текста, второе окно; `AppShim/` (Bundle.module для Xcode-таргета), `AppInfo.plist` |
 
 ## Скрипты (scripts/)
