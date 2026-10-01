@@ -14,7 +14,7 @@
 | [REQUIREMENTS_AUTOUPDATE.md](./REQUIREMENTS_AUTOUPDATE.md) | Требования к встроенному auto-updater |
 | [CHANGELOG.md](./CHANGELOG.md) | Пользовательский changelog по релизам |
 | [RELEASING.md](./RELEASING.md) | Рабочий процесс выпуска релиза (приватный код + публичные релизы) |
-| [PROJECT_ANALYSIS.md](./PROJECT_ANALYSIS.md) | Аудит кодовой базы, план рефакторинга |
+| [PROJECT_ANALYSIS.md](./PROJECT_ANALYSIS.md) | Аудит кодовой базы и план улучшений со статусами пунктов (сверено 2026-10-01) |
 | [DESIGN_R06.md](./DESIGN_R06.md) | Дизайн-документ R06: комментарии + track changes |
 | [DESIGN_MD_MODE.md](./DESIGN_MD_MODE.md) | Дизайн MD-режима (WYSIWYG + source, ADR-049) |
 | [DESIGN_HEADER_FOOTER.md](./DESIGN_HEADER_FOOTER.md) | Дизайн колонтитулов (варианты, first/odd/even) |
@@ -97,7 +97,8 @@
 | Файл | Назначение |
 |---|---|
 | [DocumentWindowView.swift](Sources/DocxEdit/Sources/DocumentWindowView.swift) | Окно, TextEditorRepresentable, DocxTextView (drawBackground листов + MD-«ленты»), Coordinator, applyPageViewStyle (guard'ы equality-check против layout-loop, ADR-060), updateFloatingImages |
-| [MarkdownSourceView.swift](Sources/DocxEdit/Sources/MarkdownSourceView.swift) | Source-режим MD: подсветка синтаксиса, Typora-поведение |
+| [MarkdownSourceView.swift](Sources/DocxEdit/Sources/MarkdownSourceView.swift) | Source- и гибридный режим MD (TextKit 1): подсветка, Typora-поведение, `MarkdownTextView` рисует картинки/таблицы/линию, подмена глифов «•»/☐/☑, клик по задаче |
+| [MarkdownHybridRenderer.swift](Sources/DocxEdit/Sources/MarkdownHybridRenderer.swift) | Гибридный рендер MD (Typora, ADR-063): скрытие разметки вне блока с курсором, списки/задачи, картинки, таблицы GFM, линия |
 | [MarkdownPasteSupport.swift](Sources/DocxEdit/Sources/MarkdownPasteSupport.swift) | Умная вставка MD (Typora-паттерн, v1.6.6): looksLikeMarkdown + sanitize |
 
 #### Ribbon
@@ -169,18 +170,20 @@
 | DocxIOTests/ | DOCX round-trip, fuzz, реальный корпус (21-24.docx) |
 | RtfIOTests/ | RTF импорт/экспорт |
 | MarkdownIOTests/ | MD импорт/экспорт |
-| DocxEditTests/ | Мост NSAttributedString, property-based, snapshot, SmartMarkdownPaste |
+| DocxEditTests/ | Мост NSAttributedString, property-based, snapshot, SmartMarkdownPaste, гибридный рендер MD (MarkdownHybridRendererTests), исходник .md без потерь и гибрид по умолчанию (MarkdownSourceFidelityTests) |
+| [UITests/](UITests/) | XCUITest: `project.yml` (XcodeGen → DocxEditUI.xcodeproj, в git не хранится), `run-ui-tests.sh` (SwiftPM-сборка с bundle id `…uitestspm`), `DocxEditUITests/` — cold-start с файлом = 1 окно, набор текста, второе окно; `AppShim/` (Bundle.module для Xcode-таргета), `AppInfo.plist` |
 
 ## Скрипты (scripts/)
 
 | Файл | Назначение |
 |---|---|
-| [release.sh](scripts/release.sh) | Полный релиз: тесты → build → CHANGELOG → CLAUDE.md → tag → GitHub |
+| [release.sh](scripts/release.sh) | Полный релиз: тесты (`--scratch-path` в $TMPDIR) → swiftlint/swiftformat (если установлены) → build → CHANGELOG → CLAUDE.md → tag → GitHub |
 | [build.sh](scripts/build.sh) | Сборка .app + .zip + .dmg + SHA256SUMS + smoke-тест бандла |
 | [publish-github.sh](scripts/publish-github.sh) | gh CLI: загрузка артефактов + ротация KEEP_RELEASES (ADR-040) |
 | [update-changelog.sh](scripts/update-changelog.sh) | Заготовка секции в CHANGELOG.md |
 | [update-claude-md.sh](scripts/update-claude-md.sh) | Обновление §4 «Текущий релиз» + §5 таблицы истории CLAUDE.md |
 | [ui-smoke.sh](scripts/ui-smoke.sh) | Открытие фикстур живым .app без краша (v1.6.3) |
+| [UITests/run-ui-tests.sh](UITests/run-ui-tests.sh) | XCUITest-прогон (v1.8.9); нужен `automationmodetool enable-automationmode-without-authentication` |
 | [notarize.sh](scripts/notarize.sh) | Нотаризация DMG (опциональная) |
 | [make-dmg.sh](scripts/make-dmg.sh) | Легаси: требует create-dmg + ассеты App/; в сценарии не используется |
 | [generate-icon.swift](scripts/generate-icon.swift) | Иконка CoreGraphics → iconset → .icns |
