@@ -12,3 +12,4 @@ xcuserdata/
 test-output.log
 .build/
 155.docx
+UITests/DocxEditUI.xcodeproj/
