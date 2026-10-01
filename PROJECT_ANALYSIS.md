@@ -204,7 +204,7 @@ OOXML поддерживает (agile encryption). Для личного инс�
 | A | Распил монолитов по extension-файлам (§3.1) | Навигация/ревью, нулевой риск | ✅ v1.6.5: DocxIO 3878→555 стр., DocumentController 3839→~1450 стр. |
 | B | Навигатор: drag-reorder разделов + подсветка текущего | Заметный шаг к Word | ✅ v1.6.5 (onDrag/onDrop + currentHeadingLocation) |
 | C | Autorecover для MD source (§3.5) | Защита от потери правок | ✅ v1.6.5 (.md-компаньон в autorecover) |
-| D | XcodeGen + xcodeproj → XCUITest ключевых путей | UI-регрессии | 🚧 Инфраструктура готова (UITests/project.yml, 3 XCUITest, собирается). Первый прогон упёрся в «Timed out while enabling automation mode» — нужно разовое разрешение автоматизации владельцем |
+| D | XcodeGen + xcodeproj → XCUITest ключевых путей | UI-регрессии | 🚧 Инфраструктура готова (UITests/project.yml, 3 XCUITest, собирается, automation mode включён). Тесты нестабильны: в одиночку cold-start тест проходил, но окна документа под XCUITest часто не появляются — причина не найдена |
 | E | Восстановить удалённые релизы v1.5.11–1.5.18 (по желанию) | История | ❌ Не сделано (на GitHub только релизы v1.8.x) |
 
 ### Большие проекты (осознанно отложены)

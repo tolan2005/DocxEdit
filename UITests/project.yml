@@ -8,7 +8,7 @@ packages:
   DocxEditPkg:
     path: ..
 targets:
-  DocxEdit:
+  DocxEditApp:
     type: application
     platform: macOS
     sources:
@@ -18,9 +18,9 @@ targets:
       - package: DocxEditPkg
         products: [DocxCore, DocxIO, RtfIO, MarkdownIO, PdfExporter, EncodingDetector]
     settings:
-      GENERATE_INFOPLIST_FILE: YES
+      INFOPLIST_FILE: AppInfo.plist
       PRODUCT_BUNDLE_IDENTIFIER: app.docxedit.DocxEdit.uitest
-      MARKETING_VERSION: "0.0.0-uitest"
+      PRODUCT_NAME: DocxEdit
       CODE_SIGN_IDENTITY: "-"
       ENABLE_HARDENED_RUNTIME: NO
       SWIFT_VERSION: "5.9"
@@ -30,18 +30,18 @@ targets:
     sources:
       - path: DocxEditUITests
     dependencies:
-      - target: DocxEdit
+      - target: DocxEditApp
     settings:
       CODE_SIGN_IDENTITY: "-"
       SWIFT_VERSION: "5.9"
-      TEST_TARGET_NAME: DocxEdit
+      TEST_TARGET_NAME: DocxEditApp
       GENERATE_INFOPLIST_FILE: YES
       PRODUCT_BUNDLE_IDENTIFIER: app.docxedit.DocxEditUITests
 schemes:
   DocxEditUI:
     build:
       targets:
-        DocxEdit: all
+        DocxEditApp: all
         DocxEditUITests: [test]
     test:
       targets: [DocxEditUITests]
