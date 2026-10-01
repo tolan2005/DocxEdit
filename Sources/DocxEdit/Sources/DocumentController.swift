@@ -1150,6 +1150,14 @@ final class DocumentController: ObservableObject {
         try? FileManager.default.removeItem(at: mdURL)
     }
 
+    /// «Не сохранять» при закрытии окна: пользователь отказался от изменений.
+    /// Сначала гасим таймер — иначе он успеет пересоздать копию, пока
+    /// контроллер ещё жив, а `isDirty` всё ещё true.
+    func discardAutorecoverBackup() {
+        stopAutorecover()
+        clearAutorecoverBackup()
+    }
+
     private func performAutorecoverSave() {
         guard let session, session.isDirty else { return }
         let url = Self.autorecoverDirectory.appendingPathComponent(session.autorecoverFileName)

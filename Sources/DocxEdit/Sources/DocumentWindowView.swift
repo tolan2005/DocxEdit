@@ -283,11 +283,9 @@ struct WindowCloseGuard: NSViewRepresentable {
                     // v1.7.0: «Не сохранять» — пользователь явно отказался от
                     // изменений. Убираем и autorecover-копию этой сессии, иначе
                     // (при последующем крахе других окон) её предложат восстановить.
-                    let dir = DocumentController.autorecoverDirectory
-                    let url = dir.appendingPathComponent(session.autorecoverFileName)
-                    try? FileManager.default.removeItem(at: url)
-                    let mdURL = url.deletingPathExtension().appendingPathExtension("md")
-                    try? FileManager.default.removeItem(at: mdURL)
+                    // Таймер гасится там же — иначе он пересоздаёт копию до
+                    // деинициализации контроллера.
+                    session.attachedController?.discardAutorecoverBackup()
                     return true
                 default:
                     return false
