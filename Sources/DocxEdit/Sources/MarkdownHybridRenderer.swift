@@ -21,6 +21,23 @@ enum MarkdownHybridRenderer {
     static let glyphKey = NSAttributedString.Key("docxEditMarkdownGlyph")
     /// URL-схема клика по чекбоксу задачи (`- [ ]`).
     static let taskScheme = "docxedit-task"
+    /// NSImage, которое текстовый вид рисует поверх скрытой строки `![…](…)`.
+    static let imageKey = NSAttributedString.Key("docxEditMarkdownImage")
+    private static let imageCache = NSCache<NSURL, NSImage>()
+
+    /// Только локальные файлы (офлайн по умолчанию, ADR-008); путь — относительно документа.
+    static func loadImage(_ path: String, baseURL: URL?) -> NSImage? {
+        let decoded = path.removingPercentEncoding ?? path
+        let url: URL
+        if decoded.hasPrefix("/") { url = URL(fileURLWithPath: decoded) }
+        else if let u = URL(string: path), u.scheme != nil { guard u.isFileURL else { return nil }; url = u }
+        else if let baseURL { url = baseURL.appendingPathComponent(decoded) }
+        else { return nil }
+        if let cached = imageCache.object(forKey: url as NSURL) { return cached }
+        guard let img = NSImage(contentsOf: url), img.size.width > 0 else { return nil }
+        imageCache.setObject(img, forKey: url as NSURL)
+        return img
+    }
     private static let headingScale: [CGFloat] = [2.0, 1.6, 1.35, 1.15, 1.0, 0.9]
 
     /// Блок, в котором разметка остаётся видимой: абзац(ы) под выделением.
@@ -30,7 +47,8 @@ enum MarkdownHybridRenderer {
         return text.paragraphRange(for: NSRange(location: loc, length: min(selection.length, text.length - loc)))
     }
 
-    static func render(_ storage: NSTextStorage, baseFont: NSFont, active: NSRange) {
+    static func render(_ storage: NSTextStorage, baseFont: NSFont, active: NSRange,
+                       baseURL: URL? = nil, maxImageWidth: CGFloat = 600) {
         let full = NSRange(location: 0, length: storage.length)
         guard full.length > 0 else { return }
         let text = storage.string as NSString
@@ -123,6 +141,19 @@ enum MarkdownHybridRenderer {
             storage.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: m.range(at: 2))
             hangingIndent(text.substring(with: NSRange(location: m.range.location,
                                                        length: m.range(at: 4).location - m.range.location)), m.range)
+        }
+
+        // Картинка отдельной строкой: строка скрыта, высота зарезервирована под изображение.
+        matches(#"(?m)^[ \t]*!\[[^\]\n]*\]\(([^)\s]+)(?:[ \t]+"[^"\n]*")?\)[ \t]*$"#, text) { m in
+            guard !inCode(m.range), !isActive(m.range),
+                  let img = loadImage(text.substring(with: m.range(at: 1)), baseURL: baseURL) else { return }
+            let scale = min(1, maxImageWidth / img.size.width)
+            let ps = NSMutableParagraphStyle()
+            ps.minimumLineHeight = img.size.height * scale
+            ps.maximumLineHeight = img.size.height * scale
+            storage.addAttributes(hiddenAttributes, range: m.range)
+            storage.addAttributes([imageKey: img, .paragraphStyle: ps], range: m.range)
+            codeRanges.append(m.range)   // inline-разметка (ссылка) внутри скрытой строки не нужна
         }
 
         // Горизонтальная линия.

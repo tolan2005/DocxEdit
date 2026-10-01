@@ -114,10 +114,40 @@ enum MarkdownSyntaxHighlighter {
     }
 }
 
+/// Текстовый вид MD: в гибриде рисует картинки поверх скрытых строк `![…](…)`.
+final class MarkdownTextView: NSTextView {
+    var onWidthChange: (() -> Void)?
+
+    override func setFrameSize(_ newSize: NSSize) {
+        let changed = abs(newSize.width - frame.width) > 1
+        super.setFrameSize(newSize)
+        if changed { onWidthChange?() }
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        guard let lm = layoutManager, let tc = textContainer, let storage = textStorage else { return }
+        storage.enumerateAttribute(MarkdownHybridRenderer.imageKey,
+                                   in: NSRange(location: 0, length: storage.length)) { value, range, _ in
+            guard let img = value as? NSImage else { return }
+            let glyphs = lm.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+            guard glyphs.length > 0 else { return }
+            let line = lm.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
+                .offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y)
+            guard line.intersects(dirtyRect), line.height > 0 else { return }
+            let width = img.size.width * line.height / img.size.height
+            img.draw(in: NSRect(x: line.minX + tc.lineFragmentPadding, y: line.minY, width: width, height: line.height),
+                     from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        }
+    }
+}
+
 /// NSViewRepresentable-обёртка: моноширинный NSTextView с автоподсветкой.
 struct MarkdownSourceView: NSViewRepresentable {
     @Binding var text: String
     var hybrid: Bool = false
+    /// Папка документа — относительные пути картинок в гибриде.
+    var baseURL: URL? = nil
     var onChange: (String) -> Void
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -128,7 +158,7 @@ struct MarkdownSourceView: NSViewRepresentable {
         scroll.backgroundColor = .textBackgroundColor
 
         // TextKit 1: гибриду нужна подмена глифов (маркер списка → «•») через NSLayoutManagerDelegate.
-        let tv = NSTextView(usingTextLayoutManager: false)
+        let tv = MarkdownTextView(usingTextLayoutManager: false)
         tv.layoutManager?.delegate = context.coordinator
         tv.linkTextAttributes = [.cursor: NSCursor.pointingHand]
         tv.isRichText = false
@@ -152,14 +182,19 @@ struct MarkdownSourceView: NSViewRepresentable {
         scroll.documentView = tv
         context.coordinator.textView = tv
         context.coordinator.hybrid = hybrid
+        context.coordinator.baseURL = baseURL
+        tv.onWidthChange = { [weak coordinator = context.coordinator] in
+            if coordinator?.hybrid == true { coordinator?.restyle() }
+        }
         context.coordinator.restyle()
         return scroll
     }
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let tv = context.coordinator.textView else { return }
-        let modeChanged = context.coordinator.hybrid != hybrid
+        let modeChanged = context.coordinator.hybrid != hybrid || context.coordinator.baseURL != baseURL
         context.coordinator.hybrid = hybrid
+        context.coordinator.baseURL = baseURL
         // Внешняя замена (выход/вход в режим, открытие файла) — только если
         // текст реально отличается от того, что в storage (иначе зациклимся).
         if tv.string != text {
@@ -177,6 +212,7 @@ struct MarkdownSourceView: NSViewRepresentable {
     final class Coordinator: NSObject, NSTextViewDelegate, NSLayoutManagerDelegate {
         weak var textView: NSTextView?
         var hybrid = false
+        var baseURL: URL?
         private var lastActive = NSRange(location: NSNotFound, length: 0)
         let onChange: (String) -> Void
         init(onChange: @escaping (String) -> Void) { self.onChange = onChange }
@@ -196,7 +232,9 @@ struct MarkdownSourceView: NSViewRepresentable {
                 let font = Self.hybridFont
                 lastActive = MarkdownHybridRenderer.activeRange(in: tv.string as NSString,
                                                                selection: tv.selectedRange())
-                MarkdownHybridRenderer.render(storage, baseFont: font, active: lastActive)
+                let maxWidth = max(100, (tv.textContainer?.size.width ?? 600) - 2 * (tv.textContainer?.lineFragmentPadding ?? 0))
+                MarkdownHybridRenderer.render(storage, baseFont: font, active: lastActive,
+                                              baseURL: baseURL, maxImageWidth: maxWidth)
                 tv.typingAttributes = [.font: font, .foregroundColor: NSColor.labelColor]
             } else {
                 // Сброс атрибутов гибрида (glyphKey, link, отступы) — подсветка только добавляет свои.

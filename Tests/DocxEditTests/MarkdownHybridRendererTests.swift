@@ -105,3 +105,48 @@ final class MarkdownHybridRendererTests: XCTestCase {
         XCTAssertNil(glyph(render("---\n\nx"), 0))
     }
 }
+
+final class MarkdownHybridImageTests: XCTestCase {
+    private var dir: URL!
+
+    override func setUpWithError() throws {
+        dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let img = NSImage(size: NSSize(width: 200, height: 100))
+        img.lockFocus(); NSColor.red.setFill(); NSRect(x: 0, y: 0, width: 200, height: 100).fill(); img.unlockFocus()
+        let rep = NSBitmapImageRep(data: img.tiffRepresentation!)!
+        try rep.representation(using: .png, properties: [:])!.write(to: dir.appendingPathComponent("pic.png"))
+    }
+
+    override func tearDownWithError() throws { try FileManager.default.removeItem(at: dir) }
+
+    private func render(_ text: String, caret: Int) -> NSTextStorage {
+        let s = NSTextStorage(string: text)
+        MarkdownHybridRenderer.render(s, baseFont: .systemFont(ofSize: 15),
+            active: MarkdownHybridRenderer.activeRange(in: text as NSString, selection: NSRange(location: caret, length: 0)),
+            baseURL: dir, maxImageWidth: 100)
+        return s
+    }
+
+    func testImageLineHiddenAndHeightReserved() {
+        let src = "![картинка](pic.png)\n\nx"
+        let s = render(src, caret: (src as NSString).length)
+        XCTAssertNotNil(s.attribute(MarkdownHybridRenderer.imageKey, at: 0, effectiveRange: nil))
+        let altAt = (src as NSString).range(of: "картинка").location
+        XCTAssertEqual(s.attribute(.foregroundColor, at: altAt, effectiveRange: nil) as? NSColor, .clear)
+        let ps = s.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle
+        XCTAssertEqual(ps?.minimumLineHeight ?? 0, 50, accuracy: 0.5)   // 200×100 → ширина 100
+    }
+
+    func testImageUnderCaretShowsMarkup() {
+        let s = render("![картинка](pic.png)\n\nx", caret: 2)
+        XCTAssertNil(s.attribute(MarkdownHybridRenderer.imageKey, at: 0, effectiveRange: nil))
+    }
+
+    func testMissingOrRemoteImageStaysText() {
+        let src = "![a](nope.png)\n![b](https://example.com/x.png)\n\nx"
+        let s = render(src, caret: (src as NSString).length)
+        XCTAssertNil(s.attribute(MarkdownHybridRenderer.imageKey, at: 0, effectiveRange: nil))
+        XCTAssertNil(s.attribute(MarkdownHybridRenderer.imageKey, at: 16, effectiveRange: nil))
+    }
+}

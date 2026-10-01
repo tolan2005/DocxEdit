@@ -101,6 +101,7 @@ struct DocumentWindowView: View {
                     MarkdownSourceView(
                         text: $session.markdownSource,
                         hybrid: session.isMarkdownHybrid,
+                        baseURL: session.bridge.fileURL?.deletingLastPathComponent(),
                         onChange: { session.applyMarkdownSource($0) }
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
