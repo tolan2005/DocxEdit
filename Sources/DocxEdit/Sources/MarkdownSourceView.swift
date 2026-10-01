@@ -139,6 +139,18 @@ final class MarkdownTextView: NSTextView {
             img.draw(in: NSRect(x: line.minX + tc.lineFragmentPadding, y: line.minY, width: width, height: line.height),
                      from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
         }
+        storage.enumerateAttribute(MarkdownHybridRenderer.ruleKey,
+                                   in: NSRange(location: 0, length: storage.length)) { value, range, _ in
+            guard value != nil else { return }
+            let glyphs = lm.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+            guard glyphs.length > 0 else { return }
+            let line = lm.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
+                .offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y)
+            guard line.intersects(dirtyRect) else { return }
+            NSColor.separatorColor.setFill()
+            NSRect(x: line.minX + tc.lineFragmentPadding, y: line.midY.rounded() - 0.5,
+                   width: line.width - 2 * tc.lineFragmentPadding, height: 1).fill()
+        }
         storage.enumerateAttribute(MarkdownHybridRenderer.tableKey,
                                    in: NSRange(location: 0, length: storage.length)) { value, range, _ in
             guard let table = value as? MarkdownHybridRenderer.MarkdownTable else { return }

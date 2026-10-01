@@ -38,3 +38,24 @@ final class MarkdownSourceFidelityTests: XCTestCase {
         XCTAssertTrue(s.markdownSource.contains("новый текст"))
     }
 }
+
+final class MarkdownDefaultHybridTests: XCTestCase {
+    @MainActor
+    func testMarkdownModeDefaultsToHybrid() {
+        let s = DocumentSession()
+        s.mode = .docx
+        XCTAssertFalse(s.isMarkdownHybrid)
+        s.mode = .markdown
+        XCTAssertTrue(s.isMarkdownHybrid)
+        XCTAssertTrue(s.isMarkdownSourceMode)
+    }
+
+    @MainActor
+    func testExplicitVisualChoiceSticksUntilModeChanges() {
+        let s = DocumentSession()
+        s.mode = .markdown
+        s.exitMarkdownSourceMode()
+        XCTAssertFalse(s.isMarkdownHybrid)
+        XCTAssertFalse(s.isMarkdownSourceMode)
+    }
+}

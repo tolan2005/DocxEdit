@@ -449,11 +449,11 @@ struct DocxEditApp: App {
 /// (синхронно с §5 «История релизов» в CLAUDE.md).
 enum AboutReleaseNotes {
     static let recent: [(version: String, codename: String, summary: String)] = [
+        ("1.10.0", "Hybrid by Default", "**Markdown открывается в гибридном режиме (как Typora)** — и файлы .md, и новый документ Markdown. Переключатель Визуальный/Гибрид/Исходник — в строке состояния. Горизонтальная линия --- рисуется линией; курсор на пустой последней строке больше не раскрывает разметку предыдущего абзаца; черновик из автовосстановления .md открывается как исходный текст."),
         ("1.9.2", "Hybrid Tables", "Гибридный Markdown рисует таблицы сеткой: жирная шапка с фоном, выравнивание колонок из строки :---:. При курсоре внутри таблицы виден исходник моноширинным шрифтом."),
         ("1.9.1", "Hybrid Images", "Гибридный Markdown показывает картинки: строка ![подпись](путь) вне курсора заменяется самим изображением (пути относительно документа, только локальные файлы); при курсоре на строке видна разметка."),
         ("1.9.0", "Hybrid Markdown", "**Гибридный режим Markdown как в Typora** (Вид → Гибридный Markdown, ⌥⌘/, переключатель в строке состояния): разметка скрыта вне блока с курсором, заголовки/жирный/курсив/код/ссылки/цитаты отрисованы стилями, списки с маркерами •, задачи ☐/☑ кликабельны. Source и гибрид показывают .md как есть, без потерь (задачи, нумерация). Исправлено: пункты Markdown в меню «Вид» бывали неактивны; счётчик слов в исходном режиме."),
         ("1.8.9", "UI Tests", "Внутренний релиз без изменений поведения: UI-тесты (XCUITest) для открытия файла, набора текста и нового окна; тест round-trip переопределения стилей; обновлён README. Печать проверена вручную: колонтитулы на каждой странице."),
-        ("1.8.8", "No Ghost Window", "**Настоящий фикс бага «второе пустое окно» после провалов v1.8.7.** Через runtime-trace найдено, что окно B создавалось не нашим кодом: SwiftUI `WindowGroup(id:for:UUID.self)` в ответ на ODOC Apple Event сам открывал ВТОРОЕ окно, плюс NSApplication по дефолту открывал untitled-окно на launch. Итог cold-start-с-файлом: SwiftUI-untitled + окно-для-ODOC = 2 окна. Фикс — `WindowGroup.handlesExternalEvents(matching: [])` (запрет SwiftUI-обработки ODOC-events) + `applicationShouldOpenUntitledFile → false` (запрет untitled на launch). Добавлен регрессионный тест в `scripts/ui-smoke.sh` — считает окна через `CGWindowListCopyWindowInfo` после `open -a <app> <file>` (3 сценария: .md, .docx, без файла — каждый должен дать 1 окно). Тест теперь гейт релиза. **Урок**: диагностика без runtime-теста ведёт к слепым правкам."),
         ("1.6.6", "Smart Paste", "**Умная вставка Markdown (⌘V)** — копирование из ИИ-чатов (ChatGPT/Perplexity) больше не даёт «сырых» звёздочек: если в буфере текст, похожий на Markdown-исходник, ⌘V вставляет его уже отформатированным (заголовки/списки/таблицы/**жирный**/ссылки) — и в DOCX-, и в MD-режиме (Typora-поведение). Санитайзер чинит артефакты вида `***Текст ***` (пробел перед закрывающим разделителем ломал парсер) и вычищает zero-width символы. Обычная вставка — ⇧⌥⌘V; отключается настройкой «Умная вставка Markdown». +12 тестов (309)."),
                     ]
 }
@@ -987,6 +987,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
                    let mdText = String(data: mdData, encoding: .utf8),
                    let mdModel = try? MarkdownIO.importMarkdown(string: mdText) {
                     session?.bridge.replaceModel(mdModel)
+                    session?.loadMarkdownSource(mdText)
+                    if session?.mode == .markdown { session?.enterMarkdownHybridMode() }
                 }
                 try? FileManager.default.removeItem(at: url)
                 try? FileManager.default.removeItem(at: mdURL)

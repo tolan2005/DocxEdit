@@ -24,6 +24,8 @@ enum MarkdownHybridRenderer {
     /// NSImage, которое текстовый вид рисует поверх скрытой строки `![…](…)`.
     static let imageKey = NSAttributedString.Key("docxEditMarkdownImage")
     private static let imageCache = NSCache<NSURL, NSImage>()
+    /// Горизонтальная линия: текстовый вид рисует черту поверх скрытой строки `---`.
+    static let ruleKey = NSAttributedString.Key("docxEditMarkdownRule")
     /// MarkdownTable, которую текстовый вид рисует сеткой поверх скрытых строк таблицы.
     static let tableKey = NSAttributedString.Key("docxEditMarkdownTable")
 
@@ -67,6 +69,10 @@ enum MarkdownHybridRenderer {
     static func activeRange(in text: NSString, selection: NSRange) -> NSRange {
         guard text.length > 0 else { return NSRange(location: 0, length: 0) }
         let loc = min(selection.location, text.length)
+        // Курсор на пустой последней строке (после «\n») — не часть предыдущего абзаца.
+        if selection.length == 0, loc == text.length, text.character(at: loc - 1) == 10 {
+            return NSRange(location: loc, length: 0)
+        }
         return text.paragraphRange(for: NSRange(location: loc, length: min(selection.length, text.length - loc)))
     }
 
@@ -80,7 +86,10 @@ enum MarkdownHybridRenderer {
 
         func isActive(_ r: NSRange) -> Bool {
             if NSIntersectionRange(r, active).length > 0 { return true }
-            return active.length == 0 && active.location >= r.location && active.location <= NSMaxRange(r)
+            guard active.length == 0 else { return false }
+            let end = NSMaxRange(r)
+            let endsWithNewline = end > 0 && end <= text.length && text.character(at: end - 1) == 10
+            return active.location >= r.location && (active.location < end || (active.location == end && !endsWithNewline))
         }
         func marker(_ r: NSRange, visible: Bool) {
             guard r.location != NSNotFound, r.length > 0 else { return }
@@ -213,7 +222,15 @@ enum MarkdownHybridRenderer {
         // Горизонтальная линия.
         matches(#"(?m)^[ \t]*(---+|\*\*\*+|___+)[ \t]*$"#, text) { m in
             guard !inCode(m.range) else { return }
-            storage.addAttribute(.foregroundColor, value: markerColor, range: m.range)
+            guard !isActive(m.range) else {
+                storage.addAttribute(.foregroundColor, value: markerColor, range: m.range)
+                return
+            }
+            let ps = NSMutableParagraphStyle()
+            ps.minimumLineHeight = baseFont.pointSize * 1.5
+            ps.maximumLineHeight = baseFont.pointSize * 1.5
+            storage.addAttributes(hiddenAttributes, range: m.range)
+            storage.addAttributes([ruleKey: true, .paragraphStyle: ps], range: m.range)
         }
 
         // Inline-конструкции: (открывающий маркер)(содержимое)(закрывающий маркер).

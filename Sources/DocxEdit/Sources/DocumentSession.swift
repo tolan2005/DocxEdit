@@ -20,7 +20,10 @@ final class DocumentSession: ObservableObject {
     /// v1.4.0 (ADR-049): режим документа — DOCX или Markdown. Определяется
     /// расширением при открытии; для нового документа — из настроек.
     /// Влияет на формат сохранения по умолчанию и набор инструментов (v1.4.1).
-    @Published var mode: DocumentMode
+    @Published var mode: DocumentMode {
+        // v1.10.0: .md по умолчанию открывается в гибридном (Typora) виде.
+        didSet { if mode == .markdown { enterMarkdownHybridMode() } }
+    }
 
     /// v1.6.0: исходный режим Markdown — редактирование сырого .md текста
     /// с подсветкой синтаксиса (только при mode == .markdown). Источник истины
@@ -130,6 +133,7 @@ final class DocumentSession: ObservableObject {
             string: "",
             attributes: Self.currentDefaultAttributes()
         )
+        if mode == .markdown { enterMarkdownHybridMode() }
     }
 
     /// Атрибуты для пустого документа/typingAttributes: шрифт и размер из настроек.

@@ -59,7 +59,6 @@ final class MarkdownHighlighterTests: XCTestCase {
         // Сессия: вход в исходный режим экспортирует модель в MD, правка
         // исходника обновляет модель (best-effort), выход — визуальный режим.
         let session = DocumentSession()
-        session.mode = .markdown
         var p = ParagraphAttributes()
         p.styleId = "Heading1"
         session.bridge.replaceModel(DocumentModel(sections: [
@@ -68,6 +67,7 @@ final class MarkdownHighlighterTests: XCTestCase {
                                      attributes: p)),
             ]),
         ]))
+        session.mode = .markdown
         session.enterMarkdownSourceMode()
         XCTAssertTrue(session.isMarkdownSourceMode)
         XCTAssertTrue(session.markdownSource.contains("# Тест"),

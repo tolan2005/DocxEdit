@@ -64,6 +64,12 @@ final class MarkdownHybridRendererTests: XCTestCase {
         XCTAssertTrue(font(s, 6).fontDescriptor.symbolicTraits.contains(.monoSpace))
     }
 
+    func testCaretOnEmptyLastLineDoesNotRevealPreviousParagraph() {
+        let src = "a **b** c\n"
+        let s = render(src, caret: (src as NSString).length)
+        XCTAssertTrue(isHidden(s, 2))
+    }
+
     func testTextIsNeverModified() {
         let src = "# H\n**b** *i* `c` [l](u)\n> q\n---"
         XCTAssertEqual(render(src).string, src)
@@ -103,6 +109,13 @@ final class MarkdownHybridRendererTests: XCTestCase {
 
     func testHorizontalRuleIsNotABullet() {
         XCTAssertNil(glyph(render("---\n\nx"), 0))
+    }
+
+    func testHorizontalRuleBecomesLineOutsideCaret() {
+        let s = render("---\n\nx")
+        XCTAssertNotNil(s.attribute(MarkdownHybridRenderer.ruleKey, at: 0, effectiveRange: nil))
+        XCTAssertTrue(isHidden(s, 0))
+        XCTAssertNil(render("---\n\nx", caret: 1).attribute(MarkdownHybridRenderer.ruleKey, at: 0, effectiveRange: nil))
     }
 }
 
