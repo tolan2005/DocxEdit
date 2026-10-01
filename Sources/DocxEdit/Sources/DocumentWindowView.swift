@@ -100,6 +100,7 @@ struct DocumentWindowView: View {
                 } else if session.isMarkdownSourceMode {
                     MarkdownSourceView(
                         text: $session.markdownSource,
+                        hybrid: session.isMarkdownHybrid,
                         onChange: { session.applyMarkdownSource($0) }
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -473,18 +474,7 @@ struct StatusBar: View {
             // v1.6.0: исходный Markdown (только в MD-режиме) — ⌘/.
             if session.mode == .markdown {
                 Divider().frame(height: 12)
-                Button {
-                    if session.isMarkdownSourceMode { session.exitMarkdownSourceMode() }
-                    else { session.enterMarkdownSourceMode() }
-                } label: {
-                    Image(systemName: session.isMarkdownSourceMode ? "doc.richtext" : "chevron.left.forwardslash.chevron.right")
-                        .font(.system(size: 10))
-                        .foregroundStyle(session.isMarkdownSourceMode ? Color.accentColor : Color.secondary)
-                        .frame(width: 22, height: 16)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help(session.isMarkdownSourceMode ? "Визуальный режим (⌘/)" : "Исходный Markdown (⌘/)")
+                MarkdownViewPicker(session: session)
             }
             Spacer()
             // v0.4.6 (R06): индикатор track-changes в статусбаре.
@@ -639,6 +629,37 @@ private struct LanguageIndicator: View {
         .menuStyle(.borderlessButton)
         .fixedSize()
         .help("Определённый язык абзаца. Клик — язык проверки орфографии.")
+    }
+}
+
+// MARK: - Вид Markdown: визуальный / гибрид / исходник (v1.9.0)
+
+private struct MarkdownViewPicker: View {
+    @ObservedObject var session: DocumentSession
+
+    private var current: String {
+        if session.isMarkdownHybrid { return "Гибрид" }
+        return session.isMarkdownSourceMode ? "Исходник" : "Визуальный"
+    }
+
+    var body: some View {
+        Menu {
+            Button(current == "Визуальный" ? "✓ Визуальный" : "Визуальный") {
+                if session.isMarkdownSourceMode { session.exitMarkdownSourceMode() }
+                if session.isMarkdownSplitMode { session.exitMarkdownSplitMode() }
+            }
+            Button(current == "Гибрид" ? "✓ Гибрид" : "Гибрид") { session.enterMarkdownHybridMode() }
+            Button(current == "Исходник" ? "✓ Исходник" : "Исходник") { session.enterMarkdownSourceMode() }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "eye").font(.system(size: 10))
+                Text(current).font(.caption)
+            }
+            .foregroundStyle(.secondary)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("Вид Markdown: визуальный (⌘/), гибрид как в Typora (⌥⌘/), исходник")
     }
 }
 
@@ -1411,6 +1432,7 @@ struct TextEditorRepresentable: NSViewRepresentable {
                 case ([.command, .option], 15): appDelegate.toggleRuler(); return nil        // ⌥⌘R
                 case ([.command, .shift], 15): appDelegate.toggleReadingMode(); return nil   // ⇧⌘R
                 case (.command, 47): appDelegate.toggleMarkdownSourceMode(); return nil      // ⌘/ (MD source)
+                case ([.command, .option], 47): appDelegate.toggleMarkdownHybridMode(); return nil // ⌥⌘/ (MD гибрид)
                 default: break
                 }
 

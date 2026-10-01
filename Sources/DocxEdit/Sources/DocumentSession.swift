@@ -28,6 +28,9 @@ final class DocumentSession: ObservableObject {
     /// правку (для статистики/автосейва) и при выходе в WYSIWYG.
     @Published var isMarkdownSourceMode: Bool = false
     @Published var markdownSource: String = ""
+    /// v1.9.0: гибридный (Typora) рендер поверх исходника — тот же source-режим
+    /// (текст = источник истины), но разметка вне блока с курсором скрыта.
+    @Published var isMarkdownHybrid: Bool = false
 
     /// Войти в исходный режим: экспорт текущей модели в Markdown.
     func enterMarkdownSourceMode() {
@@ -36,6 +39,15 @@ final class DocumentSession: ObservableObject {
                                                    prettyTables: AppPreferences.shared.markdownPrettyTables)
         isMarkdownSourceMode = true
         isMarkdownSplitMode = false   // v1.8.3: split и source взаимоисключимы.
+        isMarkdownHybrid = false
+        attachedController?.refreshStatus()
+    }
+
+    /// v1.9.0: войти в гибридный режим (из любого MD-вида).
+    func enterMarkdownHybridMode() {
+        guard mode == .markdown else { return }
+        if !isMarkdownSourceMode { enterMarkdownSourceMode() }
+        isMarkdownHybrid = true
     }
 
     /// v1.8.3: включить split-режим (source | preview рядом).
@@ -44,6 +56,7 @@ final class DocumentSession: ObservableObject {
         markdownSource = MarkdownIO.exportMarkdown(bridge.model,
                                                    prettyTables: AppPreferences.shared.markdownPrettyTables)
         isMarkdownSourceMode = false
+        isMarkdownHybrid = false
         isMarkdownSplitMode = true
     }
     func exitMarkdownSplitMode() { isMarkdownSplitMode = false }
@@ -62,6 +75,7 @@ final class DocumentSession: ObservableObject {
                     fallbackFontName: AppPreferences.shared.favoriteFonts.first,
                     usableWidth: bridge.model.pageSettings.usableWidthInPoints)
             }
+            attachedController?.refreshStatus()
         }
         markDirty()
     }
@@ -74,6 +88,7 @@ final class DocumentSession: ObservableObject {
     /// Выйти в WYSIWYG: перестроить attributedText из модели.
     func exitMarkdownSourceMode() {
         isMarkdownSourceMode = false
+        isMarkdownHybrid = false
         attributedText = bridge.model.toAttributedString(
             defaultFont: preferredDefaultFont(),
             fallbackFontName: AppPreferences.shared.favoriteFonts.first,
@@ -167,6 +182,7 @@ final class DocumentSession: ObservableObject {
         self.bridge = bridge
         // v1.6.0: открытие/создание документа — всегда в визуальном режиме.
         isMarkdownSourceMode = false
+        isMarkdownHybrid = false
         markdownSource = ""
         self.attributedText = bridge.model.toAttributedString(
             defaultFont: preferredDefaultFont(),
@@ -183,6 +199,7 @@ final class DocumentSession: ObservableObject {
         self.bridge = .empty
         self.mode = AppPreferences.shared.newDocumentMode
         isMarkdownSourceMode = false
+        isMarkdownHybrid = false
         markdownSource = ""
         self.attributedText = bridge.model.toAttributedString(
             defaultFont: preferredDefaultFont(),

@@ -117,6 +117,7 @@ enum MarkdownSyntaxHighlighter {
 /// NSViewRepresentable-обёртка: моноширинный NSTextView с автоподсветкой.
 struct MarkdownSourceView: NSViewRepresentable {
     @Binding var text: String
+    var hybrid: Bool = false
     var onChange: (String) -> Void
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -147,26 +148,24 @@ struct MarkdownSourceView: NSViewRepresentable {
         tv.string = text
         scroll.documentView = tv
         context.coordinator.textView = tv
-        // Начальная подсветка.
-        if let storage = tv.textStorage {
-            MarkdownSyntaxHighlighter.highlight(
-                storage, baseFont: .monospacedSystemFont(ofSize: 13, weight: .regular))
-        }
+        context.coordinator.hybrid = hybrid
+        context.coordinator.restyle()
         return scroll
     }
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let tv = context.coordinator.textView else { return }
+        let modeChanged = context.coordinator.hybrid != hybrid
+        context.coordinator.hybrid = hybrid
         // Внешняя замена (выход/вход в режим, открытие файла) — только если
         // текст реально отличается от того, что в storage (иначе зациклимся).
         if tv.string != text {
             let sel = tv.selectedRanges
             tv.string = text
             tv.setSelectedRanges(sel, affinity: .downstream, stillSelecting: false)
-            if let storage = tv.textStorage {
-                MarkdownSyntaxHighlighter.highlight(
-                    storage, baseFont: .monospacedSystemFont(ofSize: 13, weight: .regular))
-            }
+            context.coordinator.restyle()
+        } else if modeChanged {
+            context.coordinator.restyle()
         }
     }
 
@@ -174,17 +173,47 @@ struct MarkdownSourceView: NSViewRepresentable {
 
     final class Coordinator: NSObject, NSTextViewDelegate {
         weak var textView: NSTextView?
+        var hybrid = false
+        private var lastActive = NSRange(location: NSNotFound, length: 0)
         let onChange: (String) -> Void
         init(onChange: @escaping (String) -> Void) { self.onChange = onChange }
 
-        func textDidChange(_ notification: Notification) {
+        private static let monoFont = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+        @MainActor private static var hybridFont: NSFont {
+            let p = AppPreferences.shared
+            let size = max(p.defaultFontSize, 14)
+            return NSFont(name: p.defaultFontName, size: size) ?? .systemFont(ofSize: size)
+        }
+
+        /// Перерисовка атрибутов с сохранением выделения (текст не меняется).
+        @MainActor func restyle() {
             guard let tv = textView, let storage = tv.textStorage else { return }
-            // Подсветка с сохранением курсора.
             let sel = tv.selectedRanges
-            MarkdownSyntaxHighlighter.highlight(
-                storage, baseFont: .monospacedSystemFont(ofSize: 13, weight: .regular))
+            if hybrid {
+                let font = Self.hybridFont
+                lastActive = MarkdownHybridRenderer.activeRange(in: tv.string as NSString,
+                                                               selection: tv.selectedRange())
+                MarkdownHybridRenderer.render(storage, baseFont: font, active: lastActive)
+                tv.typingAttributes = [.font: font, .foregroundColor: NSColor.labelColor]
+            } else {
+                MarkdownSyntaxHighlighter.highlight(storage, baseFont: Self.monoFont)
+                tv.typingAttributes = [.font: Self.monoFont, .foregroundColor: NSColor.labelColor]
+            }
             tv.setSelectedRanges(sel, affinity: .downstream, stillSelecting: false)
+        }
+
+        func textDidChange(_ notification: Notification) {
+            guard let tv = textView else { return }
+            restyle()
             onChange(tv.string)
+        }
+
+        /// Гибрид: при переходе курсора в другой блок раскрываем его разметку.
+        func textViewDidChangeSelection(_ notification: Notification) {
+            guard hybrid, let tv = textView else { return }
+            let active = MarkdownHybridRenderer.activeRange(in: tv.string as NSString,
+                                                           selection: tv.selectedRange())
+            if active != lastActive { restyle() }
         }
 
         // MARK: - Typora-поведение (v1.6.4)

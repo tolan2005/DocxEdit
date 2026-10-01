@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 import AppKit
 import DocxCore
 import DocxIO
@@ -258,13 +259,7 @@ struct DocxEditApp: App {
                 Button("Линейка") { appDelegate.toggleRuler() }
                     .keyboardShortcut("r", modifiers: [.command, .option])
                     .disabled(appDelegate.isMarkdownMode)
-                Button("Исходный Markdown") { appDelegate.toggleMarkdownSourceMode() }
-                    .keyboardShortcut("/", modifiers: .command)
-                    .disabled(!appDelegate.isMarkdownMode)
-                // v1.8.3: split-режим MD (source | preview).
-                Button("Markdown split") { appDelegate.toggleMarkdownSplitMode() }
-                    .keyboardShortcut("\\", modifiers: .command)
-                    .disabled(!appDelegate.isMarkdownMode)
+                MarkdownViewMenuItems(appDelegate: appDelegate)
                 Divider()
                 Menu("Панели") {
                     Button("Навигация")   { appDelegate.toggleNavigatorSidebar() }
@@ -479,6 +474,27 @@ private func showAboutPanel() {
     NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
 }
 
+// MARK: - Вид Markdown (пункты меню «Вид»)
+
+/// Отдельный View с @ObservedObject: Commands в App.body не перевычисляются,
+/// поэтому .disabled по isMarkdownMode «застывал» на состоянии старта.
+private struct MarkdownViewMenuItems: View {
+    @ObservedObject var appDelegate: AppDelegate
+
+    var body: some View {
+        Button("Исходный Markdown") { appDelegate.toggleMarkdownSourceMode() }
+            .keyboardShortcut("/", modifiers: .command)
+            .disabled(!appDelegate.isMarkdownMode)
+        Button("Гибридный Markdown") { appDelegate.toggleMarkdownHybridMode() }
+            .keyboardShortcut("/", modifiers: [.command, .option])
+            .disabled(!appDelegate.isMarkdownMode)
+        // v1.8.3: split-режим MD (source | preview).
+        Button("Markdown split") { appDelegate.toggleMarkdownSplitMode() }
+            .keyboardShortcut("\\", modifiers: .command)
+            .disabled(!appDelegate.isMarkdownMode)
+    }
+}
+
 // MARK: - Open Recent (динамическое подменю)
 
 private struct RecentFilesMenu: View {
@@ -590,7 +606,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     /// пунктов меню (Формат/Вставка/Вид ограничены в MD).
     var isMarkdownMode: Bool { currentSession?.mode == .markdown }
     /// Сессия текущего ключевого окна (weak — освобождается вместе с окном).
-    weak var currentSession: DocumentSession?
+    weak var currentSession: DocumentSession? {
+        // Меню (.disabled по isMarkdownMode) перерисовываются только по objectWillChange.
+        didSet {
+            modeSubscription = currentSession?.$mode.sink { [weak self] _ in self?.objectWillChange.send() }
+            objectWillChange.send()
+        }
+    }
+    private var modeSubscription: AnyCancellable?
     /// URL файла, который Finder попросил открыть до появления окна / который
     /// нужно загрузить в свежесозданное окно после `openWindowAction`.
     fileprivate var pendingOpenURL: URL?
@@ -1167,8 +1190,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     /// окна — состояние пер-окно, шина не нужна).
     func toggleMarkdownSourceMode() {
         guard let session, session.mode == .markdown else { return }
-        if session.isMarkdownSourceMode { session.exitMarkdownSourceMode() }
+        if session.isMarkdownSourceMode && !session.isMarkdownHybrid { session.exitMarkdownSourceMode() }
         else { session.enterMarkdownSourceMode() }
+    }
+    /// v1.9.0: вход/выход из гибридного (Typora) режима MD.
+    func toggleMarkdownHybridMode() {
+        guard let session, session.mode == .markdown else { return }
+        if session.isMarkdownHybrid { session.exitMarkdownSourceMode() }
+        else { session.enterMarkdownHybridMode() }
     }
     /// v1.8.3: вход/выход из split-режима MD.
     func toggleMarkdownSplitMode() {
