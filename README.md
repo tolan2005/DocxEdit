@@ -1,6 +1,6 @@
 # DocxEdit
 
-> **Version:** 1.6.3
+> **Version:** 1.8.8
 > **Platform:** macOS 14 Sonoma+ (arm64)
 > **Downloads:** <https://github.com/tolan2005/DocxEdit/releases>
 
@@ -24,7 +24,9 @@ shasum -a 256 -c SHA256SUMS
 
 - **DOCX first.** Deep OOXML round-trip — styles, multilevel lists (with start values), tables (named styles, vertical text, merge/split, header rows), floating images (wrap around text, drag to move), hyperlinks, comments, footnotes **and endnotes**, cross-references, live complex fields (PAGEREF/REF/SEQ), track changes, page numbers, headers/footers with logos, **watermarks** (WordArt + picture), column layouts, custom tab stops, paragraph borders, SmartArt previews, drop caps, math text.
 - **Markdown editor mode.** Two ways to work with `.md`: Typora-style WYSIWYG **and a raw source mode with syntax highlighting** (⌘/). Typora behavior: Enter continues lists, Tab nests, ⌘B/⌘I wrap selection. Obsidian-friendly: YAML front-matter passthrough, `[[wiki links]]`. GFM tables pretty-printed; ⌘S saves `.md`; export to DOCX/PDF/RTF anytime. ⇧⌘N — new Markdown document.
-- **Full-featured editor.** Ribbon with tabs (Home / Insert / Layout / Review / View), WYSIWYG page view with real A4/Letter sheets, real pagination, printing with headers/footers and watermarks, document navigator (headings outline), resizable sidebars, dark mode.
+- **Full-featured editor.** Ribbon with tabs (Home / Insert / Layout / Table / Review / View), WYSIWYG page view with real A4/Letter sheets, real pagination, printing with headers/footers and watermarks, document navigator (headings outline), resizable sidebars, dark mode.
+- **Productivity.** Command palette (⇧⌘P) with fuzzy search over all commands; floating mini-toolbar above a selection; compact ribbon (⌃F1) with a customizable Favorites group; Focus mode (⌃⌥F) dims everything but the current paragraph; Markdown split view (⌘\\) — source and live preview side by side.
+- **Multi-document.** Each document in its own window; drag-and-drop files to open; welcome window with recent documents and Quick Look previews; quiet crash recovery (autorecover prompts only after an actual crash).
 - **Formatting.** Bold / italic / underline / strikethrough / sub-super, character styles, paragraph styles (Normal + Headings 1–6), fonts, colors, highlight palette, alignment, indents, line spacing, format painter, find-all with highlighting.
 - **Review.** Reading mode, comments with sidebar, track changes, spelling + grammar check, custom dictionary, auto-language detection.
 - **Multi-format I/O.** Import: docx, doc, rtf, odt, md, txt. Export: docx, rtf, odt, md, txt, pdf.

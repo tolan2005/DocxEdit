@@ -94,6 +94,14 @@ else
     echo "    ⏭  swiftlint не установлен (brew install swiftlint) — пропущен"
 fi
 
+# 1.6. SwiftFormat: только отчёт, релиз не блокирует — кодовая база ещё не отформатирована.
+if command -v swiftformat &>/dev/null; then
+    echo "    ▶️  swiftformat --lint"
+    swiftformat --lint --quiet Sources Tests || echo "    ⚠️  swiftformat: есть расхождения (не блокирует релиз)"
+else
+    echo "    ⏭  swiftformat не установлен (brew install swiftformat) — пропущен"
+fi
+
 # 2. Сборка + упаковка (build.sh: swift build, .app, smoke-тест, .zip, .dmg, SHA256SUMS).
 echo "==> [2/6] Building & packaging"
 "${REPO_ROOT}/scripts/build.sh" "${VERSION}" "$(date +%Y%m%d%H%M%S)"
