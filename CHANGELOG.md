@@ -3,6 +3,20 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.8.9] — 2026-10-01 — UI Tests
+
+### Изменения
+- UI-тесты XCUITest (UITests/run-ui-tests.sh): открытие файла даёт одно окно, набор текста, второе окно через меню
+- тест DOCX round-trip переопределения стилей
+- README описывает фичи v1.7–1.8
+- swiftformat --lint в release.sh (не блокирует)
+- печать проверена вручную
+
+### Артефакты
+- `build/v1.8.9/DocxEdit-1.8.9.dmg`
+- `build/v1.8.9/DocxEdit-1.8.9.app.zip`
+- `build/v1.8.9/SHA256SUMS`
+
 ## [1.8.8] — 2026-09-17 — No Ghost Window
 
 ### Изменения
