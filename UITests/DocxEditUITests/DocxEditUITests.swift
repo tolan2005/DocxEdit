@@ -8,7 +8,9 @@ final class DocxEditUITests: XCTestCase {
 
     override func setUp() {
         continueAfterFailure = false
-        app = XCUIApplication()
+        // Путь к SwiftPM-сборке передаёт UITests/run-ui-tests.sh.
+        let path = ProcessInfo.processInfo.environment["DOCXEDIT_APP"] ?? ""
+        app = path.isEmpty ? XCUIApplication() : XCUIApplication(url: URL(fileURLWithPath: path))
         app.launchArguments = Self.quietLaunch
     }
 
@@ -26,6 +28,11 @@ final class DocxEditUITests: XCTestCase {
         app.windows.matching(NSPredicate(format: "title == %@", title))
     }
 
+    // Открытие файла Apple Event'ом, как из Finder (cold-start, если приложение не запущено).
+    private func openFromFinder(_ file: URL) {
+        app.open(file)
+    }
+
     private func newDocumentViaMenu() {
         app.menuBars.menuBarItems["Файл"].click()
         app.menuBars.menuItems["Новый"].click()
@@ -33,7 +40,7 @@ final class DocxEditUITests: XCTestCase {
 
     // ADR-062: cold-start с файлом (Apple Event open, как из Finder) даёт ровно одно окно документа.
     func testColdStartWithFileOpensSingleWindow() {
-        app.open(fixture("21.docx"))
+        openFromFinder(fixture("21.docx"))
         XCTAssertTrue(documentWindows(titled: "21.docx").firstMatch.waitForExistence(timeout: 15))
         sleep(2)
         XCTAssertEqual(app.windows.matching(NSPredicate(format: "identifier BEGINSWITH 'docx-window'")).count, 1)
@@ -46,12 +53,13 @@ final class DocxEditUITests: XCTestCase {
         XCTAssertTrue(textView.waitForExistence(timeout: 10))
         // Центр NSTextView (лист A4) ниже края окна — кликаем в верх видимой части.
         textView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).click()
-        textView.typeText("Hello DocxEdit")
-        XCTAssertTrue((textView.value as? String ?? "").contains("Hello DocxEdit"))
+        // На РУ-раскладке XCUITest шлёт латиницу с ⌘ (⌘O открывал панель) — печатаем кириллицу.
+        textView.typeText("Привет")
+        XCTAssertTrue((textView.value as? String ?? "").contains("Привет"))
     }
 
     func testNewDocumentFromMenuOpensSecondWindow() {
-        app.open(fixture("21.docx"))
+        openFromFinder(fixture("21.docx"))
         XCTAssertTrue(documentWindows(titled: "21.docx").firstMatch.waitForExistence(timeout: 15))
         newDocumentViaMenu()
         XCTAssertTrue(documentWindows(titled: "Без имени").firstMatch.waitForExistence(timeout: 10))
