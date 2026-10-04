@@ -3,6 +3,17 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.10.2] — 2026-10-04 — Drop Fix
+
+### Изменения
+- Перетаскивание документа в окно снова открывает его
+- заработал NSEvent-монитор РУ-шорткатов (оба ломал каст NSApp.delegate).
+
+### Артефакты
+- `build/v1.10.2/DocxEdit-1.10.2.dmg`
+- `build/v1.10.2/DocxEdit-1.10.2.app.zip`
+- `build/v1.10.2/SHA256SUMS`
+
 ## [1.10.1] — 2026-10-04 — Table Wrap
 
 ### Изменения
