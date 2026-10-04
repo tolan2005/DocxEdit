@@ -1393,7 +1393,7 @@ struct TextEditorRepresentable: NSViewRepresentable {
             // (монитор отрабатывает раньше).
             keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
                 guard let self, let window = self.scrollView?.window, window.isKeyWindow else { return event }
-                guard let appDelegate = NSApp.delegate as? AppDelegate else { return event }
+                guard let appDelegate = AppDelegate.shared else { return event }
                 let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
                 let chars = event.charactersIgnoringModifiers ?? ""
 
@@ -2945,7 +2945,7 @@ final class DocxTextView: NSTextView {
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         if let url = documentURLInDrag(sender) {
-            (NSApp.delegate as? AppDelegate)?.loadFromURL(url)
+            AppDelegate.shared?.loadFromURL(url)
             return true
         }
         return super.performDragOperation(sender)
@@ -3415,3 +3415,4 @@ final class DocxLayoutManager: NSLayoutManager {
         }
     }
 }
+
