@@ -446,6 +446,7 @@ struct StatusBar: View {
     @ObservedObject var trackChanges: TrackChangesEngine
     // v1.4.0 (ADR-049): сессия нужна для индикатора/переключателя режима.
     @ObservedObject var session: DocumentSession
+    @EnvironmentObject private var appDelegate: AppDelegate
 
     private let version: String = {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
@@ -573,9 +574,12 @@ struct StatusBar: View {
             Button { controller.zoomIn() } label: { Image(systemName: "plus") }
                 .buttonStyle(.plain).help("Увеличить масштаб")
             Divider().frame(height: 12)
-            Text("DocxEdit \(version)")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            Button { appDelegate.checkForUpdates() } label: {
+                Text("DocxEdit \(version)")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .buttonStyle(.plain).help("Проверить обновления")
         }
     }
 

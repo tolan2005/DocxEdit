@@ -182,10 +182,33 @@ final class MarkdownHybridTableTests: XCTestCase {
         XCTAssertEqual(table.alignments, [.left, .right])
         XCTAssertEqual(s.attribute(.foregroundColor, at: 2, effectiveRange: nil) as? NSColor, .clear)
         let rowLine = s.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle
-        XCTAssertEqual(rowLine?.minimumLineHeight ?? 0, table.rowHeight, accuracy: 0.01)
+        XCTAssertEqual(rowLine?.minimumLineHeight ?? 0, table.rowHeights[0], accuracy: 0.01)
         let sepAt = (src as NSString).range(of: "|:---").location
         let sepLine = s.attribute(.paragraphStyle, at: sepAt, effectiveRange: nil) as? NSParagraphStyle
         XCTAssertLessThan(sepLine?.maximumLineHeight ?? 99, 1)
+    }
+
+    func testLongCellsWrapInsteadOfTruncating() throws {
+        let long = "Спрашиваете: «У меня вот такая ситуация, что посоветуешь?» — он подбирает нужный навык"
+        let text = "| Навык | Что делает |\n|---|---|\n| `/ask-matt` | \(long) |\n\nx"
+        let s = NSTextStorage(string: text)
+        let font = NSFont.systemFont(ofSize: 15)
+        MarkdownHybridRenderer.render(s, baseFont: font, active: NSRange(location: (text as NSString).length, length: 0),
+                                      maxImageWidth: 300)
+        let table = try XCTUnwrap(s.attribute(MarkdownHybridRenderer.tableKey, at: 0, effectiveRange: nil)
+                                  as? MarkdownHybridRenderer.MarkdownTable)
+        XCTAssertLessThanOrEqual(table.columnWidths.reduce(0, +), 300.5)
+        // Короткая колонка не ужимается: «/ask-matt» помещается целиком.
+        let shortW = ("/ask-matt" as NSString).size(withAttributes: [.font: font]).width
+        XCTAssertGreaterThanOrEqual(table.columnWidths[0] - 16, shortW)
+        // Длинная ячейка переносится: строка выше шапки и вмещает весь текст.
+        XCTAssertGreaterThan(table.rowHeights[1], table.rowHeights[0])
+        let need = (long as NSString).boundingRect(with: NSSize(width: table.columnWidths[1] - 16, height: .greatestFiniteMagnitude),
+                                                   options: .usesLineFragmentOrigin, attributes: [.font: font]).height
+        XCTAssertLessThanOrEqual(ceil(need), table.rowHeights[1])
+        let rowAt = (text as NSString).range(of: "| `/ask").location
+        let ps = s.attribute(.paragraphStyle, at: rowAt, effectiveRange: nil) as? NSParagraphStyle
+        XCTAssertEqual(ps?.minimumLineHeight ?? 0, table.rowHeights[1], accuracy: 0.01)
     }
 
     func testTableUnderCaretShowsMarkdown() {

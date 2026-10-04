@@ -33,9 +33,48 @@ enum MarkdownHybridRenderer {
         let rows: [[String]]                  // [0] — шапка
         let alignments: [NSTextAlignment]
         let font: NSFont
-        let rowHeight: CGFloat
-        init(rows: [[String]], alignments: [NSTextAlignment], font: NSFont, rowHeight: CGFloat) {
-            self.rows = rows; self.alignments = alignments; self.font = font; self.rowHeight = rowHeight
+        let boldFont: NSFont
+        let columnWidths: [CGFloat]
+        let rowHeights: [CGFloat]             // текст ячеек переносится по словам, строка — по самой высокой ячейке
+        static let padding: CGFloat = 8
+
+        init(rows: [[String]], alignments: [NSTextAlignment], font: NSFont, maxWidth: CGFloat) {
+            self.rows = rows; self.alignments = alignments; self.font = font
+            let bold = NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask)
+            boldFont = bold
+            let pad = Self.padding
+            let columns = rows.map(\.count).max() ?? 0
+            let natural = (0..<columns).map { c in
+                rows.enumerated().map { r, row in
+                    c < row.count ? (row[c] as NSString).size(withAttributes: [.font: r == 0 ? bold : font]).width : 0
+                }.max()! + 2 * pad
+            }
+            // Не помещается — колонки уже «справедливой доли» остаются как есть, остаток делят широкие.
+            var widths = natural
+            if natural.reduce(0, +) > maxWidth {
+                var wide = Set(0..<columns)
+                while true {
+                    let rest = maxWidth - natural.indices.filter { !wide.contains($0) }.map { natural[$0] }.reduce(0, +)
+                    let share = rest / CGFloat(max(wide.count, 1))
+                    let narrow = wide.filter { natural[$0] <= share }
+                    if narrow.isEmpty {
+                        let sum = wide.map { natural[$0] }.reduce(0, +)
+                        for c in wide { widths[c] = rest * natural[c] / sum }
+                        break
+                    }
+                    wide.subtract(narrow)
+                }
+            }
+            columnWidths = widths
+            let minHeight = ceil(font.ascender - font.descender + font.leading)
+            rowHeights = rows.enumerated().map { r, row in
+                let h = row.prefix(columns).enumerated().map { c, text in
+                    (text as NSString).boundingRect(
+                        with: NSSize(width: max(1, widths[c] - 2 * pad), height: .greatestFiniteMagnitude),
+                        options: .usesLineFragmentOrigin, attributes: [.font: r == 0 ? bold : font]).height
+                }.max() ?? 0
+                return max(minHeight, ceil(h)) + 10
+            }
         }
     }
 
@@ -205,15 +244,17 @@ enum MarkdownHybridRenderer {
             if m.range(at: 3).location != NSNotFound {
                 rows += text.substring(with: m.range(at: 3)).split(separator: "\n").map { tableCells(String($0)) }
             }
-            let rowHeight = ceil(baseFont.ascender - baseFont.descender + baseFont.leading) + 10
-            let table = MarkdownTable(rows: rows, alignments: alignments, font: baseFont, rowHeight: rowHeight)
+            let table = MarkdownTable(rows: rows, alignments: alignments, font: baseFont, maxWidth: maxImageWidth)
+            var row = 0
             storage.addAttributes(hiddenAttributes, range: m.range)
             storage.addAttribute(tableKey, value: table, range: m.range)
             text.enumerateSubstrings(in: m.range, options: [.byLines, .substringNotRequired]) { _, _, enclosing, _ in
                 let ps = NSMutableParagraphStyle()
                 let isSeparator = enclosing.location == m.range(at: 2).location
-                ps.minimumLineHeight = isSeparator ? 0.01 : rowHeight
-                ps.maximumLineHeight = isSeparator ? 0.01 : rowHeight
+                let height = isSeparator || row >= table.rowHeights.count ? 0.01 : table.rowHeights[row]
+                if !isSeparator { row += 1 }
+                ps.minimumLineHeight = height
+                ps.maximumLineHeight = height
                 storage.addAttribute(.paragraphStyle, value: ps, range: enclosing)
             }
             codeRanges.append(m.range)
