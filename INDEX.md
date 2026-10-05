@@ -98,6 +98,7 @@
 |---|---|
 | [DocumentWindowView.swift](Sources/DocxEdit/Sources/DocumentWindowView.swift) | Окно, TextEditorRepresentable, DocxTextView (drawBackground листов + MD-«ленты»), Coordinator, applyPageViewStyle (guard'ы equality-check против layout-loop, ADR-060), updateFloatingImages, StatusBar (клик по версии → проверка обновлений) |
 | [MarkdownSourceView.swift](Sources/DocxEdit/Sources/MarkdownSourceView.swift) | Source- и гибридный режим MD (TextKit 1): подсветка, Typora-поведение, `MarkdownTextView` рисует картинки/таблицы/линию, подмена глифов «•»/☐/☑, клик по задаче |
+| [MarkdownEditing.swift](Sources/DocxEdit/Sources/MarkdownEditing.swift) | Команды ленты в гибридном MD: вставка/снятие разметки в исходнике (жирный, списки, заголовки, цитата, код, ссылка, таблица, картинка), v1.10.3 |
 | [MarkdownHybridRenderer.swift](Sources/DocxEdit/Sources/MarkdownHybridRenderer.swift) | Гибридный рендер MD (Typora, ADR-063): скрытие разметки вне блока с курсором, списки/задачи, картинки, таблицы GFM (`MarkdownTable`: ширины колонок и высоты строк с переносом текста, v1.10.1), линия |
 | [MarkdownPasteSupport.swift](Sources/DocxEdit/Sources/MarkdownPasteSupport.swift) | Умная вставка MD (Typora-паттерн, v1.6.6): looksLikeMarkdown + sanitize |
 
@@ -170,7 +171,7 @@
 | DocxIOTests/ | DOCX round-trip, fuzz, реальный корпус (21-24.docx) |
 | RtfIOTests/ | RTF импорт/экспорт |
 | MarkdownIOTests/ | MD импорт/экспорт |
-| DocxEditTests/ | Мост NSAttributedString, property-based, snapshot, SmartMarkdownPaste, гибридный рендер MD (MarkdownHybridRendererTests), исходник .md без потерь и гибрид по умолчанию (MarkdownSourceFidelityTests), «Не сохранять» не оставляет автосейв (AutorecoverDiscardTests) |
+| DocxEditTests/ | Мост NSAttributedString, property-based, snapshot, SmartMarkdownPaste, гибридный рендер MD (MarkdownHybridRendererTests), команды ленты в гибриде (MarkdownEditingTests), исходник .md без потерь и гибрид по умолчанию (MarkdownSourceFidelityTests), «Не сохранять» не оставляет автосейв (AutorecoverDiscardTests) |
 | [UITests/](UITests/) | XCUITest: `project.yml` (XcodeGen → DocxEditUI.xcodeproj, в git не хранится), `run-ui-tests.sh` (SwiftPM-сборка с bundle id `…uitestspm`), `DocxEditUITests/` — cold-start с файлом = 1 окно, набор текста, второе окно; `AppShim/` (Bundle.module для Xcode-таргета), `AppInfo.plist` |
 
 ## Скрипты (scripts/)
