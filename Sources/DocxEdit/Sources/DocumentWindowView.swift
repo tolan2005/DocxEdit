@@ -60,7 +60,8 @@ struct DocumentWindowView: View {
         VStack(spacing: 0) {
             // v0.4.3 (R06): режим «Чтение» скрывает ribbon.
             // v1.6.0: исходный MD-режим тоже (форматирование неприменимо к исходнику).
-            if !controller.isReadingMode && !session.isMarkdownSourceMode {
+            // v1.10.3: в гибриде лента есть — команды правят разметку исходника.
+            if !controller.isReadingMode && (!session.isMarkdownSourceMode || session.isMarkdownHybrid) {
                 RibbonView(controller: controller, prefs: prefs, appDelegate: appDelegate, session: session)
                 Divider()
             }

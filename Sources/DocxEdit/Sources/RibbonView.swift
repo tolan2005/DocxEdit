@@ -71,6 +71,10 @@ struct RibbonView: View {
         .onChange(of: isMarkdown) { md in
             if md, tab == .layout { tab = .home }
         }
+        // v1.10.3: в гибриде только «Главная» и «Вставка».
+        .onChange(of: isHybrid) { hybrid in
+            if hybrid, !Self.hybridTabs.contains(tab) { tab = .home }
+        }
     }
 
     /// Видима ли группа (пользователь мог скрыть её в настройке тулбара;
@@ -84,12 +88,22 @@ struct RibbonView: View {
     /// Текущий режим — Markdown (ограниченный набор инструментов).
     private var isMarkdown: Bool { session.mode == .markdown }
 
+    /// v1.10.3: гибридный MD — лента правит исходник Markdown (MarkdownEditing);
+    /// команды без аналога в разметке затемнены.
+    private var isHybrid: Bool { session.isMarkdownSourceMode && session.isMarkdownHybrid }
+    private static let hybridTabs: [Tab] = [.home, .insert]
+
+    /// Выполнить правку разметки в исходнике ключевого окна.
+    private func md(_ edit: (NSTextView) -> Void) {
+        if let tv = MarkdownEditing.focusedTextView { edit(tv) }
+    }
+
     // MARK: - Закладки
 
     private var tabBar: some View {
         HStack(spacing: 4) {
             // v1.4.1: в MD-режиме вкладка «Разметка» скрыта (нет страниц/колонтитулов).
-            ForEach(Tab.allCases.filter { !isMarkdown || $0 != .layout }) { t in
+            ForEach(Tab.allCases.filter { (!isMarkdown || $0 != .layout) && (!isHybrid || Self.hybridTabs.contains($0)) }) { t in
                 Button {
                     // v1.8.1: клик по активной вкладке в свёрнутом состоянии — развернуть.
                     // Клик по активной в развёрнутом — свернуть (Word-паттерн).
@@ -154,6 +168,7 @@ struct RibbonView: View {
                         btn("doc.on.clipboard.fill", "Вставить с сохранением стиля (⇧⌥⌘V)") {
                             appDelegate.pasteAsPlainText()
                         }
+                        .disabled(isHybrid)
                     }
                     HStack(spacing: 2) {
                         btn("paintbrush", "Копировать формат (⌘⇧C)") {
@@ -166,6 +181,7 @@ struct RibbonView: View {
                         }
                         .disabled(!controller.hasCopiedFormatting)
                     }
+                    .disabled(isHybrid)
                 }
             }
             }
@@ -194,10 +210,11 @@ struct RibbonView: View {
                     }
                     }
                     HStack(spacing: 2) {
-                        fmt("bold",          controller.isBold,          "Жирный (⌘B)")       { controller.toggleBold() }
-                        fmt("italic",        controller.isItalic,        "Курсив (⌘I)")       { controller.toggleItalic() }
+                        fmt("bold",          controller.isBold,          "Жирный (⌘B)")       { isHybrid ? md { MarkdownEditing.wrap($0, "**") } : controller.toggleBold() }
+                        fmt("italic",        controller.isItalic,        "Курсив (⌘I)")       { isHybrid ? md { MarkdownEditing.wrap($0, "*") } : controller.toggleItalic() }
                         fmt("underline",     controller.isUnderline,     "Подчёркнутый (⌘U)") { controller.toggleUnderline() }
-                        fmt("strikethrough", controller.isStrikethrough, "Зачёркнутый (⌘⇧X)") { controller.toggleStrikethrough() }
+                            .disabled(isHybrid)
+                        fmt("strikethrough", controller.isStrikethrough, "Зачёркнутый (⌘⇧X)") { isHybrid ? md { MarkdownEditing.wrap($0, "~~") } : controller.toggleStrikethrough() }
                         // v1.4.1: в MD нет над/подстрочных, цвета и подсветки.
                         if !isMarkdown {
                         fmt("textformat.superscript", controller.isSuperscript, "Надстрочный (⌃⌘=)") { controller.toggleSuperscript() }
@@ -210,6 +227,7 @@ struct RibbonView: View {
                         HighlightPickerButton(controller: controller)
                         }
                         btn("textformat.slash", "Очистить форматирование") { controller.clearFormatting() }
+                            .disabled(isHybrid)
                         Menu {
                             Button("ВЕРХНИЙ")                    { controller.applyChangeCase(.upper) }
                             Button("нижний")                     { controller.applyChangeCase(.lower) }
@@ -225,6 +243,7 @@ struct RibbonView: View {
                         .menuIndicator(.hidden)
                         .fixedSize()
                         .help("Регистр")
+                        .disabled(isHybrid)
                     }
                 }
             }
@@ -242,15 +261,20 @@ struct RibbonView: View {
                     }
                     HStack(spacing: 2) {
                         fmt("list.bullet", controller.currentListType == .bulleted, "Маркированный список") {
-                            controller.toggleList(.bulleted)
+                            isHybrid ? md { MarkdownEditing.toggleList($0, numbered: false) } : controller.toggleList(.bulleted)
                         }
                         fmt("list.number", controller.currentListType == .numbered, "Нумерованный список") {
-                            controller.toggleList(.numbered)
+                            isHybrid ? md { MarkdownEditing.toggleList($0, numbered: true) } : controller.toggleList(.numbered)
                         }
                         multilevelListMenu
+                            .disabled(isHybrid)
                         divider
-                        btn("decrease.indent", "Уменьшить отступ (⌘[)") { controller.decreaseIndent() }
-                        btn("increase.indent", "Увеличить отступ (⌘])") { controller.increaseIndent() }
+                        btn("decrease.indent", "Уменьшить отступ (⌘[)") {
+                            isHybrid ? md { MarkdownEditing.indent($0, increase: false) } : controller.decreaseIndent()
+                        }
+                        btn("increase.indent", "Увеличить отступ (⌘])") {
+                            isHybrid ? md { MarkdownEditing.indent($0, increase: true) } : controller.increaseIndent()
+                        }
                         // v1.4.1: в MD нет межстрочного интервала.
                         if !isMarkdown {
                         divider
@@ -271,9 +295,14 @@ struct RibbonView: View {
             if isVisible("home.editing") {
             group("Редактирование") {
                 HStack(spacing: 2) {
-                    btn("magnifyingglass",     "Найти (⌘F)")      { controller.showFindBar() }
-                    btn("arrow.left.arrow.right", "Заменить (⇧⌘H)") { controller.showReplaceBar() }
+                    btn("magnifyingglass",     "Найти (⌘F)")      {
+                        isHybrid ? md { textFinder($0, .showFindInterface) } : controller.showFindBar()
+                    }
+                    btn("arrow.left.arrow.right", "Заменить (⇧⌘H)") {
+                        isHybrid ? md { textFinder($0, .showReplaceInterface) } : controller.showReplaceBar()
+                    }
                     btn("arrow.right.doc.on.clipboard", "Перейти к… (⌘⌥G)") { controller.showGoToDialog() }
+                        .disabled(isHybrid)
                 }
             }
             }
@@ -288,7 +317,8 @@ struct RibbonView: View {
     @ViewBuilder
     private var favoritesGroup: some View {
         // v1.4.1: в MD-режиме избранное фильтруется по whitelist команд.
-        let ids = prefs.ribbonFavorites.filter {
+        // v1.10.3: в гибриде команды избранного работают с визуальным редактором — скрыто.
+        let ids = isHybrid ? [] : prefs.ribbonFavorites.filter {
             !isMarkdown || DocumentMode.markdownAllowedCommands.contains($0)
         }
         if !ids.isEmpty {
@@ -304,6 +334,13 @@ struct RibbonView: View {
         }
     }
 
+    /// Панель поиска NSTextView исходника (тег действия — как у пункта меню).
+    private func textFinder(_ tv: NSTextView, _ action: NSTextFinder.Action) {
+        let item = NSMenuItem()
+        item.tag = action.rawValue
+        tv.performTextFinderAction(item)
+    }
+
     /// Послать действие в цепочку респондеров (первому респондеру — NSTextView).
     private func responder(_ selector: Selector) {
         NSApp.sendAction(selector, to: nil, from: nil)
@@ -314,7 +351,11 @@ struct RibbonView: View {
         Menu {
             ForEach(StandardParagraphStyle.all) { style in
                 Button {
-                    controller.applyParagraphStyle(id: style.id)
+                    if isHybrid {
+                        md { MarkdownEditing.applyParagraphStyle($0, id: style.id) }
+                    } else {
+                        controller.applyParagraphStyle(id: style.id)
+                    }
                 } label: {
                     if controller.currentStyleId == style.id {
                         Label(style.name, systemImage: "checkmark")
@@ -347,7 +388,12 @@ struct RibbonView: View {
         Menu {
             ForEach(StandardCharacterStyle.all) { style in
                 Button {
-                    controller.applyCharacterStyle(id: style.id)
+                    if isHybrid {
+                        let marker = ["Strong": "**", "Emphasis": "*", "CodeChar": "`"][style.id] ?? ""
+                        md { MarkdownEditing.wrap($0, marker) }
+                    } else {
+                        controller.applyCharacterStyle(id: style.id)
+                    }
                 } label: {
                     if controller.currentCharStyleId == style.id {
                         Label(style.def.name, systemImage: "checkmark")
@@ -358,6 +404,7 @@ struct RibbonView: View {
             }
             Divider()
             Button("Убрать стиль знака") { controller.applyCharacterStyle(id: nil) }
+                .disabled(isHybrid)
         } label: {
             HStack(spacing: 4) {
                 Text(controller.currentCharStyleId.flatMap { StandardCharacterStyle.find(id: $0)?.def.name } ?? "Без стиля")
@@ -439,14 +486,18 @@ struct RibbonView: View {
             if isVisible("insert.illustrations") {
             group("Иллюстрации") {
                 HStack(spacing: 2) {
-                    btn("photo", "Изображение") { appDelegate.insertImage() }
+                    btn("photo", "Изображение") {
+                        isHybrid ? md { MarkdownEditing.insertImage($0, baseURL: session.bridge.fileURL?.deletingLastPathComponent()) } : appDelegate.insertImage()
+                    }
                 }
             }
             }
             if isVisible("insert.links") {
             group("Ссылки") {
                 HStack(spacing: 2) {
-                    btn("link", "Гиперссылка (⌘K)") { appDelegate.showHyperlink() }
+                    btn("link", "Гиперссылка (⌘K)") {
+                        isHybrid ? md { MarkdownEditing.insertLink($0) } : appDelegate.showHyperlink()
+                    }
                     // v1.4.1: закладки и перекрёстные ссылки в MD не экспортируются.
                     if !isMarkdown {
                     btn("bookmark", "Закладка…") { appDelegate.showBookmarks() }
@@ -458,7 +509,9 @@ struct RibbonView: View {
             if isVisible("insert.tables") {
             group("Таблицы") {
                 HStack(spacing: 2) {
-                    btn("tablecells", "Таблица (⌘⌥T)") { appDelegate.insertTable() }
+                    btn("tablecells", "Таблица (⌘⌥T)") {
+                        isHybrid ? md { MarkdownEditing.insertTable($0) } : appDelegate.insertTable()
+                    }
                 }
             }
             }
@@ -489,6 +542,7 @@ struct RibbonView: View {
                     .fixedSize()
                     .help("Дата и время")
                 }
+                .disabled(isHybrid)
             }
             }
             Spacer(minLength: 0)
