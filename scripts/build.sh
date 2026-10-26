@@ -10,7 +10,7 @@
 #   BUILD_NUMBER  — монотонно растущий номер сборки (по умолчанию timestamp)
 #
 # Результат:
-#   ./build/DocxEdit.app
+#   ./build/app.noindex/DocxEdit.app  (.noindex — Spotlight не индексирует и не регистрирует копию в «Открыть в приложении»)
 #
 
 set -euo pipefail
@@ -21,7 +21,7 @@ BUILD_NUMBER="${2:-$(date +%Y%m%d%H%M%S)}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_DIR="${REPO_ROOT}/build"
 APP_NAME="DocxEdit"
-APP_BUNDLE="${BUILD_DIR}/${APP_NAME}.app"
+APP_BUNDLE="${BUILD_DIR}/app.noindex/${APP_NAME}.app"
 BINARY_NAME="DocxEdit"
 
 echo "==> DocxEdit build"
@@ -384,7 +384,7 @@ echo "==> Computing checksums"
 # Снимаем регистрацию LaunchServices с копий из build/ и временного тома DMG —
 # иначе каждая сборка добавляет пункт в «Открыть в приложении» Finder.
 LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
-for app in "${BUILD_DIR}"/*.app "/Volumes/${VOLNAME}/${APP_NAME}.app"; do
+for app in "${APP_BUNDLE}" "/Volumes/${VOLNAME}/${APP_NAME}.app"; do
     "${LSREGISTER}" -u "${app}" 2>/dev/null || true
 done
 

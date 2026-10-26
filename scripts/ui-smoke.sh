@@ -16,7 +16,7 @@
 
 set -euo pipefail
 
-APP_PATH="${1:-$(dirname "$0")/../build/DocxEdit.app}"
+APP_PATH="${1:-$(dirname "$0")/../build/app.noindex/DocxEdit.app}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 FIXTURES=(
     "${REPO_ROOT}/Tests/DocxIOTests/Fixtures/21.docx"

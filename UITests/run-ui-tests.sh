@@ -7,11 +7,11 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 swift build -c release --scratch-path build/.swift-build
-WORK="$ROOT/build/uitest"
+WORK="$ROOT/build/uitest.noindex"
 rm -rf "$WORK/DocxEdit.app"
 mkdir -p "$WORK"
 APP="$WORK/DocxEdit.app"
-ditto build/DocxEdit.app "$APP"
+ditto build/app.noindex/DocxEdit.app "$APP"
 cp build/.swift-build/release/DocxEdit "$APP/Contents/MacOS/DocxEdit"
 plutil -replace CFBundleIdentifier -string app.docxedit.DocxEdit.uitestspm "$APP/Contents/Info.plist"
 codesign -f -s - "$APP" >/dev/null 2>&1 || true

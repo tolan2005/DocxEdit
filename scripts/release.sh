@@ -118,7 +118,7 @@ if [[ "${SKIP_UI_SMOKE:-0}" == "1" ]]; then
     echo "==> [2.5/6] UI-smoke skipped (SKIP_UI_SMOKE=1)"
 else
     echo "==> [2.5/6] UI-smoke (открытие фикстур без краша)"
-    "${REPO_ROOT}/scripts/ui-smoke.sh" "${REPO_ROOT}/build/DocxEdit.app"
+    "${REPO_ROOT}/scripts/ui-smoke.sh" "${REPO_ROOT}/build/app.noindex/DocxEdit.app"
 fi
 
 # 2. Нотаризация (опционально). Пересчитываем SHA256SUMS после подписи.

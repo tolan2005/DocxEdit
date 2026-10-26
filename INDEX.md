@@ -196,5 +196,5 @@
 | App/ | AppIcon.appiconset + Info.plist для build.sh |
 | Tests/DocxIOTests/Fixtures/ | 21-24.docx + 133.docx — реальный корпус для round-trip |
 | build/vX.Y.Z/ | Артефакты релизов: .dmg + .app.zip + SHA256SUMS |
-| build/DocxEdit.app | Текущий dev-бандл (ADR-012) |
+| build/app.noindex/DocxEdit.app | Текущий dev-бандл (ADR-012); папка `.noindex` — Spotlight не регистрирует копию в «Открыть в приложении» |
 | 21.docx / 22.docx / 23.docx / 24.docx / 111-114.docx / 133.docx / tabletest.docx | Тестовые документы владельца в корне |

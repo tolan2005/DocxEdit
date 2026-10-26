@@ -139,7 +139,7 @@ SwiftUI `ColorPicker` (широкий пиль).
   camelCase — функции/переменные, PascalCase — типы.
 - Коммиты: Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`,
   `refactor:`, `test:`).
-- Артефакты: `build/v<x.y.z>/` — история релизов; `build/DocxEdit.app` — текущий
+- Артефакты: `build/v<x.y.z>/` — история релизов; `build/app.noindex/DocxEdit.app` — текущий
   dev-бандл (ADR-012).
 
 ## 4. Где что лежит (ключевые файлы)
