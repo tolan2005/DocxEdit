@@ -62,7 +62,7 @@
 
 Чёткие критерии успеха позволяют действовать самостоятельно. Расплывчатые критерии (“сделай, чтобы работало”) требуют постоянных уточнений.
 
-> Автоматически обновляется при выпуске релизов. Последнее обновление: 2026-10-05 (v1.10.3)
+> Автоматически обновляется при выпуске релизов. Последнее обновление: 2026-10-26 (v1.10.3)
 
 ## 1. Обзор
 
@@ -609,6 +609,7 @@
 - **Markdown-исходник (ADR-063):** не пересобирать `markdownSource` из модели без нужды — экспорт теряет задачи/нумерацию. Новый путь, меняющий модель MD-документа в обход `applyAttributed`/`applyMarkdownSource`, обязан либо выставить исходник (`loadMarkdownSource`), либо сбросить `markdownSourceIsCurrent`.
 - **Номера версий (2026-10-04):** строго `X.Y.Z` — никаких `-dev`/`-rc` даже для проверочных сборок. Любую законченную правку доводить до опубликованного релиза (`release.sh`), иначе OTA-обновление до пользователей не дойдёт. Репозитории: `origin` (DocxEdit, релизы) и `src` (DocxEdit-src) — пушить `main` в оба.
 - **AppDelegate из SwiftUI-вью (v1.10.1):** `NSApp.delegate as? AppDelegate` возвращает **nil** — при `@NSApplicationDelegateAdaptor` делегат NSApp — прокси SwiftUI. В SwiftUI-вью — `@EnvironmentObject var appDelegate: AppDelegate` (как `StatusBar`); в AppKit-коде — `AppDelegate.shared` (static weak, ставится в `init`, v1.10.2). Каст ломал drag-and-drop документа и NSEvent-монитор РУ-шорткатов (оба молча ничего не делали). Проверка drag-and-drop через computer-use — только `left_click_drag` (mouse_down/move/up и CGEvent из скрипта сессию перетаскивания Finder не запускают).
+- **LaunchServices и «Открыть в приложении» (2026-10-26):** macOS регистрирует каждую увиденную копию .app (build/, build/uitest/, смонтированные DMG `/Volumes/DocxEdit X.Y.Z`, iCloud) — меню Finder «Открыть в приложении» разрастается. `build.sh` в конце снимает регистрацию (`lsregister -u`) с `build/*.app` и временного тома DMG (detach с `-force` при отказе); `run-ui-tests.sh` снимает регистрацию тестовой копии по `trap EXIT`. Ручная чистка: `lsregister -dump | grep DocxEdit` → `lsregister -u <путь>` для всего, кроме `/Applications/DocxEdit.app`.
 - **Ручная проверка на computer-use:** буквенные ⌘-шорткаты инструмент шлёт искажённо (cmd+p пришёл как keyCode 0 → ⌘A) — проверять команды через меню. Dev-сборку перед проверкой рабочего приложения закрывать: два разных DocxEdit дают «два окна одного файла».
 - **AppKit-присваивания в per-frame-цикле (ADR-060, v1.8.6):** любое присваивание NSTextContainer/NSView/NSScrollView-свойств внутри `updateNSView` (или другого метода, вызываемого SwiftUI на каждый layout-pass) должно быть **guard'нуто equality-проверкой** — `if abs(old - new) > eps { property = new }`. Присваивание того же значения инвалидирует layout контейнера/вью, что каскадом триггерит новый `updateNSView` → бесконечный loop на документах с богатой раскладкой. AppKit не проверяет «не изменилось» за нас. Затрагивает: `container.containerSize/pageStride/pageContentHeight/widthTracksTextView/paged`, `textView.frame.*`, `exclusionPaths`. Пример fixture: 155.docx (32 плавающих + таблицы) держал 99.4% CPU до фикса.
 - **Тесты — стандарт (с v0.5.2, 184 теста, ~1.4 с полный прогон):**
@@ -678,3 +679,5 @@
 | 2026-10-02 | 3.0    | v1.8.9 «UI Tests» + v1.9.0–1.10.0 гибридный Markdown (ADR-063). §2 — UI-тесты XCUITest; §4/§5 — статус и строки 1.8.9–1.10.0 (release.sh их не добавил); §9 — тесты вне ~/Documents, UI-тесты через run-ui-tests.sh, меню через @ObservedObject, правило MD-исходника, ограничения computer-use. PROJECT_ANALYSIS.md: статусы всех пунктов плана сверены, 2.4 закрыт. |
 | 2026-10-04 | 3.1    | v1.10.1 «Table Wrap»: перенос текста в ячейках таблиц гибридного MD (раскладка `columnWidths`/`rowHeights` в ADR-063), клик по версии в статусбаре — проверка обновлений. §9 — формат версий строго X.Y.Z, публикация каждой правки, два remote (origin/src), `NSApp.delegate` ≠ AppDelegate в SwiftUI. |
 | 2026-10-04 | 3.2    | v1.10.2 «Drop Fix»: `NSApp.delegate as? AppDelegate` всегда nil при `@NSApplicationDelegateAdaptor` → drag-and-drop документа и монитор РУ-шорткатов молча не работали; введён `AppDelegate.shared`. §9 — правило про доступ к AppDelegate и про проверку drag-and-drop через computer-use (`left_click_drag`). |
+| 2026-10-05 | 3.3    | v1.10.3 «Hybrid Ribbon»: лента в гибридном MD через `MarkdownEditing` (ADR-063). |
+| 2026-10-26 | 3.4    | §9 — снятие регистрации LaunchServices с копий сборки (build.sh, run-ui-tests.sh), чистка меню «Открыть в приложении». |
