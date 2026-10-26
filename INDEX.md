@@ -179,12 +179,12 @@
 | Файл | Назначение |
 |---|---|
 | [release.sh](scripts/release.sh) | Полный релиз: тесты (`--scratch-path` в $TMPDIR) → swiftlint/swiftformat (если установлены) → build → CHANGELOG → CLAUDE.md → tag → GitHub |
-| [build.sh](scripts/build.sh) | Сборка .app + .zip + .dmg + SHA256SUMS + smoke-тест бандла |
+| [build.sh](scripts/build.sh) | Сборка .app + .zip + .dmg + SHA256SUMS + smoke-тест бандла; в конце снимает регистрацию LaunchServices с `build/*.app` и тома DMG |
 | [publish-github.sh](scripts/publish-github.sh) | gh CLI: загрузка артефактов + ротация KEEP_RELEASES (ADR-040) |
 | [update-changelog.sh](scripts/update-changelog.sh) | Заготовка секции в CHANGELOG.md |
 | [update-claude-md.sh](scripts/update-claude-md.sh) | Обновление §4 «Текущий релиз» + §5 таблицы истории CLAUDE.md |
 | [ui-smoke.sh](scripts/ui-smoke.sh) | Открытие фикстур живым .app без краша (v1.6.3) |
-| [UITests/run-ui-tests.sh](UITests/run-ui-tests.sh) | XCUITest-прогон (v1.8.9); нужен `automationmodetool enable-automationmode-without-authentication` |
+| [UITests/run-ui-tests.sh](UITests/run-ui-tests.sh) | XCUITest-прогон (v1.8.9); нужен `automationmodetool enable-automationmode-without-authentication`; тестовую копию снимает с регистрации LaunchServices по выходу |
 | [notarize.sh](scripts/notarize.sh) | Нотаризация DMG (опциональная) |
 | [make-dmg.sh](scripts/make-dmg.sh) | Легаси: требует create-dmg + ассеты App/; в сценарии не используется |
 | [generate-icon.swift](scripts/generate-icon.swift) | Иконка CoreGraphics → iconset → .icns |
