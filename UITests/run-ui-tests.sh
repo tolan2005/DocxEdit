@@ -15,7 +15,10 @@ ditto build/DocxEdit.app "$APP"
 cp build/.swift-build/release/DocxEdit "$APP/Contents/MacOS/DocxEdit"
 plutil -replace CFBundleIdentifier -string app.docxedit.DocxEdit.uitestspm "$APP/Contents/Info.plist"
 codesign -f -s - "$APP" >/dev/null 2>&1 || true
-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP"
+LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+"$LSREGISTER" -f "$APP"
+# После тестов — снять регистрацию, чтобы копия не висела в «Открыть в приложении».
+trap '"$LSREGISTER" -u "$APP" 2>/dev/null || true' EXIT
 
 (cd UITests && xcodegen generate --spec project.yml >/dev/null)
 TEST_RUNNER_DOCXEDIT_APP="$APP" xcodebuild test \

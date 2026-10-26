@@ -370,7 +370,8 @@ ASCRIPT
 if [[ -d "/Volumes/${VOLNAME}/${APP_NAME}.app" ]]; then
     SetFile -a v "/Volumes/${VOLNAME}/${APP_NAME}.app" 2>/dev/null || true
 fi
-hdiutil detach "/Volumes/${VOLNAME}" -quiet 2>/dev/null || true
+hdiutil detach "/Volumes/${VOLNAME}" -quiet 2>/dev/null \
+    || hdiutil detach "/Volumes/${VOLNAME}" -force -quiet 2>/dev/null || true
 
 # Конвертируем в сжатый read-only DMG.
 hdiutil convert "${TMP_DMG_RW}" -format UDZO -imagekey zlib-level=9 \
@@ -379,6 +380,13 @@ rm -f "${TMP_DMG_RW}"
 
 echo "==> Computing checksums"
 (cd "${RELEASE_DIR}" && shasum -a 256 "${ZIP_NAME}" "${DMG_NAME}" > SHA256SUMS)
+
+# Снимаем регистрацию LaunchServices с копий из build/ и временного тома DMG —
+# иначе каждая сборка добавляет пункт в «Открыть в приложении» Finder.
+LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+for app in "${BUILD_DIR}"/*.app "/Volumes/${VOLNAME}/${APP_NAME}.app"; do
+    "${LSREGISTER}" -u "${app}" 2>/dev/null || true
+done
 
 echo ""
 echo "==> Release artifacts at ${RELEASE_DIR}:"
