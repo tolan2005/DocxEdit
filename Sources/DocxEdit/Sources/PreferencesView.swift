@@ -88,6 +88,14 @@ struct PreferencesView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            Section("Сохранение") {
+                Picker("Автосохранение", selection: $prefs.autoSaveMode) {
+                    ForEach(AutoSaveMode.allCases) { Text($0.title).tag($0) }
+                }
+                Text("Изменения записываются прямо в файл .docx/.md. Новый документ сначала нужно сохранить вручную (⌘S).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Section("Обновления") {
                 Picker("Проверять обновления", selection: $prefs.updateCheckFrequency) {
                     ForEach(UpdateCheckFrequency.allCases) { f in

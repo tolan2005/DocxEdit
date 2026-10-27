@@ -1416,8 +1416,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         }
     }
 
-    private func saveToURL(_ url: URL) {
-        guard let session else { return }
+    /// v1.10.7: автосохранение конкретного документа (его окно может быть неактивным).
+    func autoSave(_ target: DocumentSession) {
+        guard AutoSaveMode.canSave(isDirty: target.bridge.isDirty, url: target.bridge.fileURL),
+              let url = target.bridge.fileURL, DocumentMode.from(url: url) == target.mode else { return }
+        saveToURL(url, session: target, quiet: true)
+    }
+
+    private func saveToURL(_ url: URL, session target: DocumentSession? = nil, quiet: Bool = false) {
+        guard let session = target ?? session else { return }
         do {
             // v0.5.7 (R08): замер длительности save.
             let saveStart = Date()
@@ -1439,6 +1446,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             session.lastMetrics.lastSaveBytes = bytes
             session.markSaved(url: url)
             addRecentURL(url)
+            // Автосохранение — тихо: без тоста; черновик чистим у своего документа,
+            // а не через уведомление ключевому окну.
+            if quiet {
+                session.attachedController?.clearAutorecoverBackup()
+                return
+            }
             // v0.2.6: успешно сохранили — убираем автосейв.
             NotificationCenter.default.post(name: .docxEditClearAutorecover, object: nil)
             // v1.7.2: неблокирующий тост с кнопкой «Показать в Finder».

@@ -98,6 +98,11 @@ final class AppPreferences: ObservableObject {
         didSet { UserDefaults.standard.set(customDictionary, forKey: Keys.customDictionary) }
     }
 
+    /// v1.10.7: автосохранение в сам файл (по умолчанию выключено).
+    @Published var autoSaveMode: AutoSaveMode {
+        didSet { UserDefaults.standard.set(autoSaveMode.rawValue, forKey: Keys.autoSaveMode) }
+    }
+
     // MARK: - Автообновление (v1.1.0, REQUIREMENTS_AUTOUPDATE.md §4.2)
 
     /// Частота автоматической проверки обновлений.
@@ -203,6 +208,7 @@ final class AppPreferences: ObservableObject {
         } else {
             updateCheckFrequency = .onLaunch
         }
+        autoSaveMode = ud.string(forKey: Keys.autoSaveMode).flatMap(AutoSaveMode.init(rawValue:)) ?? .off
         lastUpdateCheck = ud.object(forKey: Keys.lastUpdateCheck) as? Date
         skippedUpdateVersion = ud.string(forKey: Keys.skippedUpdateVersion)
         hiddenRibbonGroups = Set(ud.stringArray(forKey: Keys.hiddenRibbonGroups) ?? [])
@@ -222,6 +228,7 @@ final class AppPreferences: ObservableObject {
     // MARK: - Keys
 
     private enum Keys {
+        static let autoSaveMode       = "pref.autoSaveMode"
         static let favoriteFonts      = "pref.favoriteFonts"
         static let recentFonts        = "pref.recentFonts"
         static let defaultFontName    = "pref.defaultFontName"
@@ -276,6 +283,33 @@ enum MarkdownColumnWidth: String, CaseIterable, Identifiable {
 }
 
 // MARK: - Auto-Update Frequency (v1.1.0)
+
+/// v1.10.7: когда писать изменения прямо в файл.
+enum AutoSaveMode: String, CaseIterable, Identifiable {
+    case off, interval, pause
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .off:      return "Выключено"
+        case .interval: return "Каждые 30 секунд"
+        case .pause:    return "При паузе в наборе (2 с)"
+        }
+    }
+    /// Задержка от первой (interval) или последней (pause) правки до сохранения.
+    var delay: TimeInterval? {
+        switch self {
+        case .off: return nil
+        case .interval: return 30
+        case .pause: return 2
+        }
+    }
+    /// Сохранять можно только уже сохранённый документ своего формата (.docx/.md):
+    /// новый требует выбора имени, а .rtf/.doc/.odt/.txt при сохранении превратились бы в DOCX.
+    static func canSave(isDirty: Bool, url: URL?) -> Bool {
+        guard isDirty, let ext = url?.pathExtension.lowercased() else { return false }
+        return ["docx", "md", "markdown"].contains(ext)
+    }
+}
 
 enum UpdateCheckFrequency: String, CaseIterable, Identifiable {
     case onLaunch = "onLaunch"

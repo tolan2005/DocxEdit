@@ -192,9 +192,26 @@ final class DocumentSession: ObservableObject {
 
     /// Помечает документ гряным (например, после правки `bridge.model.styles`
     /// напрямую из UI, минуя текстовые правки). Симметрично `markSaved`.
+    /// v1.10.7: отложенное автосохранение (режим — `AppPreferences.autoSaveMode`).
+    private var autoSaveWork: DispatchWorkItem?
+    func scheduleAutoSave() {
+        let mode = AppPreferences.shared.autoSaveMode
+        guard let delay = mode.delay else { return }
+        if mode == .interval, autoSaveWork != nil { return }   // уже ждём — не откладываем
+        autoSaveWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.autoSaveWork = nil
+            AppDelegate.shared?.autoSave(self)
+        }
+        autoSaveWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
     func markDirty() {
         objectWillChange.send()
         bridge.isDirty = true
+        scheduleAutoSave()
     }
 
     /// Заменяет документ целиком (при open / new). Пересчитывает attributedText.
@@ -270,6 +287,7 @@ final class DocumentSession: ObservableObject {
         newBridge.isDirty = true
         self.bridge = newBridge
         self.attributedText = attributed
+        scheduleAutoSave()
     }
 
     /// Обновляет только attributedText (без перестроения модели) — используется
@@ -278,6 +296,7 @@ final class DocumentSession: ObservableObject {
     func syncAttributed(_ attributed: NSAttributedString) {
         self.attributedText = attributed
         bridge.isDirty = true
+        scheduleAutoSave()
     }
 }
 
