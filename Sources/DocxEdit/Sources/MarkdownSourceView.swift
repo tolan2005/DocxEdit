@@ -139,6 +139,35 @@ final class MarkdownTextView: NSTextView {
         return true
     }
 
+    /// ⌘-клик по ссылке: документ — в DocxEdit, адрес — в браузере, `#якорь` — к заголовку.
+    override func mouseDown(with event: NSEvent) {
+        guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command else {
+            return super.mouseDown(with: event)
+        }
+        let index = characterIndexForInsertion(at: convert(event.locationInWindow, from: nil))
+        guard let raw = MarkdownEditing.link(in: string as NSString, at: index),
+              let target = MarkdownEditing.resolveLink(raw, baseURL: baseURL) else {
+            return super.mouseDown(with: event)
+        }
+        switch target {
+        case .web(let url):
+            NSWorkspace.shared.open(url)
+        case .file(let url):
+            guard FileManager.default.fileExists(atPath: url.path) else { return NSSound.beep() }
+            let docs: Set<String> = ["docx", "doc", "rtf", "odt", "md", "markdown", "txt"]
+            if docs.contains(url.pathExtension.lowercased()) {
+                AppDelegate.shared?.loadFromURL(url)
+            } else {
+                NSWorkspace.shared.open(url)
+            }
+        case .anchor(let name):
+            guard let h = MarkdownEditing.headings(string).first(where: { MarkdownEditing.slug($0.text) == name.lowercased() })
+            else { return NSSound.beep() }
+            setSelectedRange(NSRange(location: h.location, length: 0))
+            scrollRangeToVisible(NSRange(location: h.location, length: 0))
+        }
+    }
+
     /// ⌘V с картинкой в буфере — файл в `images/` + ссылка `![](…)`.
     override func paste(_ sender: Any?) {
         let pb = NSPasteboard.general

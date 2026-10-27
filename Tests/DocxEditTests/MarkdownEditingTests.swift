@@ -221,4 +221,18 @@ final class MarkdownEditingTests: XCTestCase {
         tv.setSelectedRange(NSRange(location: 0, length: 0))
         XCTAssertFalse(MarkdownEditing.formatTable(tv))
     }
+
+    func testLinkUnderCaretAndResolution() {
+        let text = "см. [главу](глава%202.md#итоги) и ![](img/a.png), [сайт](https://ex.com)\n" as NSString
+        XCTAssertEqual(MarkdownEditing.link(in: text, at: 6), "глава%202.md#итоги")
+        XCTAssertEqual(MarkdownEditing.link(in: text, at: 37), "img/a.png")
+        XCTAssertNil(MarkdownEditing.link(in: text, at: 1))
+        let base = URL(fileURLWithPath: "/docs")
+        XCTAssertEqual(MarkdownEditing.resolveLink("глава%202.md#итоги", baseURL: base),
+                       .file(URL(fileURLWithPath: "/docs/глава 2.md")))
+        XCTAssertEqual(MarkdownEditing.resolveLink("https://ex.com", baseURL: base), .web(URL(string: "https://ex.com")!))
+        XCTAssertEqual(MarkdownEditing.resolveLink("#Итоги-года", baseURL: base), .anchor("Итоги-года"))
+        XCTAssertNil(MarkdownEditing.resolveLink("a.md", baseURL: nil))
+        XCTAssertEqual(MarkdownEditing.slug("Итоги года: 2026!"), "итоги-года-2026")
+    }
 }

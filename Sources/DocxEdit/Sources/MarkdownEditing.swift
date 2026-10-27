@@ -324,6 +324,40 @@ enum MarkdownEditing {
         return true
     }
 
+    /// Куда ведёт ссылка (⌘-клик в Markdown-редакторе, v1.10.6).
+    enum LinkTarget: Equatable {
+        case web(URL)        // адрес со схемой: https, mailto…
+        case file(URL)       // локальный файл (может не существовать)
+        case anchor(String)  // `#заголовок` в этом же документе
+    }
+
+    private static let linkPattern = try! NSRegularExpression(pattern: #"!?\[[^\]\n]*\]\(([^)\s]+)[^)\n]*\)"#)
+
+    /// Цель ссылки `[…](…)` или картинки `![…](…)`, внутри которой позиция `index`.
+    static func link(in text: NSString, at index: Int) -> String? {
+        let line = text.lineRange(for: NSRange(location: min(index, text.length), length: 0))
+        return linkPattern.matches(in: text as String, range: line)
+            .first { NSLocationInRange(index, $0.range) }
+            .map { text.substring(with: $0.range(at: 1)) }
+    }
+
+    static func resolveLink(_ target: String, baseURL: URL?) -> LinkTarget? {
+        if target.hasPrefix("#") { return .anchor(String(target.dropFirst())) }
+        if target.range(of: #"^[A-Za-z][A-Za-z0-9+.-]*:"#, options: .regularExpression) != nil {
+            return URL(string: target).map { $0.isFileURL ? .file($0) : .web($0) }
+        }
+        let path = target.split(separator: "#", omittingEmptySubsequences: false).first.map(String.init) ?? target
+        let decoded = path.removingPercentEncoding ?? path
+        if decoded.hasPrefix("/") { return .file(URL(fileURLWithPath: decoded)) }
+        return baseURL.map { .file($0.appendingPathComponent(decoded)) }
+    }
+
+    /// Якорь заголовка как на GitHub: строчные, пробелы → «-», без пунктуации.
+    static func slug(_ heading: String) -> String {
+        heading.lowercased().replacingOccurrences(of: " ", with: "-")
+            .filter { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }
+    }
+
     // MARK: - Внутреннее
 
     /// Вставить блок с начала строки (если курсор не в начале — перенос перед блоком).
