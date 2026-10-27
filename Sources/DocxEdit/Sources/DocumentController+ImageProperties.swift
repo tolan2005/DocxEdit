@@ -631,7 +631,21 @@ extension DocumentController {
     func refreshStatus() {
         guard let session else { return }
         let stats = DocumentStatisticsCalculator.calculate(session.bridge.model)
-        statusText = "Слов: \(stats.words) · Символов: \(stats.characters) · \(session.bridge.model.metadata.language)"
+        statusText = Self.statusLine(words: stats.words, characters: stats.characters,
+                                     selection: statusSelection, language: session.bridge.model.metadata.language)
+    }
+
+    /// v1.10.5: текст выделения для счётчика «N из M»; пустой — счётчик всего документа.
+    func updateSelectedText(_ text: String) {
+        guard text != statusSelection else { return }
+        statusSelection = text
+        refreshStatus()
+    }
+
+    static func statusLine(words: Int, characters: Int, selection: String, language: String) -> String {
+        guard !selection.isEmpty else { return "Слов: \(words) · Символов: \(characters) · \(language)" }
+        let w = DocumentStatisticsCalculator.countWords(in: selection)
+        return "Слов: \(w) из \(words) · Символов: \(selection.count) из \(characters) · \(language)"
     }
 
     /// Уведомление от NSTextView: пользователь изменил текст.

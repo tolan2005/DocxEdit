@@ -22,6 +22,8 @@ struct FontUsage: Identifiable {
 @MainActor
 final class DocumentController: ObservableObject {
     @Published var statusText: String = "Готов"
+    /// Текст текущего выделения (счётчик «N из M» в статусбаре, v1.10.5).
+    var statusSelection = ""
     @Published var isBold: Bool = false
     @Published var isItalic: Bool = false
     @Published var isUnderline: Bool = false
