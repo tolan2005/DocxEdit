@@ -246,4 +246,24 @@ final class MarkdownHybridTableTests: XCTestCase {
         XCTAssertNotEqual(open.attribute(.foregroundColor, at: ns.range(of: "текст a").location,
                                          effectiveRange: nil) as? NSColor, .clear)
     }
+
+    func testBrokenLocalLinksAreMarked() throws {
+        let fm = FileManager.default
+        let base = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try fm.createDirectory(at: base, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: base) }
+        try Data().write(to: base.appendingPathComponent("есть файл.md"))
+        let text = "[ок](%D0%B5%D1%81%D1%82%D1%8C%20%D1%84%D0%B0%D0%B9%D0%BB.md#часть) [нет](missing.md) [сайт](https://x.org) [якорь](#a)\n![](нет.png)\n"
+        let ns = text as NSString
+        let s = NSTextStorage(string: text)
+        MarkdownHybridRenderer.render(s, baseFont: .systemFont(ofSize: 15),
+                                      active: NSRange(location: ns.length, length: 0), baseURL: base)
+        let broken = { (sub: String) in s.attribute(.underlineColor, at: ns.range(of: sub).location,
+                                                     effectiveRange: nil) as? NSColor == .systemRed }
+        XCTAssertFalse(broken("ок")); XCTAssertTrue(broken("нет]"))
+        XCTAssertFalse(broken("сайт")); XCTAssertFalse(broken("якорь"))
+        XCTAssertTrue(broken("![](нет.png)"))
+        // Документ не сохранён — проверять не с чем.
+        XCTAssertFalse(MarkdownHybridRenderer.isBrokenLocalLink("missing.md", baseURL: nil))
+    }
 }

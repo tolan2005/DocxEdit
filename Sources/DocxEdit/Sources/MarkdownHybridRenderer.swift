@@ -91,6 +91,27 @@ enum MarkdownHybridRenderer {
         }
     }
 
+    /// Локальная ссылка на несуществующий файл (v1.10.5). Адреса со схемой (http, mailto),
+    /// якоря `#…` и документ без папки (не сохранён) не проверяются.
+    static func isBrokenLocalLink(_ target: String, baseURL: URL?) -> Bool {
+        let path = target.split(separator: " ").first.map(String.init)?
+            .split(separator: "#", omittingEmptySubsequences: false).first.map(String.init) ?? ""
+        guard !path.isEmpty, path.range(of: #"^[A-Za-z][A-Za-z0-9+.-]*:"#, options: .regularExpression) == nil
+        else { return false }
+        let decoded = path.removingPercentEncoding ?? path
+        let url: URL
+        if decoded.hasPrefix("/") { url = URL(fileURLWithPath: decoded) }
+        else if let baseURL { url = baseURL.appendingPathComponent(decoded) }
+        else { return false }
+        return !FileManager.default.fileExists(atPath: url.path)
+    }
+
+    static let brokenLinkAttributes: [NSAttributedString.Key: Any] = [
+        .underlineStyle: NSUnderlineStyle.thick.union(.patternDot).rawValue,
+        .underlineColor: NSColor.systemRed,
+        .toolTip: "Файл не найден",
+    ]
+
     /// Только локальные файлы (офлайн по умолчанию, ADR-008); путь — относительно документа.
     static func loadImage(_ path: String, baseURL: URL?) -> NSImage? {
         let decoded = path.removingPercentEncoding ?? path
@@ -228,7 +249,12 @@ enum MarkdownHybridRenderer {
 
         // Картинка отдельной строкой: строка скрыта, высота зарезервирована под изображение.
         matches(#"(?m)^[ \t]*!\[[^\]\n]*\]\(([^)\s]+)(?:[ \t]+"[^"\n]*")?\)[ \t]*$"#, text) { m in
-            guard !inCode(m.range), !isActive(m.range),
+            guard !inCode(m.range) else { return }
+            if isBrokenLocalLink(text.substring(with: m.range(at: 1)), baseURL: baseURL) {
+                storage.addAttributes(brokenLinkAttributes, range: m.range)
+                return
+            }
+            guard !isActive(m.range),
                   let img = loadImage(text.substring(with: m.range(at: 1)), baseURL: baseURL) else { return }
             let scale = min(1, maxImageWidth / img.size.width)
             let ps = NSMutableParagraphStyle()
@@ -307,6 +333,15 @@ enum MarkdownHybridRenderer {
         inline(#"(\[)([^\]\n]+)(\]\([^)\n]+\))"#) { r in
             storage.addAttributes([.foregroundColor: NSColor.linkColor,
                                    .underlineStyle: NSUnderlineStyle.single.rawValue], range: r)
+            // Цель ссылки — после «](» до «)».
+            let close = NSMaxRange(r)
+            let after = text.substring(with: NSRange(location: close, length: text.length - close))
+            if let end = after.firstIndex(of: ")"), after.hasPrefix("](") {
+                let target = String(after[after.index(after.startIndex, offsetBy: 2)..<end])
+                if isBrokenLocalLink(target, baseURL: baseURL) {
+                    storage.addAttributes(brokenLinkAttributes, range: r)
+                }
+            }
         }
 
         // Свёрнутые разделы — последними (перекрывают отступы картинок/таблиц):
