@@ -1039,7 +1039,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         // файла (пользователь переключил режим в статусбаре) — «Сохранить как»,
         // чтобы не записать MD-контент в .docx и наоборот.
         guard let session else { return }
-        if let url = session.bridge.fileURL, DocumentMode.from(url: url) == session.mode {
+        // .doc записать не умеем (старый формат Word) — «Сохранить как» в .docx.
+        if let url = session.bridge.fileURL, DocumentMode.from(url: url) == session.mode,
+           url.pathExtension.lowercased() != "doc" {
             saveToURL(url)
         } else {
             saveDocumentAs()
@@ -1431,7 +1433,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             // v1.4.0 (ADR-049): формат сохранения — по режиму документа.
             // v1.6.0: в исходном MD-режиме источник истины — сырой текст.
             switch session.mode {
-            case .docx:     try DocxIO.exportDocx(session.bridge.model, to: url)
+            case .docx:     try Self.writeDocument(session.bridge.model, to: url)
             case .markdown:
                 if session.isMarkdownSourceMode {
                     try session.markdownSource.write(to: url, atomically: true, encoding: .utf8)
@@ -1505,7 +1507,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
                         }
                     }
                 case .rtf:      try RtfIO.exportRTF(session.bridge.model, to: url)
-                case .txt:      try exportPlainText(session.bridge.model, to: url, encoding: selectedTxtEncoding)
+                case .txt:      try Self.exportPlainText(session.bridge.model, to: url, encoding: selectedTxtEncoding)
                 case .odt:      try OdtIO.exportODT(session.bridge.model, to: url)
                 }
                 // v1.7.2: тост об успешном экспорте — с кнопкой «Показать в Finder».
@@ -1517,7 +1519,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     /// v0.3.5: TXT-экспорт — конкатенация plain-text параграфов + перевод строки.
     /// Изображения/таблицы теряются (upstream ограничение plain text).
-    private func exportPlainText(_ model: DocumentModel, to url: URL, encoding: String.Encoding) throws {
+    /// v1.10.7: визуальный документ сохраняется в формате своего файла. Раньше всегда
+    /// писался DOCX — .rtf/.odt/.txt после ⌘S становились Word-файлом под старым расширением.
+    static func writeDocument(_ model: DocumentModel, to url: URL) throws {
+        switch url.pathExtension.lowercased() {
+        case "rtf": try RtfIO.exportRTF(model, to: url)
+        case "odt": try OdtIO.exportODT(model, to: url)
+        case "txt": try exportPlainText(model, to: url, encoding: .utf8)
+        default:    try DocxIO.exportDocx(model, to: url)
+        }
+    }
+
+    static func exportPlainText(_ model: DocumentModel, to url: URL, encoding: String.Encoding) throws {
         var out: [String] = []
         for section in model.sections {
             for block in section.blocks {

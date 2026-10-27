@@ -303,11 +303,11 @@ enum AutoSaveMode: String, CaseIterable, Identifiable {
         case .pause: return 2
         }
     }
-    /// Сохранять можно только уже сохранённый документ своего формата (.docx/.md):
-    /// новый требует выбора имени, а .rtf/.doc/.odt/.txt при сохранении превратились бы в DOCX.
+    /// Сохранять можно только уже сохранённый документ формата, который мы умеем писать:
+    /// новый требует выбора имени, .doc (старый Word) записать нельзя.
     static func canSave(isDirty: Bool, url: URL?) -> Bool {
         guard isDirty, let ext = url?.pathExtension.lowercased() else { return false }
-        return ["docx", "md", "markdown"].contains(ext)
+        return ["docx", "md", "markdown", "rtf", "odt", "txt"].contains(ext)
     }
 }
 

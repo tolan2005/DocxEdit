@@ -9,7 +9,8 @@ final class AutoSaveTests: XCTestCase {
         XCTAssertTrue(AutoSaveMode.canSave(isDirty: true, url: md))
         XCTAssertFalse(AutoSaveMode.canSave(isDirty: false, url: docx))      // нечего сохранять
         XCTAssertFalse(AutoSaveMode.canSave(isDirty: true, url: nil))        // новый документ
-        XCTAssertFalse(AutoSaveMode.canSave(isDirty: true, url: URL(fileURLWithPath: "/tmp/c.rtf")))
+        XCTAssertTrue(AutoSaveMode.canSave(isDirty: true, url: URL(fileURLWithPath: "/tmp/c.rtf")))
+        XCTAssertFalse(AutoSaveMode.canSave(isDirty: true, url: URL(fileURLWithPath: "/tmp/d.doc")))
     }
 
     func testDelays() {
