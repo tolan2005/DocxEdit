@@ -196,4 +196,12 @@ final class MarkdownEditingTests: XCTestCase {
         tv.setSelectedRange(NSRange(location: 0, length: 0))
         XCTAssertFalse(MarkdownEditing.linkSelection(tv, url: "https://ex.com"))
     }
+
+    func testHeadingsForNavigatorSkipCodeBlocks() {
+        let md = "# Один\ntext\n```\n# не заголовок\n```\n### Три  \n#без пробела\n##   \n"
+        let h = MarkdownEditing.headings(md)
+        XCTAssertEqual(h.map(\.text), ["Один", "Три"])
+        XCTAssertEqual(h.map(\.level), [1, 3])
+        XCTAssertEqual(h.map(\.location), [0, 35])
+    }
 }

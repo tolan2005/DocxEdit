@@ -246,6 +246,23 @@ enum MarkdownEditing {
         return st
     }
 
+    /// Заголовки `#`…`######` исходника для навигатора; строки внутри ``` не считаются.
+    static func headings(_ text: String) -> [DocumentController.NavigatorHeading] {
+        let ns = text as NSString
+        var out: [DocumentController.NavigatorHeading] = []
+        var inCode = false
+        ns.enumerateSubstrings(in: NSRange(location: 0, length: ns.length), options: .byLines) { line, range, _, _ in
+            guard let line else { return }
+            if line.hasPrefix("```") { inCode.toggle(); return }
+            guard !inCode, let h = line.range(of: #"^#{1,6} +"#, options: .regularExpression) else { return }
+            let title = line[h.upperBound...].trimmingCharacters(in: .whitespaces)
+            guard !title.isEmpty else { return }
+            let level = line[h].filter { $0 == "#" }.count
+            out.append(.init(level: level, text: title, location: range.location))
+        }
+        return out
+    }
+
     // MARK: - Внутреннее
 
     /// Вставить блок с начала строки (если курсор не в начале — перенос перед блоком).

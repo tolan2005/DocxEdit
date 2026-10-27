@@ -259,6 +259,7 @@ struct MarkdownSourceView: NSViewRepresentable {
     var baseURL: URL? = nil
     var onChange: (String) -> Void
     /// Разметка под курсором (подсветка кнопок ленты в гибриде).
+    var onAttach: ((NSTextView) -> Void)? = nil
     var onCaret: ((MarkdownEditing.CaretState) -> Void)? = nil
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -296,6 +297,7 @@ struct MarkdownSourceView: NSViewRepresentable {
         context.coordinator.baseURL = baseURL
         context.coordinator.onCaret = onCaret
         tv.baseURL = baseURL
+        onAttach?(tv)
         tv.onWidthChange = { [weak coordinator = context.coordinator] in
             if coordinator?.hybrid == true { coordinator?.restyle() }
         }

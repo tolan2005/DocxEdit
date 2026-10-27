@@ -14,6 +14,8 @@ import AppKit
 struct NavigatorSidebarView: View {
     @ObservedObject var controller: DocumentController
     @Binding var width: CGFloat
+    /// v1.10.5: исходник Markdown (source/гибрид) — заголовки `#` вместо стилей textStorage.
+    var markdown: String? = nil
     /// v1.6.5: индекс строки-цели при drag-reorder разделов.
     @State private var dropTarget: Int? = nil
     /// v1.6.5: индекс перетаскиваемой строки.
@@ -41,9 +43,10 @@ struct NavigatorSidebarView: View {
             Divider()
 
             // textRevision в observed controller гарантирует пересчёт на правках.
-            let headings = controller.navigatorHeadings()
+            let headings = markdown.map(MarkdownEditing.headings) ?? controller.navigatorHeadings()
             if headings.isEmpty {
-                Text("Нет заголовков.\nПримените стиль «Заголовок 1–6» (⌘⌥1…6).")
+                Text(markdown == nil ? "Нет заголовков.\nПримените стиль «Заголовок 1–6» (⌘⌥1…6)."
+                                     : "Нет заголовков.\nНачните строку с # … ######.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -53,6 +56,9 @@ struct NavigatorSidebarView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 1) {
                         ForEach(Array(headings.enumerated()), id: \.offset) { idx, h in
+                            if markdown != nil {
+                                headingRow(idx, h)
+                            } else {
                             headingRow(idx, h)
                                 .onDrag {
                                     draggingIndex = idx
@@ -70,6 +76,7 @@ struct NavigatorSidebarView: View {
                                         guard from != idx else { return }
                                         controller.moveSection(from: from, to: idx)
                                     }))
+                            }
                         }
                     }
                     .padding(.vertical, 6)
@@ -82,7 +89,8 @@ struct NavigatorSidebarView: View {
 
     @ViewBuilder
     private func headingRow(_ idx: Int, _ h: DocumentController.NavigatorHeading) -> some View {
-        let isCurrent = controller.currentHeadingLocation == h.location
+        // Текущий раздел считается по DOCX-редактору — в Markdown не подсвечиваем.
+        let isCurrent = markdown == nil && controller.currentHeadingLocation == h.location
         Button {
             controller.goToHeading(location: h.location)
         } label: {
@@ -112,6 +120,8 @@ struct NavigatorSidebarView: View {
         }
         .buttonStyle(.plain)
         .contextMenu {
+            // В Markdown правка разделов из навигатора не поддержана — только переход.
+            if markdown == nil {
             // v1.6.4/1.6.5: навигация, уровень и перемещение раздела.
             Button("Перейти к разделу") {
                 controller.goToHeading(location: h.location)
@@ -134,6 +144,7 @@ struct NavigatorSidebarView: View {
                 controller.moveSection(from: idx, to: idx + 1)
             }
             .disabled(idx >= controller.navigatorHeadings().count - 1)
+            }
         }
     }
 }

@@ -1222,7 +1222,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     }
     func showRibbonCustomize()       { NotificationCenter.default.post(name: .docxEditShowRibbonCustomize, object: nil) }
     func toggleStylesSidebar()       { NotificationCenter.default.post(name: .docxEditToggleStylesSidebar, object: nil) }
-    func toggleNavigatorSidebar()    { NotificationCenter.default.post(name: .docxEditToggleNavigatorSidebar, object: nil) }
+    /// Напрямую через контроллер: в source/гибриде MD нет визуального редактора,
+    /// чей Coordinator слушает уведомление (v1.10.5).
+    func toggleNavigatorSidebar()    { currentSession?.attachedController?.toggleNavigatorSidebar() }
     func toggleReadingMode()         { NotificationCenter.default.post(name: .docxEditToggleReadingMode,   object: nil) }
     /// v1.8.4: режим фокуса — прямой вызов, состояние per-window.
     func toggleFocusMode() { currentSession?.attachedController?.toggleFocusMode() }
@@ -1626,7 +1628,6 @@ extension Notification.Name {
     static let docxEditToggleRuler       = Notification.Name("docxEditToggleRuler")
     static let docxEditShowRibbonCustomize = Notification.Name("docxEditShowRibbonCustomize")
     static let docxEditToggleStylesSidebar = Notification.Name("docxEditToggleStylesSidebar")
-    static let docxEditToggleNavigatorSidebar = Notification.Name("docxEditToggleNavigatorSidebar")
     static let docxEditToggleReadingMode   = Notification.Name("docxEditToggleReadingMode")
     static let docxEditToggleCommentsSidebar = Notification.Name("docxEditToggleCommentsSidebar")
     static let docxEditToggleFootnotesSidebar = Notification.Name("docxEditToggleFootnotesSidebar")

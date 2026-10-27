@@ -146,6 +146,8 @@ final class DocumentController: ObservableObject {
     @Published var dataDetectors: Bool = false
 
     weak var textView: NSTextView?
+    /// Редактор исходника MD (source/гибрид) — для перехода из навигатора (v1.10.5).
+    weak var markdownTextView: NSTextView?
     var session: DocumentSession?
 
     /// Все семейства шрифтов, установленных в системе.

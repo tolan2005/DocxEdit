@@ -82,7 +82,8 @@ struct DocumentWindowView: View {
                 // v1.5.11: навигатор по заголовкам — слева (как Navigation Pane).
                 if controller.showsNavigatorSidebar {
                     NavigatorSidebarView(controller: controller,
-                                         width: $controller.navigatorSidebarWidth)
+                                         width: $controller.navigatorSidebarWidth,
+                                         markdown: session.isMarkdownSourceMode ? session.markdownSource : nil)
                     SidebarResizer(width: $controller.navigatorSidebarWidth, leading: true)
                 }
                 // v1.6.0: исходный Markdown — вместо WYSIWYG-редактора.
@@ -104,6 +105,7 @@ struct DocumentWindowView: View {
                         hybrid: session.isMarkdownHybrid,
                         baseURL: session.bridge.fileURL?.deletingLastPathComponent(),
                         onChange: { session.applyMarkdownSource($0) },
+                        onAttach: { controller.markdownTextView = $0 },
                         onCaret: { st in
                             controller.isBold = st.bold
                             controller.isItalic = st.italic
@@ -1353,7 +1355,6 @@ struct TextEditorRepresentable: NSViewRepresentable {
             observeKeyZero(.docxEditToggleInvisibles, #selector(onToggleInvisibles))
             observeKeyZero(.docxEditToggleRuler, #selector(onToggleRuler))
             observeKeyZero(.docxEditToggleStylesSidebar, #selector(onToggleStylesSidebar))
-            observeKeyZero(.docxEditToggleNavigatorSidebar, #selector(onToggleNavigatorSidebar))
             observeKeyZero(.docxEditToggleReadingMode, #selector(onToggleReadingMode))
             observeKeyZero(.docxEditToggleCommentsSidebar, #selector(onToggleCommentsSidebar))
             observeKeyZero(.docxEditToggleFootnotesSidebar, #selector(onToggleFootnotesSidebar))
@@ -1880,7 +1881,6 @@ struct TextEditorRepresentable: NSViewRepresentable {
         @objc private func onToggleInvisibles() { controller.toggleInvisibleCharacters() }
         @objc private func onToggleRuler()      { controller.toggleRuler() }
         @objc private func onToggleStylesSidebar() { controller.toggleStylesSidebar() }
-        @objc private func onToggleNavigatorSidebar() { controller.toggleNavigatorSidebar() }
         @objc private func onToggleReadingMode()   { controller.toggleReadingMode() }
         @objc private func onToggleCommentsSidebar() {
             controller.toggleCommentsSidebar()

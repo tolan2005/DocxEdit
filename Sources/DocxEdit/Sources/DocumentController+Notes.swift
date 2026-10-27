@@ -221,7 +221,7 @@ extension DocumentController {
 
     /// Прыжок к заголовку: курсор в начало абзаца + прокрутка.
     func goToHeading(location: Int) {
-        guard let tv = textView, let storage = tv.textStorage,
+        guard let tv = markdownTextView ?? textView, let storage = tv.textStorage,
               location >= 0, location <= storage.length else { return }
         tv.setSelectedRange(NSRange(location: location, length: 0))
         tv.scrollRangeToVisible(NSRange(location: location, length: 0))
