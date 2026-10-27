@@ -3,6 +3,20 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.10.6] — 2026-10-27 — Resume Where You Left
+
+### Изменения
+- Открытие документа на последней позиции курсора (.docx и .md)
+- счётчик слов/символов выделения в строке состояния
+- YAML front matter в гибриде — плашка «Свойства»
+- отчёт о потерях при экспорте в Markdown
+- «Копировать как Markdown» в контекстном меню.
+
+### Артефакты
+- `build/v1.10.6/DocxEdit-1.10.6.dmg`
+- `build/v1.10.6/DocxEdit-1.10.6.app.zip`
+- `build/v1.10.6/SHA256SUMS`
+
 ## [1.10.5] — 2026-10-27 — Markdown Outline
 
 ### Изменения
