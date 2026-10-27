@@ -61,6 +61,19 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
     private var tableCurrentCellVMerge: VMergeKind = .none
     /// v1.5.17: w:textDirection ячейки ("tbRl"/"btLr").
     private var tableCurrentCellTextDirection: String? = nil
+    /// Неразбираемые свойства ячейки — сырой XML по имени элемента (round-trip).
+    private var tableCurrentCellExtras: [String: String] = [:]
+    private var cellExtraCapture: (name: String, depth: Int, xml: String)?
+    private static let capturedCellProperties: Set<String> =
+        ["w:tcBorders", "w:noWrap", "w:tcMar", "w:tcFitText", "w:vAlign", "w:hideMark"]
+    private static func rawStart(_ el: String, _ a: [String: String]) -> String {
+        let attrs = a.sorted { $0.key < $1.key }.map { k, v in
+            let e = v.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "\"", with: "&quot;")
+                .replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;")
+            return " \(k)=\"\(e)\""
+        }.joined()
+        return "<\(el)\(attrs)>"
+    }
     private var tableCurrentGridCol: Int = 0
     /// (grid-col) → (индекс row в `tableRows`, индекс cell в этой row).
     /// Используется continue-ячейкой, чтобы найти restart-ячейку и увеличить её rowSpan.
@@ -256,6 +269,15 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
 
     func parser(_ p: XMLParser, didStartElement el: String, namespaceURI: String?,
                 qualifiedName: String?, attributes a: [String: String]) {
+        // Сырой захват неразбираемых свойств ячейки (вместе с вложенными элементами).
+        if var cap = cellExtraCapture {
+            cap.xml += Self.rawStart(el, a); cap.depth += 1; cellExtraCapture = cap
+            return
+        }
+        if inTcPr, Self.capturedCellProperties.contains(el) {
+            cellExtraCapture = (el, 1, Self.rawStart(el, a))
+            return
+        }
         switch el {
         case "w:tbl":
             inTable = true
@@ -353,6 +375,7 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
             tableCurrentCellColSpan = 1
             tableCurrentCellVMerge = .none
             tableCurrentCellTextDirection = nil
+            tableCurrentCellExtras = [:]
 
         case "w:tcPr":
             inTcPr = true
@@ -802,6 +825,16 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
     }
 
     func parser(_ p: XMLParser, didEndElement el: String, namespaceURI: String?, qualifiedName: String?) {
+        if var cap = cellExtraCapture {
+            cap.xml += "</\(el)>"; cap.depth -= 1
+            if cap.depth == 0 {
+                tableCurrentCellExtras[cap.name] = cap.xml
+                cellExtraCapture = nil
+            } else {
+                cellExtraCapture = cap
+            }
+            return
+        }
         switch el {
         case "mc:Fallback":
             mcFallbackDepth = max(0, mcFallbackDepth - 1)
@@ -992,7 +1025,8 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
                     colSpan: colSpan,
                     width: tableCurrentCellWidth,
                     backgroundColor: tableCurrentCellBackground,
-                    textDirection: tableCurrentCellTextDirection))
+                    textDirection: tableCurrentCellTextDirection,
+                    extraProperties: tableCurrentCellExtras.isEmpty ? nil : tableCurrentCellExtras))
                 if tableCurrentCellVMerge == .restart {
                     let rowIdx = tableRows.count // текущая (ещё не закоммиченная) row
                     let cellIdx = tableCurrentRow.count - 1
@@ -1008,6 +1042,7 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
             tableCurrentCellColSpan = 1
             tableCurrentCellVMerge = .none
             tableCurrentCellTextDirection = nil
+            tableCurrentCellExtras = [:]
 
         case "w:tcPr":
             inTcPr = false

@@ -970,13 +970,18 @@ final class OoxmlDocumentSerializer {
                 if rowSpan > 1 {
                     tcPr += "<w:vMerge w:val=\"restart\"/>"
                 }
+                // Неразбираемые свойства — строго в порядке схемы CT_TcPr.
+                let extra = { (name: String) in cell.extraProperties?[name] ?? "" }
+                tcPr += extra("w:tcBorders")
                 if let bg = cell.backgroundColor, let hex = hexFor(bg) {
                     tcPr += "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"\(hex)\"/>"
                 }
+                tcPr += extra("w:noWrap") + extra("w:tcMar")
                 // v1.5.17: вертикальный текст ячейки (round-trip).
                 if let td = cell.textDirection, !td.isEmpty {
                     tcPr += "<w:textDirection w:val=\"\(escapeXml(td))\"/>"
                 }
+                tcPr += extra("w:tcFitText") + extra("w:vAlign") + extra("w:hideMark")
                 s += "<w:tc><w:tcPr>\(tcPr)</w:tcPr>"
                 for case let .paragraph(p) in cell.blocks { s += renderParagraph(p) }
                 s += "</w:tc>"

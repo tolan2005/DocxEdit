@@ -1154,6 +1154,10 @@ public struct TableCell: Codable, Equatable, Sendable {
     /// вверх. Round-trip сохраняется; редактор пока рисует текст горизонтально
     /// (известное ограничение рендера, не потеря данных).
     public var textDirection: String?
+    /// Свойства ячейки, которые модель не разбирает (`w:tcBorders`, `w:vAlign`,
+    /// `w:noWrap`, `w:tcMar`, `w:tcFitText`, `w:hideMark`): имя элемента → сырой XML.
+    /// Сохраняются как есть, чтобы ячейки не меняли вид после open → save.
+    public var extraProperties: [String: String]?
 
     public init(
         blocks: [Block] = [.paragraph(.empty)],
@@ -1161,7 +1165,8 @@ public struct TableCell: Codable, Equatable, Sendable {
         rowSpan: Int = 1,
         width: CGFloat? = nil,
         backgroundColor: CodableColor? = nil,
-        textDirection: String? = nil
+        textDirection: String? = nil,
+        extraProperties: [String: String]? = nil
     ) {
         self.blocks = blocks
         self.colSpan = colSpan
@@ -1169,11 +1174,12 @@ public struct TableCell: Codable, Equatable, Sendable {
         self.width = width
         self.backgroundColor = backgroundColor
         self.textDirection = textDirection
+        self.extraProperties = extraProperties
     }
 
     // decodeIfPresent — backward-compat со старыми JSON (autorecover).
     private enum CodingKeys: String, CodingKey {
-        case blocks, colSpan, rowSpan, width, backgroundColor, textDirection
+        case blocks, colSpan, rowSpan, width, backgroundColor, textDirection, extraProperties
     }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -1183,6 +1189,7 @@ public struct TableCell: Codable, Equatable, Sendable {
         width = try c.decodeIfPresent(CGFloat.self, forKey: .width)
         backgroundColor = try c.decodeIfPresent(CodableColor.self, forKey: .backgroundColor)
         textDirection = try c.decodeIfPresent(String.self, forKey: .textDirection)
+        extraProperties = try c.decodeIfPresent([String: String].self, forKey: .extraProperties)
     }
 }
 
