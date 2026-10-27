@@ -98,7 +98,7 @@
 |---|---|
 | [DocumentWindowView.swift](Sources/DocxEdit/Sources/DocumentWindowView.swift) | Окно, TextEditorRepresentable, DocxTextView (drawBackground листов + MD-«ленты»), Coordinator, applyPageViewStyle (guard'ы equality-check против layout-loop, ADR-060), updateFloatingImages, StatusBar (клик по версии → проверка обновлений) |
 | [MarkdownSourceView.swift](Sources/DocxEdit/Sources/MarkdownSourceView.swift) | Source- и гибридный режим MD (TextKit 1): подсветка, Typora-поведение, `MarkdownTextView` рисует картинки/таблицы/линию, подмена глифов «•»/☐/☑, клик по задаче |
-| [MarkdownEditing.swift](Sources/DocxEdit/Sources/MarkdownEditing.swift) | Команды ленты в гибридном MD: вставка/снятие разметки в исходнике (жирный, списки, заголовки, цитата, код, ссылка, таблица, картинка), v1.10.3 |
+| [MarkdownEditing.swift](Sources/DocxEdit/Sources/MarkdownEditing.swift) | Команды ленты в гибридном MD: вставка/снятие разметки в исходнике (жирный, списки, заголовки, цитата, код, ссылка, таблица, картинка), v1.10.3; v1.10.4 — Enter/Tab в списках, картинки из буфера/перетаскиванием в `images/`, URL поверх выделения → ссылка, `caretState` для подсветки ленты |
 | [MarkdownHybridRenderer.swift](Sources/DocxEdit/Sources/MarkdownHybridRenderer.swift) | Гибридный рендер MD (Typora, ADR-063): скрытие разметки вне блока с курсором, списки/задачи, картинки, таблицы GFM (`MarkdownTable`: ширины колонок и высоты строк с переносом текста, v1.10.1), линия |
 | [MarkdownPasteSupport.swift](Sources/DocxEdit/Sources/MarkdownPasteSupport.swift) | Умная вставка MD (Typora-паттерн, v1.6.6): looksLikeMarkdown + sanitize |
 
