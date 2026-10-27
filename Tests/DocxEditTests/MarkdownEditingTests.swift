@@ -204,4 +204,21 @@ final class MarkdownEditingTests: XCTestCase {
         XCTAssertEqual(h.map(\.level), [1, 3])
         XCTAssertEqual(h.map(\.location), [0, 35])
     }
+
+    func testFormatTableAlignsColumns() {
+        let src = "до\n|Имя|Цена|Статус|\n|-|--:|:-:|\n| Яблоко | 5 |ok|\n|a\\|b|120\n\nпосле"
+        let tv = textView(src, NSRange(location: 6, length: 0))
+        XCTAssertTrue(MarkdownEditing.formatTable(tv))
+        XCTAssertEqual(tv.string, """
+        до
+        | Имя    | Цена | Статус |
+        | ------ | ---: | :----: |
+        | Яблоко |    5 |   ok   |
+        | a\\|b   |  120 |        |
+
+        после
+        """)
+        tv.setSelectedRange(NSRange(location: 0, length: 0))
+        XCTAssertFalse(MarkdownEditing.formatTable(tv))
+    }
 }

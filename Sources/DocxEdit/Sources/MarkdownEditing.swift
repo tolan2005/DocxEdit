@@ -263,6 +263,67 @@ enum MarkdownEditing {
         return out
     }
 
+    /// Выровнять GFM-таблицу под курсором пробелами (v1.10.5). `false` — курсор не в таблице.
+    @discardableResult
+    static func formatTable(_ tv: NSTextView) -> Bool {
+        let ns = tv.string as NSString
+        let caret = tv.selectedRange().location
+        func isRow(_ r: NSRange) -> Bool {
+            ns.substring(with: r).trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("|")
+        }
+        var first = ns.lineRange(for: NSRange(location: caret, length: 0))
+        guard isRow(first) else { return false }
+        var last = first
+        while first.location > 0 {
+            let prev = ns.lineRange(for: NSRange(location: first.location - 1, length: 0))
+            guard isRow(prev) else { break }
+            first = prev
+        }
+        while NSMaxRange(last) < ns.length {
+            let next = ns.lineRange(for: NSRange(location: NSMaxRange(last), length: 0))
+            guard isRow(next) else { break }
+            last = next
+        }
+        var block = NSUnionRange(first, last)
+        if ns.substring(with: block).hasSuffix("\n") { block.length -= 1 }
+        let rows = ns.substring(with: block).components(separatedBy: "\n").map { line -> [String] in
+            var s = line.trimmingCharacters(in: .whitespaces)
+            if s.hasPrefix("|") { s.removeFirst() }
+            if s.hasSuffix("|"), !s.hasSuffix("\\|") { s.removeLast() }
+            // `\|` — экранированная черта внутри ячейки, не разделитель.
+            return s.replacingOccurrences(of: "\\|", with: "\u{0}").components(separatedBy: "|")
+                .map { $0.replacingOccurrences(of: "\u{0}", with: "\\|").trimmingCharacters(in: .whitespaces) }
+        }
+        guard rows.count >= 2, rows[1].allSatisfy({ $0.range(of: #"^:?-+:?$"#, options: .regularExpression) != nil })
+        else { return false }
+        let cols = rows.map(\.count).max() ?? 0
+        let aligns = (0..<cols).map { c -> (Bool, Bool) in
+            let s = c < rows[1].count ? rows[1][c] : ""
+            return (s.hasPrefix(":"), s.hasSuffix(":"))
+        }
+        let widths = (0..<cols).map { c in
+            max(3, rows.enumerated().filter { $0.offset != 1 }.map { c < $0.element.count ? $0.element[c].count : 0 }.max() ?? 0)
+        }
+        let out = rows.enumerated().map { i, row -> String in
+            let cells = (0..<cols).map { c -> String in
+                let w = widths[c], (l, r) = aligns[c]
+                if i == 1 { return (l ? ":" : "-") + String(repeating: "-", count: w - 2) + (r ? ":" : "-") }
+                let t = c < row.count ? row[c] : ""
+                let pad = w - t.count
+                if r && l { return String(repeating: " ", count: pad / 2) + t + String(repeating: " ", count: pad - pad / 2) }
+                return r ? String(repeating: " ", count: pad) + t : t + String(repeating: " ", count: pad)
+            }
+            return "| " + cells.joined(separator: " | ") + " |"
+        }.joined(separator: "\n")
+        let line = ns.substring(with: NSRange(location: block.location, length: caret - block.location))
+            .components(separatedBy: "\n").count - 1
+        tv.insertText(out, replacementRange: block)
+        // Курсор — в начало той же строки таблицы.
+        let offset = out.components(separatedBy: "\n").prefix(line).reduce(0) { $0 + ($1 as NSString).length + 1 }
+        tv.setSelectedRange(NSRange(location: block.location + offset + 2, length: 0))
+        return true
+    }
+
     // MARK: - Внутреннее
 
     /// Вставить блок с начала строки (если курсор не в начале — перенос перед блоком).

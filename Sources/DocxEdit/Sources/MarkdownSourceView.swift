@@ -124,8 +124,11 @@ final class MarkdownTextView: NSTextView {
     /// ⌘B/⌘I/⌘K — Markdown-разметка. По физическому keyCode, чтобы работало на РУ-раскладке;
     /// монитор шорткатов визуального редактора в source/гибриде не живёт (его вью нет в окне).
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        guard window?.firstResponder === self,
-              event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command
+        let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        // ⌥⌘T в таблице — выровнять её; вне таблицы — как раньше (вставка таблицы из меню).
+        if window?.firstResponder === self, mods == [.command, .option], event.keyCode == 17,
+           MarkdownEditing.formatTable(self) { return true }
+        guard window?.firstResponder === self, mods == .command
         else { return super.performKeyEquivalent(with: event) }
         switch event.keyCode {
         case 11: MarkdownEditing.wrap(self, "**")   // ⌘B
