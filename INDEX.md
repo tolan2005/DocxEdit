@@ -73,7 +73,7 @@
 | [DocumentSession.swift](Sources/DocxEdit/Sources/DocumentSession.swift) | ObservableObject поверх NSDocumentBridge; mode DOCX/MD; source/split (ADR-059); attachedController weak (ADR-058); lastSavedAt (ADR-056) |
 | [NSDocumentBridge.swift](Sources/DocxEdit/Sources/NSDocumentBridge.swift) | Модель + URL + isDirty + мутаторы (markSaved/markDirty) |
 | [DocumentMode.swift](Sources/DocxEdit/Sources/DocumentMode.swift) | Enum DOCX/Markdown (ADR-049) |
-| [AppPreferences.swift](Sources/DocxEdit/Sources/AppPreferences.swift) | UserDefaults: шрифты, страница, колонка MD, обновления |
+| [AppPreferences.swift](Sources/DocxEdit/Sources/AppPreferences.swift) | UserDefaults: шрифты, страница, колонка MD, обновления; `CaretMemory` — позиция курсора по файлу (v1.10.6) |
 | [L10n.swift](Sources/DocxEdit/Sources/L10n.swift) | Локализация (R09/10, RU/EN) |
 
 #### Controller (ViewModel)
@@ -171,7 +171,7 @@
 | DocxIOTests/ | DOCX round-trip, fuzz, реальный корпус (21-24.docx) |
 | RtfIOTests/ | RTF импорт/экспорт |
 | MarkdownIOTests/ | MD импорт/экспорт |
-| DocxEditTests/ | Мост NSAttributedString, property-based, snapshot, SmartMarkdownPaste, гибридный рендер MD (MarkdownHybridRendererTests), команды ленты в гибриде (MarkdownEditingTests), исходник .md без потерь и гибрид по умолчанию (MarkdownSourceFidelityTests), «Не сохранять» не оставляет автосейв (AutorecoverDiscardTests) |
+| DocxEditTests/ | CaretMemoryTests, StatusLineTests (v1.10.6); мост NSAttributedString, property-based, snapshot, SmartMarkdownPaste, гибридный рендер MD (MarkdownHybridRendererTests), команды ленты в гибриде (MarkdownEditingTests), исходник .md без потерь и гибрид по умолчанию (MarkdownSourceFidelityTests), «Не сохранять» не оставляет автосейв (AutorecoverDiscardTests) |
 | [UITests/](UITests/) | XCUITest: `project.yml` (XcodeGen → DocxEditUI.xcodeproj, в git не хранится), `run-ui-tests.sh` (SwiftPM-сборка с bundle id `…uitestspm`), `DocxEditUITests/` — cold-start с файлом = 1 окно, набор текста, второе окно; `AppShim/` (Bundle.module для Xcode-таргета), `AppInfo.plist` |
 
 ## Скрипты (scripts/)
