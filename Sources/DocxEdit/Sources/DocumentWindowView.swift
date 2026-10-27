@@ -103,7 +103,14 @@ struct DocumentWindowView: View {
                         text: $session.markdownSource,
                         hybrid: session.isMarkdownHybrid,
                         baseURL: session.bridge.fileURL?.deletingLastPathComponent(),
-                        onChange: { session.applyMarkdownSource($0) }
+                        onChange: { session.applyMarkdownSource($0) },
+                        onCaret: { st in
+                            controller.isBold = st.bold
+                            controller.isItalic = st.italic
+                            controller.isStrikethrough = st.strike
+                            controller.currentListType = st.list
+                            controller.currentStyleId = st.styleId
+                        }
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {

@@ -11,6 +11,7 @@
 //
 
 import AppKit
+import UniformTypeIdentifiers
 import SwiftUI
 
 /// Regex-подсветка Markdown: сброс в моно-шрифт + проход по конструкциям.
@@ -117,6 +118,60 @@ enum MarkdownSyntaxHighlighter {
 /// Текстовый вид MD: в гибриде рисует картинки поверх скрытых строк `![…](…)`.
 final class MarkdownTextView: NSTextView {
     var onWidthChange: (() -> Void)?
+    /// Папка документа: сюда (в `images/`) сохраняются вставленные картинки.
+    var baseURL: URL?
+
+    /// ⌘B/⌘I/⌘K — Markdown-разметка. По физическому keyCode, чтобы работало на РУ-раскладке;
+    /// монитор шорткатов визуального редактора в source/гибриде не живёт (его вью нет в окне).
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        guard window?.firstResponder === self,
+              event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command
+        else { return super.performKeyEquivalent(with: event) }
+        switch event.keyCode {
+        case 11: MarkdownEditing.wrap(self, "**")   // ⌘B
+        case 34: MarkdownEditing.wrap(self, "*")    // ⌘I
+        case 40: MarkdownEditing.insertLink(self)   // ⌘K
+        default: return super.performKeyEquivalent(with: event)
+        }
+        return true
+    }
+
+    /// ⌘V с картинкой в буфере — файл в `images/` + ссылка `![](…)`.
+    override func paste(_ sender: Any?) {
+        let pb = NSPasteboard.general
+        if let url = Self.imageFileURLs(pb).first {
+            MarkdownEditing.insertImageFile(self, url, baseURL: baseURL)
+        } else if pb.string(forType: .string) == nil, let image = NSImage(pasteboard: pb) {
+            guard let baseURL else { return Self.askToSave() }
+            MarkdownEditing.insertImageData(self, image, baseURL: baseURL)
+        } else if let text = pb.string(forType: .string), MarkdownEditing.linkSelection(self, url: text) {
+            return
+        } else {
+            super.paste(sender)
+        }
+    }
+
+    /// Перетаскивание файлов картинок из Finder — ссылки на них.
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let urls = Self.imageFileURLs(sender.draggingPasteboard)
+        guard !urls.isEmpty else { return super.performDragOperation(sender) }
+        let point = convert(sender.draggingLocation, from: nil)
+        setSelectedRange(NSRange(location: characterIndexForInsertion(at: point), length: 0))
+        for url in urls { MarkdownEditing.insertImageFile(self, url, baseURL: baseURL) }
+        return true
+    }
+
+    private static func imageFileURLs(_ pb: NSPasteboard) -> [URL] {
+        let urls = pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        return urls.filter { UTType(filenameExtension: $0.pathExtension)?.conforms(to: .image) == true }
+    }
+
+    private static func askToSave() {
+        let alert = NSAlert()
+        alert.messageText = "Сначала сохраните документ"
+        alert.informativeText = "Вставленная картинка сохраняется в папку images рядом с файлом .md."
+        alert.runModal()
+    }
 
     override func setFrameSize(_ newSize: NSSize) {
         let changed = abs(newSize.width - frame.width) > 1
@@ -203,6 +258,8 @@ struct MarkdownSourceView: NSViewRepresentable {
     /// Папка документа — относительные пути картинок в гибриде.
     var baseURL: URL? = nil
     var onChange: (String) -> Void
+    /// Разметка под курсором (подсветка кнопок ленты в гибриде).
+    var onCaret: ((MarkdownEditing.CaretState) -> Void)? = nil
 
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = NSScrollView()
@@ -237,6 +294,8 @@ struct MarkdownSourceView: NSViewRepresentable {
         context.coordinator.textView = tv
         context.coordinator.hybrid = hybrid
         context.coordinator.baseURL = baseURL
+        context.coordinator.onCaret = onCaret
+        tv.baseURL = baseURL
         tv.onWidthChange = { [weak coordinator = context.coordinator] in
             if coordinator?.hybrid == true { coordinator?.restyle() }
         }
@@ -249,6 +308,8 @@ struct MarkdownSourceView: NSViewRepresentable {
         let modeChanged = context.coordinator.hybrid != hybrid || context.coordinator.baseURL != baseURL
         context.coordinator.hybrid = hybrid
         context.coordinator.baseURL = baseURL
+        (tv as? MarkdownTextView)?.baseURL = baseURL
+        context.coordinator.onCaret = onCaret
         // Внешняя замена (выход/вход в режим, открытие файла) — только если
         // текст реально отличается от того, что в storage (иначе зациклимся).
         if tv.string != text {
@@ -267,6 +328,8 @@ struct MarkdownSourceView: NSViewRepresentable {
         weak var textView: NSTextView?
         var hybrid = false
         var baseURL: URL?
+        var onCaret: ((MarkdownEditing.CaretState) -> Void)?
+        private var lastCaret: MarkdownEditing.CaretState?
         private var lastActive = NSRange(location: NSNotFound, length: 0)
         let onChange: (String) -> Void
         init(onChange: @escaping (String) -> Void) { self.onChange = onChange }
@@ -308,6 +371,8 @@ struct MarkdownSourceView: NSViewRepresentable {
         /// Гибрид: при переходе курсора в другой блок раскрываем его разметку.
         func textViewDidChangeSelection(_ notification: Notification) {
             guard hybrid, let tv = textView else { return }
+            let caret = MarkdownEditing.caretState(tv.string as NSString, at: tv.selectedRange().location)
+            if caret != lastCaret { lastCaret = caret; onCaret?(caret) }
             let active = MarkdownHybridRenderer.activeRange(in: tv.string as NSString,
                                                            selection: tv.selectedRange())
             if active != lastActive { restyle() }
@@ -356,82 +421,19 @@ struct MarkdownSourceView: NSViewRepresentable {
             return true
         }
 
-        // MARK: - Typora-поведение (v1.6.4)
-
-        /// Enter в пункте списка — продолжить маркер ("- ", "1. ").
-        /// Enter на ПУСТОМ пункте — выйти из списка (маркер удаляется).
-        private let markerRegex = try! NSRegularExpression(pattern: #"^(\s*)([-*+]|\d+\.)\s+"#)
+        // MARK: - Typora-поведение (v1.6.4): Enter/Tab в списках — MarkdownEditing
 
         func textView(_ tv: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
             switch commandSelector {
             case #selector(NSTextView.insertNewline(_:)):
-                return handleNewline(tv)
+                return MarkdownEditing.continueList(tv)
             case #selector(NSTextView.insertTab(_:)):
-                return handleTab(tv, backtab: false)
+                return MarkdownEditing.indentListLine(tv, increase: true)
             case #selector(NSTextView.insertBacktab(_:)):
-                return handleTab(tv, backtab: true)
+                return MarkdownEditing.indentListLine(tv, increase: false)
             default:
                 return false
             }
-        }
-
-        private func handleNewline(_ tv: NSTextView) -> Bool {
-            let sel = tv.selectedRange()
-            guard sel.length == 0 else { return false }
-            let ns = tv.string as NSString
-            let lineRange = ns.lineRange(for: NSRange(location: sel.location, length: 0))
-            let line = ns.substring(with: lineRange).trimmingCharacters(in: .newlines)
-            guard let m = markerRegex.firstMatch(
-                in: line, range: NSRange(location: 0, length: (line as NSString).length)) else {
-                return false  // не список — обычный Enter
-            }
-            let marker = (line as NSString).substring(with: m.range)
-            // Пустой пункт (только маркер) — выйти из списка: стереть маркер
-            // и вставить обычный перевод строки.
-            if line.trimmingCharacters(in: .whitespaces) ==
-                  marker.trimmingCharacters(in: .whitespaces) {
-                let markerRange = NSRange(location: lineRange.location,
-                                          length: (marker as NSString).length)
-                tv.insertText("", replacementRange: markerRange)
-                tv.insertNewline(nil)
-                return true
-            }
-            // Нумерованный — инкремент числа.
-            var nextMarker = marker
-            if let num = Int(marker.trimmingCharacters(in: .whitespaces).dropLast()) {
-                nextMarker = "\(num + 1). "
-            }
-            tv.insertText("\n" + nextMarker, replacementRange: sel)
-            return true
-        }
-
-        /// Tab — вложить строку списка (2 пробела); Shift+Tab — вынуть.
-        private func handleTab(_ tv: NSTextView, backtab: Bool) -> Bool {
-            let sel = tv.selectedRange()
-            let ns = tv.string as NSString
-            let lineRange = ns.lineRange(for: NSRange(location: sel.location, length: 0))
-            let line = ns.substring(with: lineRange)
-            guard markerRegex.firstMatch(
-                in: line, range: NSRange(location: 0, length: ns.length)) != nil else {
-                return false  // не список — обычный таб
-            }
-            if backtab {
-                // Убрать до 2 ведущих пробелов.
-                var trimmed = line
-                var removed = 0
-                while removed < 2, trimmed.hasPrefix(" ") {
-                    trimmed.removeFirst(); removed += 1
-                }
-                guard removed > 0 else { return true }
-                tv.insertText(trimmed, replacementRange: lineRange)
-            } else {
-                tv.insertText("  " + line, replacementRange: lineRange)
-            }
-            // Вернуть курсор в конец строки.
-            let newLineRange = (tv.string as NSString).lineRange(
-                for: NSRange(location: lineRange.location, length: 0))
-            tv.setSelectedRange(NSRange(location: NSMaxRange(newLineRange) - 1, length: 0))
-            return true
         }
     }
 }
