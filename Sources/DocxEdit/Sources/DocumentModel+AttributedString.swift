@@ -32,6 +32,10 @@ extension NSAttributedString.Key {
     /// абзаце таблицы (raw value TableAlignment: "left"/"center"/"right").
     /// NSTextTable своего alignment API не имеет, поэтому используем кастомный ключ.
     static let docxEditTableAlignment = NSAttributedString.Key("docxEditTableAlignment")
+    /// Свойства таблицы/ячейки/строки, которые редактор не показывает, но DOCX должен
+    /// сохранить (стиль таблицы, tblLook, рамки ячеек, gridAfter…): JSON на символах.
+    static let docxEditTableExtras = NSAttributedString.Key("docxEditTableExtras")
+    static let docxEditCellExtras = NSAttributedString.Key("docxEditCellExtras")
     /// v0.1.85: строка-заголовок таблицы (Bool). Проставляется на всех символах ячеек
     /// строки при рендере, читается при обратном разборе.
     static let docxEditRowHeader = NSAttributedString.Key("docxEditRowHeader")
@@ -923,8 +927,10 @@ extension DocumentModel {
             var paras: [Paragraph]
             var isHeaderRow: Bool = false
             var rowHeight: CGFloat? = nil
+            var passthrough: CellPassthrough? = nil
         }
-        var pendingTable: (nsTable: NSTextTable, cells: [CellBuffer], alignment: TableAlignment)?
+        var pendingTable: (nsTable: NSTextTable, cells: [CellBuffer], alignment: TableAlignment,
+                           extras: TablePassthrough?)?
 
         func flushTable() {
             guard let t = pendingTable else { return }
@@ -944,11 +950,14 @@ extension DocumentModel {
                     return TableCell(blocks: cellBlocks,
                                      colSpan: max(1, c.colSpan), rowSpan: max(1, c.rowSpan),
                                      width: c.width,
-                                     backgroundColor: bgCC)
+                                     backgroundColor: bgCC,
+                                     textDirection: c.passthrough?.textDirection,
+                                     extraProperties: c.passthrough?.extra)
                 }
                 let isHeader = cellsInRow.first?.isHeaderRow ?? false
                 let rowH = cellsInRow.first?.rowHeight
-                rows.append(TableRow(cells: cells, height: rowH, isHeader: isHeader))
+                rows.append(TableRow(cells: cells, height: rowH, isHeader: isHeader,
+                                     extraProperties: cellsInRow.first?.passthrough?.rowExtra))
             }
             // Восстанавливаем columnWidths из первой строки — по одному значению на grid-колонку.
             var columnWidths: [CGFloat] = []
@@ -963,7 +972,9 @@ extension DocumentModel {
                 blocks.append(.table(TableBlock(
                     rows: rows,
                     columnWidths: columnWidths,
-                    alignment: t.alignment)))
+                    style: t.extras?.style ?? TableStyle(),
+                    alignment: t.alignment,
+                    tblLook: t.extras?.tblLook)))
             }
             pendingTable = nil
         }
@@ -1103,7 +1114,9 @@ extension DocumentModel {
                        let a = TableAlignment(rawValue: raw) {
                         tableAlign = a
                     }
-                    pendingTable = (nsTable, [], tableAlign)
+                    pendingTable = (nsTable, [], tableAlign,
+                                    decodePassthrough(TablePassthrough.self,
+                                        attributed.attribute(.docxEditTableExtras, at: paraRange.location, effectiveRange: nil)))
                 }
                 let para = buildParagraph(contentRange: contentRange, pAttrs: pAttrs)
                 // Читаем ширину ячейки из NSTextBlock.contentWidth (только absoluteValueType — pt).
@@ -1140,7 +1153,9 @@ extension DocumentModel {
                         width: cellWidth,
                         paras: [para],
                         isHeaderRow: isHeaderRow,
-                        rowHeight: rowHeight))
+                        rowHeight: rowHeight,
+                        passthrough: decodePassthrough(CellPassthrough.self,
+                            attributed.attribute(.docxEditCellExtras, at: paraRange.location, effectiveRange: nil))))
                 }
             } else {
                 flushTable()
@@ -1277,6 +1292,7 @@ func appendTable(_ t: TableBlock,
                 ? [Paragraph(runs: [Run(text: "", attributes: CharacterAttributes())], attributes: ParagraphAttributes())]
                 : paras
 
+            let cellStart = result.length
             for para in cellParas {
                 let ps = NSMutableParagraphStyle()
                 ps.setParagraphStyle(para.attributes.makeNSParagraphStyle())
@@ -1306,6 +1322,13 @@ func appendTable(_ t: TableBlock,
                 result.append(NSAttributedString(string: "\n", attributes: termAttrs))
             }
 
+            let cellPass = CellPassthrough(textDirection: cell.textDirection, extra: cell.extraProperties,
+                                           rowExtra: row.extraProperties)
+            if cellPass != CellPassthrough(), result.length > cellStart, let json = cellPass.passthroughJSON {
+                result.addAttribute(.docxEditCellExtras, value: json,
+                                    range: NSRange(location: cellStart, length: result.length - cellStart))
+            }
+
             // Открываем вертикальный merge на покрытые столбцы для строк ниже.
             if rowSpan > 1 {
                 for gc in gridCol..<min(gridCol + colSpan, columns) {
@@ -1322,6 +1345,10 @@ func appendTable(_ t: TableBlock,
         result.addAttribute(.docxEditTableAlignment,
                             value: t.alignment.rawValue,
                             range: NSRange(location: tableStart, length: result.length - tableStart))
+        if let json = TablePassthrough(style: t.style, tblLook: t.tblLook).passthroughJSON {
+            result.addAttribute(.docxEditTableExtras, value: json,
+                                range: NSRange(location: tableStart, length: result.length - tableStart))
+        }
     }
     // Ниже таблицы должен быть абзац без `textBlocks`, чтобы курсор мог встать
     // за таблицей и продолжить обычный текст. Если после таблицы уже идёт
@@ -1329,4 +1356,22 @@ func appendTable(_ t: TableBlock,
     // Если таблица — последний блок документа, пустой хвостовой абзац добавит
     // главный цикл `toAttributedString()` через ветку `result.length == 0`
     // (или он вставится при первой правке пользователя).
+}
+
+/// Неотображаемые свойства таблицы, переносимые через редактор (JSON в атрибуте).
+struct TablePassthrough: Codable, Equatable {
+    var style: TableStyle
+    var tblLook: String?
+}
+struct CellPassthrough: Codable, Equatable {
+    var textDirection: String?
+    var extra: [String: String]?
+    var rowExtra: [String: String]?
+}
+extension Encodable {
+    var passthroughJSON: String? { (try? JSONEncoder().encode(self)).flatMap { String(data: $0, encoding: .utf8) } }
+}
+func decodePassthrough<T: Decodable>(_ type: T.Type, _ value: Any?) -> T? {
+    guard let s = value as? String, let d = s.data(using: .utf8) else { return nil }
+    return try? JSONDecoder().decode(type, from: d)
 }

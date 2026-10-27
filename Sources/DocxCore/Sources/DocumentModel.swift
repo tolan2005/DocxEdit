@@ -1119,13 +1119,16 @@ public struct TableBlock: Codable, Equatable, Sendable {
     /// Горизонтальное выравнивание таблицы на странице (v0.1.70, R03).
     /// В DOCX сериализуется как `<w:jc>` в `<w:tblPr>`.
     public var alignment: TableAlignment
+    /// `<w:tblLook>` как есть: какие части стиля таблицы применять (шапка, полосы).
+    public var tblLook: String?
 
     public init(rows: [TableRow], columnWidths: [CGFloat] = [], style: TableStyle = .init(),
-                alignment: TableAlignment = .left) {
+                alignment: TableAlignment = .left, tblLook: String? = nil) {
         self.rows = rows
         self.columnWidths = columnWidths
         self.style = style
         self.alignment = alignment
+        self.tblLook = tblLook
     }
 }
 
@@ -1135,8 +1138,13 @@ public struct TableRow: Codable, Equatable, Sendable {
     /// Строка-заголовок таблицы: повторяется на каждой странице при печати (v0.1.85).
     /// В DOCX — `<w:tblHeader/>` внутри `<w:trPr>`.
     public var isHeader: Bool
+    /// Неразбираемые свойства строки (`w:gridBefore/After`, `w:wBefore/After`,
+    /// `w:cantSplit`): имя → сырой XML. Без gridAfter строки с меньшим числом ячеек съезжают.
+    public var extraProperties: [String: String]?
 
-    public init(cells: [TableCell], height: CGFloat? = nil, isHeader: Bool = false) {
+    public init(cells: [TableCell], height: CGFloat? = nil, isHeader: Bool = false,
+                extraProperties: [String: String]? = nil) {
+        self.extraProperties = extraProperties
         self.cells = cells
         self.height = height
         self.isHeader = isHeader

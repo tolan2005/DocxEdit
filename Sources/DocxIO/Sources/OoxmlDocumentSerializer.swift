@@ -900,6 +900,7 @@ final class OoxmlDocumentSerializer {
         case .center: tblPr += "<w:jc w:val=\"center\"/>"
         case .right:  tblPr += "<w:jc w:val=\"right\"/>"
         }
+        tblPr += t.tblLook ?? ""   // последний элемент CT_TblPr
         s += "<w:tblPr>\(tblPr)</w:tblPr>"
         // tblGrid — колонки: используем columnWidths, иначе — ширины первых ячеек, иначе fallback.
         let cols = max(t.columnWidths.count, t.rows.first?.cells.count ?? 1)
@@ -929,9 +930,10 @@ final class OoxmlDocumentSerializer {
             s += "<w:tr>"
             // v0.1.85: строка-заголовок таблицы — повторяется на каждой странице.
             // v0.1.86: высота строки — <w:trHeight w:val="…" w:hRule="atLeast"/> (twips = pt*20).
-            let hasTrPr = row.isHeader || row.height != nil
+            let rowExtras = (row.extraProperties ?? [:]).sorted { $0.key < $1.key }.map(\.value).joined()
+            let hasTrPr = row.isHeader || row.height != nil || !rowExtras.isEmpty
             if hasTrPr {
-                s += "<w:trPr>"
+                s += "<w:trPr>" + rowExtras
                 if row.isHeader { s += "<w:tblHeader/>" }
                 if let h = row.height, h > 0 {
                     let twips = Int((h * 20).rounded())

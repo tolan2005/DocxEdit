@@ -24,7 +24,7 @@ final class TableCellExtrasRoundTripTests: XCTestCase {
             let src = try Data(contentsOf: dir.appendingPathComponent(name))
             let before = try xml(src)
             let after = try xml(try DocxIO.exportDocx(try DocxIO.importDocx(data: src)))
-            for tag in ["w:tcBorders", "w:vAlign", "w:noWrap", "w:hideMark"] {
+            for tag in ["w:tcBorders", "w:vAlign", "w:noWrap", "w:hideMark", "w:tblLook", "w:gridAfter", "w:wAfter"] {
                 XCTAssertEqual(count(after, tag), count(before, tag), "\(name): \(tag)")
             }
         }

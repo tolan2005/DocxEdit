@@ -63,9 +63,14 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
     private var tableCurrentCellTextDirection: String? = nil
     /// Неразбираемые свойства ячейки — сырой XML по имени элемента (round-trip).
     private var tableCurrentCellExtras: [String: String] = [:]
-    private var cellExtraCapture: (name: String, depth: Int, xml: String)?
+    private var tableCurrentRowExtras: [String: String] = [:]
+    private var tableCurrentTblLook: String?
+    /// scope: "cell" | "row" | "tbl" — куда положить захваченный XML.
+    private var cellExtraCapture: (name: String, depth: Int, xml: String, scope: String)?
     private static let capturedCellProperties: Set<String> =
         ["w:tcBorders", "w:noWrap", "w:tcMar", "w:tcFitText", "w:vAlign", "w:hideMark"]
+    private static let capturedRowProperties: Set<String> =
+        ["w:gridBefore", "w:gridAfter", "w:wBefore", "w:wAfter", "w:cantSplit"]
     private static func rawStart(_ el: String, _ a: [String: String]) -> String {
         let attrs = a.sorted { $0.key < $1.key }.map { k, v in
             let e = v.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "\"", with: "&quot;")
@@ -275,7 +280,15 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
             return
         }
         if inTcPr, Self.capturedCellProperties.contains(el) {
-            cellExtraCapture = (el, 1, Self.rawStart(el, a))
+            cellExtraCapture = (el, 1, Self.rawStart(el, a), "cell")
+            return
+        }
+        if inTrPr, Self.capturedRowProperties.contains(el) {
+            cellExtraCapture = (el, 1, Self.rawStart(el, a), "row")
+            return
+        }
+        if inTablePr, el == "w:tblLook" {
+            cellExtraCapture = (el, 1, Self.rawStart(el, a), "tbl")
             return
         }
         switch el {
@@ -349,6 +362,7 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
 
         case "w:tr":
             tableCurrentRow = []
+            tableCurrentRowExtras = [:]
             tableCurrentGridCol = 0
             tableCurrentRowIsHeader = false
             tableCurrentRowHeight = nil
@@ -828,7 +842,11 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
         if var cap = cellExtraCapture {
             cap.xml += "</\(el)>"; cap.depth -= 1
             if cap.depth == 0 {
-                tableCurrentCellExtras[cap.name] = cap.xml
+                switch cap.scope {
+                case "row": tableCurrentRowExtras[cap.name] = cap.xml
+                case "tbl": tableCurrentTblLook = cap.xml
+                default:    tableCurrentCellExtras[cap.name] = cap.xml
+                }
                 cellExtraCapture = nil
             } else {
                 cellExtraCapture = cap
@@ -1062,7 +1080,8 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
         case "w:tr":
             tableRows.append(DocxCore.TableRow(cells: tableCurrentRow,
                                                 height: tableCurrentRowHeight,
-                                                isHeader: tableCurrentRowIsHeader))
+                                                isHeader: tableCurrentRowIsHeader,
+                                                extraProperties: tableCurrentRowExtras.isEmpty ? nil : tableCurrentRowExtras))
             tableCurrentRow = []
             tableCurrentRowIsHeader = false
             tableCurrentRowHeight = nil
@@ -1073,9 +1092,11 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
                     rows: tableRows,
                     columnWidths: tableCurrentColumnWidths,
                     style: tableCurrentStyle,
-                    alignment: tableCurrentAlignment)))
+                    alignment: tableCurrentAlignment,
+                    tblLook: tableCurrentTblLook)))
             }
             tableRows = []
+            tableCurrentTblLook = nil
             tableCurrentStyle = TableStyle()
             tableCurrentColumnWidths = []
             openVMergeByGridCol = [:]
