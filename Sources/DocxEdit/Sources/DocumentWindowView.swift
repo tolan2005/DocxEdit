@@ -1722,6 +1722,17 @@ struct TextEditorRepresentable: NSViewRepresentable {
                 menu.addItem(pastePlain)
             }
 
+            // v1.10.5: «Копировать как Markdown» — сразу после «Скопировать» (при выделении).
+            let copyMd = NSMenuItem(title: "Копировать как Markdown",
+                                    action: #selector(onCopyAsMarkdown), keyEquivalent: "")
+            copyMd.target = self
+            copyMd.isEnabled = view.selectedRange().length > 0
+            if let idx = menu.items.firstIndex(where: { $0.action == #selector(NSText.copy(_:)) }) {
+                menu.insertItem(copyMd, at: idx + 1)
+            } else {
+                menu.addItem(copyMd)
+            }
+
             // 3. Гиперссылка — в конце меню отдельной группой.
             menu.addItem(.separator())
             let hyperlink = NSMenuItem(title: "Гиперссылка…",
