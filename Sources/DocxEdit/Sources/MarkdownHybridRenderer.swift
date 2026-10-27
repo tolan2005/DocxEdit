@@ -28,6 +28,8 @@ enum MarkdownHybridRenderer {
     private static let imageCache = NSCache<NSURL, NSImage>()
     /// Горизонтальная линия: текстовый вид рисует черту поверх скрытой строки `---`.
     static let ruleKey = NSAttributedString.Key("docxEditMarkdownRule")
+    /// Подпись плашки YAML front matter (v1.10.5) — рисует текстовый вид поверх скрытого блока.
+    static let frontMatterKey = NSAttributedString.Key("docxEditMarkdownFrontMatter")
     /// MarkdownTable, которую текстовый вид рисует сеткой поверх скрытых строк таблицы.
     static let tableKey = NSAttributedString.Key("docxEditMarkdownTable")
 
@@ -176,6 +178,31 @@ enum MarkdownHybridRenderer {
             marker(m.range(at: 3), visible: visible)
         }
         func inCode(_ r: NSRange) -> Bool { codeRanges.contains { NSIntersectionRange($0, r).length > 0 } }
+
+        // YAML front matter в самом начале файла: вне курсора — плашка «Свойства: ключи».
+        matches(#"(?s)\A---[ \t]*\n(.*?)\n(?:---|\.\.\.)[ \t]*(?=\n|\z)"#, text) { m in
+            codeRanges.append(m.range)
+            if isActive(m.range) {
+                storage.addAttributes([.font: mono, .foregroundColor: NSColor.secondaryLabelColor], range: m.range)
+                return
+            }
+            var keys: [String] = []
+            matches(#"(?m)^([A-Za-z0-9_-]+)[ \t]*:"#, text) { k in
+                if NSLocationInRange(k.range.location, m.range(at: 1)) { keys.append(text.substring(with: k.range(at: 1))) }
+            }
+            storage.addAttributes(hiddenAttributes, range: m.range)
+            text.enumerateSubstrings(in: m.range, options: [.byLines, .substringNotRequired]) { _, _, enclosing, _ in
+                let ps = NSMutableParagraphStyle()
+                let first = enclosing.location == 0
+                ps.minimumLineHeight = first ? baseFont.pointSize * 1.8 : 0.01
+                ps.maximumLineHeight = ps.minimumLineHeight
+                storage.addAttribute(.paragraphStyle, value: ps, range: enclosing)
+                if first {
+                    storage.addAttribute(frontMatterKey, value: "⚙ Свойства: " + keys.joined(separator: ", "),
+                                         range: enclosing)
+                }
+            }
+        }
 
         // Заголовки ATX.
         var headings: [(range: NSRange, level: Int)] = []

@@ -266,4 +266,26 @@ final class MarkdownHybridTableTests: XCTestCase {
         // Документ не сохранён — проверять не с чем.
         XCTAssertFalse(MarkdownHybridRenderer.isBrokenLocalLink("missing.md", baseURL: nil))
     }
+
+    func testFrontMatterBecomesPlaqueOutsideCaret() {
+        let text = "---\ntitle: Заметка\ntags: [a]\n---\n# Текст\n---\n"
+        let ns = text as NSString
+        func isHidden(_ s: NSTextStorage, _ at: Int) -> Bool {
+            (s.attribute(.foregroundColor, at: at, effectiveRange: nil) as? NSColor) == .clear
+        }
+        let s = NSTextStorage(string: text)
+        MarkdownHybridRenderer.render(s, baseFont: .systemFont(ofSize: 15), active: NSRange(location: ns.length, length: 0))
+        XCTAssertEqual(s.attribute(MarkdownHybridRenderer.frontMatterKey, at: 0, effectiveRange: nil) as? String,
+                       "⚙ Свойства: title, tags")
+        XCTAssertTrue(isHidden(s, ns.range(of: "title").location))
+        XCTAssertNil(s.attribute(MarkdownHybridRenderer.ruleKey, at: 0, effectiveRange: nil))
+        // `---` ниже по тексту — по-прежнему линия.
+        XCTAssertNotNil(s.attribute(MarkdownHybridRenderer.ruleKey, at: ns.length - 4, effectiveRange: nil))
+        XCTAssertEqual(s.string, text)
+        // Курсор в блоке — текст виден, плашки нет.
+        let open = NSTextStorage(string: text)
+        MarkdownHybridRenderer.render(open, baseFont: .systemFont(ofSize: 15), active: NSRange(location: 6, length: 0))
+        XCTAssertNil(open.attribute(MarkdownHybridRenderer.frontMatterKey, at: 0, effectiveRange: nil))
+        XCTAssertFalse(isHidden(open, ns.range(of: "title").location))
+    }
 }

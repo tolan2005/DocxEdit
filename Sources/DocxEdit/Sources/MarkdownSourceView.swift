@@ -209,6 +209,23 @@ final class MarkdownTextView: NSTextView {
             NSRect(x: line.minX + tc.lineFragmentPadding, y: line.midY.rounded() - 0.5,
                    width: line.width - 2 * tc.lineFragmentPadding, height: 1).fill()
         }
+        storage.enumerateAttribute(MarkdownHybridRenderer.frontMatterKey,
+                                   in: NSRange(location: 0, length: storage.length)) { value, range, _ in
+            guard let label = value as? String else { return }
+            let glyphs = lm.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+            guard glyphs.length > 0 else { return }
+            let line = lm.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
+                .offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y)
+            guard line.intersects(dirtyRect) else { return }
+            let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+                                                        .foregroundColor: NSColor.secondaryLabelColor]
+            let size = (label as NSString).size(withAttributes: attrs)
+            let box = NSRect(x: line.minX + tc.lineFragmentPadding, y: line.midY - size.height / 2 - 3,
+                             width: min(size.width + 16, line.width - 2 * tc.lineFragmentPadding), height: size.height + 6)
+            NSColor.quaternaryLabelColor.withAlphaComponent(0.3).setFill()
+            NSBezierPath(roundedRect: box, xRadius: 5, yRadius: 5).fill()
+            (label as NSString).draw(in: box.insetBy(dx: 8, dy: 3), withAttributes: attrs)
+        }
         storage.enumerateAttribute(MarkdownHybridRenderer.tableKey,
                                    in: NSRange(location: 0, length: storage.length)) { value, range, _ in
             guard let table = value as? MarkdownHybridRenderer.MarkdownTable else { return }
