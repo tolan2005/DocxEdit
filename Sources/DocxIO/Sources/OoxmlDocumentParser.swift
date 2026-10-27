@@ -679,6 +679,9 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
                 var stops = currentDirectParaProps.tabStops ?? []
                 stops.append(TabStop(position: CGFloat(n) / 20.0, alignment: align))
                 currentDirectParaProps.tabStops = stops
+            } else if inRun, !inParaProperties {
+                // Символ табуляции в тексте (раньше терялся при открытии).
+                currentRunText += "\t"
             }
         case "w:spacing":
             if inParaProperties {

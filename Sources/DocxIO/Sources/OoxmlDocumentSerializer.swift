@@ -775,6 +775,10 @@ final class OoxmlDocumentSerializer {
         // v0.4.7: DOCX track-changes. Для deletion текст пишется как
         // `<w:delText>`; вся структура рана оборачивается в `<w:ins>`/`<w:del>`.
         let textTag = run.deletion != nil ? "w:delText" : "w:t"
+        // Символ табуляции — отдельный `<w:tab/>` (внутри `<w:t>` Word его не показывает).
+        func withTabs(_ escaped: String) -> String {
+            escaped.replacingOccurrences(of: "\t", with: "</\(textTag)><w:tab/><\(textTag) xml:space=\"preserve\">")
+        }
         // U+000C (Form Feed) — разрыв страницы → `<w:br w:type="page"/>` внутри
         // отдельного `<w:r>`. Разбиваем текст рана по FF на сегменты; между
         // сегментами вставляем break-раны.
@@ -784,7 +788,7 @@ final class OoxmlDocumentSerializer {
                 var out = ""
                 for (idx, part) in parts.enumerated() {
                     if !part.isEmpty {
-                        let escaped = escapeXml(String(part))
+                        let escaped = withTabs(escapeXml(String(part)))
                         let sp = (part.first == " " || part.last == " ") ? " xml:space=\"preserve\"" : ""
                         out += "<w:r>\(rpr)<\(textTag)\(sp)>\(escaped)</\(textTag)></w:r>"
                     }
@@ -794,7 +798,7 @@ final class OoxmlDocumentSerializer {
                 }
                 return out
             }
-            let escaped = escapeXml(run.text)
+            let escaped = withTabs(escapeXml(run.text))
             let spaceAttr = (run.text.hasPrefix(" ") || run.text.hasSuffix(" ")) ? " xml:space=\"preserve\"" : ""
             // v0.5.2 (R07): если ран несёт footnoteId, добавляем маркер сноски
             // ВНУТРИ w:r после w:t. Word ждёт ссылку в том же ране.
