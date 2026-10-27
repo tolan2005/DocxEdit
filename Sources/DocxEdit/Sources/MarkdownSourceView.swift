@@ -384,6 +384,8 @@ struct MarkdownSourceView: NSViewRepresentable {
         var baseURL: URL?
         var onCaret: ((MarkdownEditing.CaretState) -> Void)?
         var onSelection: ((String, Int) -> Void)?
+        /// Печать в PDF (v1.10.6): скрытые символы не выводятся, треугольников сворачивания нет.
+        var printing = false
         /// Свёрнутые разделы гибрида — по тексту строки заголовка.
         var folded: Set<String> = []
         private var lastCaret: MarkdownEditing.CaretState?
@@ -450,8 +452,21 @@ struct MarkdownSourceView: NSViewRepresentable {
             var newProps: [NSLayoutManager.GlyphProperty]?
             for i in 0..<glyphRange.length {
                 let ci = charIndexes[i]
-                guard ci < storage.length,
-                      let sym = storage.attribute(MarkdownHybridRenderer.glyphKey, at: ci, effectiveRange: nil) as? String
+                guard ci < storage.length else { continue }
+                // Печать: скрытая разметка — нулевые глифы, чтобы не попала в текстовый слой PDF.
+                // Строки таблиц/картинок/линий не трогаем: их отрисовка опирается на глифы строки.
+                if printing, (storage.string as NSString).character(at: ci) != 10,
+                   (storage.attribute(.foregroundColor, at: ci, effectiveRange: nil) as? NSColor) == .clear,
+                   ![MarkdownHybridRenderer.tableKey, MarkdownHybridRenderer.imageKey, MarkdownHybridRenderer.ruleKey,
+                     MarkdownHybridRenderer.frontMatterKey].contains(where: { storage.attribute($0, at: ci, effectiveRange: nil) != nil }) {
+                    if newGlyphs == nil {
+                        newGlyphs = Array(UnsafeBufferPointer(start: glyphs, count: glyphRange.length))
+                        newProps = Array(UnsafeBufferPointer(start: props, count: glyphRange.length))
+                    }
+                    newProps![i] = .null
+                    continue
+                }
+                guard let sym = storage.attribute(MarkdownHybridRenderer.glyphKey, at: ci, effectiveRange: nil) as? String
                 else { continue }
                 var units = Array(sym.utf16)
                 var g: [CGGlyph] = Array(repeating: 0, count: units.count)
@@ -503,5 +518,51 @@ struct MarkdownSourceView: NSViewRepresentable {
                 return false
             }
         }
+    }
+}
+
+extension MarkdownSourceView {
+    /// v1.10.6: PDF в гибридном виде (заголовки, «•», таблицы, картинки, без разметки) —
+    /// печать скрытой копии редактора: A4, поля 2 см, светлое оформление.
+    @MainActor static func exportHybridPDF(_ text: String, baseURL: URL?, to url: URL) throws {
+        let info = NSPrintInfo(dictionary: [.jobSavingURL: url])
+        info.jobDisposition = .save
+        info.paperSize = NSSize(width: 595, height: 842)
+        for margin in [\NSPrintInfo.topMargin, \.bottomMargin, \.leftMargin, \.rightMargin] { info[keyPath: margin] = 57 }
+        info.horizontalPagination = .fit
+        info.verticalPagination = .automatic
+        let width = info.paperSize.width - info.leftMargin - info.rightMargin
+
+        let coordinator = Coordinator(onChange: { _ in })
+        let tv = MarkdownTextView(usingTextLayoutManager: false)
+        tv.appearance = NSAppearance(named: .aqua)
+        tv.backgroundColor = .white
+        tv.frame = NSRect(x: 0, y: 0, width: width, height: 100)
+        tv.textContainerInset = .zero
+        tv.isVerticallyResizable = true
+        tv.textContainer?.widthTracksTextView = true
+        tv.layoutManager?.delegate = coordinator
+        // Курсор на пустой последней строке — ни один блок не «активен», разметка скрыта везде.
+        tv.string = text.hasSuffix("\n") ? text : text + "\n"
+        tv.setSelectedRange(NSRange(location: (tv.string as NSString).length, length: 0))
+        coordinator.textView = tv
+        coordinator.hybrid = true
+        coordinator.printing = true
+        coordinator.baseURL = baseURL
+        coordinator.restyle()
+        // Треугольники сворачивания на бумаге не нужны.
+        if let storage = tv.textStorage {
+            storage.enumerateAttribute(.link, in: NSRange(location: 0, length: storage.length)) { v, r, _ in
+                guard (v as? URL)?.scheme == MarkdownHybridRenderer.foldScheme else { return }
+                storage.removeAttribute(MarkdownHybridRenderer.glyphKey, range: r)
+                storage.addAttributes(MarkdownHybridRenderer.hiddenAttributes, range: r)
+            }
+        }
+        tv.sizeToFit()
+
+        let op = NSPrintOperation(view: tv, printInfo: info)
+        op.showsPrintPanel = false
+        op.showsProgressPanel = false
+        guard op.run() else { throw CocoaError(.fileWriteUnknown) }
     }
 }

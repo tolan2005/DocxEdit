@@ -1467,7 +1467,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         if panel.runModal() == .OK, let url = panel.url {
             do {
                 switch format {
-                case .pdf:      try PdfExporter.exportToPDF(session.bridge.model, to: url)
+                case .pdf:
+                    // v1.10.6: Markdown — в гибридном виде, как на экране.
+                    if session.mode == .markdown, session.isMarkdownSourceMode {
+                        try MarkdownSourceView.exportHybridPDF(session.markdownSource,
+                            baseURL: session.bridge.fileURL?.deletingLastPathComponent(), to: url)
+                    } else {
+                        try PdfExporter.exportToPDF(session.bridge.model, to: url)
+                    }
                 case .docx:     try DocxIO.exportDocx(session.bridge.model, to: url)
                 case .markdown:
                     if session.isMarkdownSourceMode {
