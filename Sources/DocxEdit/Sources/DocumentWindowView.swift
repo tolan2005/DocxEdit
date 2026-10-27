@@ -1640,6 +1640,18 @@ struct TextEditorRepresentable: NSViewRepresentable {
             if let s = link as? String { urlStr = s }
             else if let u = link as? URL { urlStr = u.absoluteString }
             else { return false }
+            // Внутренняя ссылка «#закладка» (оглавление Word) — переход внутри документа.
+            if urlStr.hasPrefix("#"), let storage = view.textStorage {
+                let name = String(urlStr.dropFirst())
+                var target: Int?
+                storage.enumerateAttribute(.docxEditBookmark, in: NSRange(location: 0, length: storage.length)) { v, r, stop in
+                    if (v as? String) == name { target = r.location; stop.pointee = true }
+                }
+                guard let loc = target else { NSSound.beep(); return true }
+                view.setSelectedRange(NSRange(location: loc, length: 0))
+                view.scrollRangeToVisible(NSRange(location: loc, length: 0))
+                return true
+            }
             guard let url = URL(string: urlStr) else { return false }
             NSWorkspace.shared.open(url)
             return true

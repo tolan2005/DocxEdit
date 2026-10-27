@@ -845,6 +845,9 @@ extension DocumentModel {
                         if let toc = run.tocBlock {
                             attrs[.docxEditTocBlock] = toc
                         }
+                        if let bm = run.bookmark {
+                            attrs[.docxEditBookmark] = bm
+                        }
                         // v0.5.8 (R08): track-changes ревизия атрибутов — только
                         // custom-ключ, без визуальных изменений (в редакторе
                         // выглядит как обычный ран).
@@ -997,6 +1000,7 @@ extension DocumentModel {
                     let crossRef  = attrs[.docxEditCrossRef]  as? String
                     // v0.5.6 (R07): маркер TOC-блока.
                     let tocBlock  = attrs[.docxEditTocBlock]  as? String
+                    let bookmark  = attrs[.docxEditBookmark]  as? String
                     // v0.5.8 (R08): ревизия атрибутов.
                     let attributeRevision = attrs[.docxEditAttributeRevision] as? String
                     // v1.5.6: инструкция сложного поля.
@@ -1052,14 +1056,15 @@ extension DocumentModel {
                        last.insertion == insertion, last.deletion == deletion,
                        last.footnoteId == nil, last.endnoteId == nil, last.crossRef == crossRef, last.tocBlock == tocBlock,
                        last.attributeRevision == attributeRevision,
-                       last.fieldInstr == nil, fieldInstr == nil {
+                       last.fieldInstr == nil, fieldInstr == nil, last.bookmark == bookmark {
                         last.text += text
                         runs[runs.count - 1] = last
                     } else {
                         runs.append(Run(text: text, attributes: charAttrs, hyperlink: hyperlink,
                                         commentId: commentId, insertion: insertion, deletion: deletion,
                                         crossRef: crossRef, tocBlock: tocBlock,
-                                        attributeRevision: attributeRevision, fieldInstr: fieldInstr))
+                                        attributeRevision: attributeRevision, fieldInstr: fieldInstr,
+                                        bookmark: bookmark))
                     }
                 }
             }

@@ -165,6 +165,8 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
     /// v0.5.5 (R07): активная перекрёстная ссылка от `<w:fldSimple w:instr=" REF X \h ">`.
     /// Присваивается всем runs внутри fldSimple; сбрасывается на закрывающем теге.
     private var activeCrossRef: String? = nil
+    /// Открытые закладки: w:id → w:name (служебная `_GoBack` Word'а не берётся).
+    private var activeBookmarks: [(id: String, name: String)] = []
 
     /// v0.5.8 (R08): активная ревизия атрибутов текущего `<w:r>`. Формат
     /// "author|date|id"; вычитывается из `<w:rPrChange>` в rPr.
@@ -519,7 +521,17 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
         case "w:hyperlink":
             if let rId = a["r:id"], let target = imagesRels[rId] {
                 currentHyperlinkURL = target
+            } else if let anchor = a["w:anchor"], !anchor.isEmpty {
+                // Внутренняя ссылка на закладку — «#имя», как якорь в URL.
+                currentHyperlinkURL = "#" + anchor
             }
+
+        case "w:bookmarkStart":
+            if let id = a["w:id"], let name = a["w:name"], name != "_GoBack" {
+                activeBookmarks.append((id, name))
+            }
+        case "w:bookmarkEnd":
+            if let id = a["w:id"] { activeBookmarks.removeAll { $0.id == id } }
 
         case "w:commentRangeStart":
             if let id = a["w:id"] { activeCommentIds.append(id) }
@@ -884,7 +896,8 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
                     let run = Run(text: "\u{FFFC}", attributes: finalCharAttrs, image: img, hyperlink: currentHyperlinkURL,
                                   commentId: commentId, insertion: insertion, deletion: deletion,
                                   footnoteId: footnoteId, crossRef: crossRef, tocBlock: tocBlock,
-                                  attributeRevision: attrRev, fieldInstr: fieldInstr, endnoteId: endnoteId)
+                                  attributeRevision: attrRev, fieldInstr: fieldInstr, endnoteId: endnoteId,
+                                  bookmark: activeBookmarks.last?.name)
                     if currentParagraph == nil {
                         currentParagraph = Paragraph(runs: [], attributes: currentParagraphAttributes())
                     }
@@ -896,7 +909,8 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
                     let run = Run(text: currentRunText, attributes: finalCharAttrs, hyperlink: currentHyperlinkURL,
                                   commentId: commentId, insertion: insertion, deletion: deletion,
                                   footnoteId: footnoteId, crossRef: crossRef, tocBlock: tocBlock,
-                                  attributeRevision: attrRev, fieldInstr: fieldInstr, endnoteId: endnoteId)
+                                  attributeRevision: attrRev, fieldInstr: fieldInstr, endnoteId: endnoteId,
+                                  bookmark: activeBookmarks.last?.name)
                     if currentParagraph == nil {
                         currentParagraph = Paragraph(runs: [], attributes: currentParagraphAttributes())
                     }

@@ -81,6 +81,8 @@ final class OoxmlDocumentSerializer {
     // document.xml.rels. Одна ссылка (URL) может встречаться несколько раз в
     // документе — переиспользуем один rId.
     private var hyperlinkRIdByUrl: [String: String] = [:]
+    /// Имена уже записанных закладок (имя должно быть уникальным в документе).
+    private var writtenBookmarks: Set<String> = []
     /// v0.4.5 (R06): thread.id → числовой w:id для `<w:comment w:id="…">` /
     /// commentRangeStart/End/Reference. Только для тредов, у которых есть якорь
     /// в тексте (т.е. хотя бы один Run.commentId равен id треда). Осиротевшие
@@ -312,9 +314,11 @@ final class OoxmlDocumentSerializer {
     /// могли резолвить URL → rId, а documentRelsXml — сгенерировать Relationships.
     private func collectHyperlinks(_ document: DocumentModel) {
         hyperlinkRIdByUrl = [:]
+        writtenBookmarks = []
         func visit(_ p: Paragraph) {
             for run in p.runs {
-                guard let url = run.hyperlink, !url.isEmpty else { continue }
+                // «#имя» — внутренняя ссылка (w:anchor), связь в rels не нужна.
+                guard let url = run.hyperlink, !url.isEmpty, !url.hasPrefix("#") else { continue }
                 if hyperlinkRIdByUrl[url] == nil {
                     hyperlinkRIdByUrl[url] = "rIdHl\(hyperlinkRIdByUrl.count + 1)"
                 }
@@ -531,10 +535,19 @@ final class OoxmlDocumentSerializer {
             let url = p.runs[i].hyperlink
             let cid = p.runs[i].commentId
             let xref = p.runs[i].crossRef
+            let bm = p.runs[i].bookmark
             var j = i + 1
             while j < p.runs.count && p.runs[j].hyperlink == url
                     && p.runs[j].commentId == cid
-                    && p.runs[j].crossRef == xref { j += 1 }
+                    && p.runs[j].crossRef == xref
+                    && p.runs[j].bookmark == bm { j += 1 }
+            // Закладка: имя в документе уникально — пишем только первый её фрагмент.
+            var bookmarkId: Int?
+            if let name = bm, !name.isEmpty, !writtenBookmarks.contains(name) {
+                writtenBookmarks.insert(name)
+                bookmarkId = writtenBookmarks.count
+                s += "<w:bookmarkStart w:id=\"\(bookmarkId!)\" w:name=\"\(escapeXml(name))\"/>"
+            }
             // Смена commentId между группами.
             if cid != activeCommentId {
                 if let old = activeCommentId { s += closeComment(old) }
@@ -546,7 +559,11 @@ final class OoxmlDocumentSerializer {
                 for k in i..<j { t += self.renderRun(p.runs[k]) }
                 return t
             }
-            if let u = url, !u.isEmpty, let rId = hyperlinkRIdByUrl[u] {
+            if let u = url, u.hasPrefix("#"), u.count > 1 {
+                s += "<w:hyperlink w:anchor=\"\(escapeXml(String(u.dropFirst())))\" w:history=\"1\">"
+                s += renderRuns()
+                s += "</w:hyperlink>"
+            } else if let u = url, !u.isEmpty, let rId = hyperlinkRIdByUrl[u] {
                 s += "<w:hyperlink r:id=\"\(rId)\" w:history=\"1\">"
                 s += renderRuns()
                 s += "</w:hyperlink>"
@@ -558,6 +575,7 @@ final class OoxmlDocumentSerializer {
             } else {
                 s += renderRuns()
             }
+            if let id = bookmarkId { s += "<w:bookmarkEnd w:id=\"\(id)\"/>" }
             i = j
         }
         if let old = activeCommentId { s += closeComment(old) }
