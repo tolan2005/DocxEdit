@@ -304,3 +304,23 @@ enum UpdateCheckFrequency: String, CaseIterable, Identifiable {
         }
     }
 }
+
+/// v1.10.5: позиция курсора по файлу — документ открывается там, где остановились.
+/// Последние `limit` файлов, свежие первыми; строки «позиция\tпуть» в UserDefaults.
+enum CaretMemory {
+    static let key = "caretPositions"
+    static let limit = 50
+
+    static func remember(_ url: URL, _ location: Int, defaults: UserDefaults = .standard) {
+        let path = url.standardizedFileURL.path
+        var list = (defaults.stringArray(forKey: key) ?? []).filter { !$0.hasSuffix("\t" + path) }
+        list.insert("\(location)\t\(path)", at: 0)
+        defaults.set(Array(list.prefix(limit)), forKey: key)
+    }
+
+    static func location(for url: URL, defaults: UserDefaults = .standard) -> Int? {
+        let path = url.standardizedFileURL.path
+        guard let entry = defaults.stringArray(forKey: key)?.first(where: { $0.hasSuffix("\t" + path) }) else { return nil }
+        return Int(entry.prefix { $0 != "\t" })
+    }
+}

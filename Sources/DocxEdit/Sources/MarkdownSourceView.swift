@@ -281,7 +281,7 @@ struct MarkdownSourceView: NSViewRepresentable {
     /// Разметка под курсором (подсветка кнопок ленты в гибриде).
     var onAttach: ((NSTextView) -> Void)? = nil
     /// Текст выделения — счётчик «N из M» в статусбаре.
-    var onSelection: ((String) -> Void)? = nil
+    var onSelection: ((String, Int) -> Void)? = nil
     var onCaret: ((MarkdownEditing.CaretState) -> Void)? = nil
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -354,7 +354,7 @@ struct MarkdownSourceView: NSViewRepresentable {
         var hybrid = false
         var baseURL: URL?
         var onCaret: ((MarkdownEditing.CaretState) -> Void)?
-        var onSelection: ((String) -> Void)?
+        var onSelection: ((String, Int) -> Void)?
         /// Свёрнутые разделы гибрида — по тексту строки заголовка.
         var folded: Set<String> = []
         private var lastCaret: MarkdownEditing.CaretState?
@@ -398,7 +398,9 @@ struct MarkdownSourceView: NSViewRepresentable {
 
         /// Гибрид: при переходе курсора в другой блок раскрываем его разметку.
         func textViewDidChangeSelection(_ notification: Notification) {
-            if let tv = textView { onSelection?((tv.string as NSString).substring(with: tv.selectedRange())) }
+            if let tv = textView {
+                onSelection?((tv.string as NSString).substring(with: tv.selectedRange()), tv.selectedRange().location)
+            }
             guard hybrid, let tv = textView else { return }
             let caret = MarkdownEditing.caretState(tv.string as NSString, at: tv.selectedRange().location)
             if caret != lastCaret { lastCaret = caret; onCaret?(caret) }

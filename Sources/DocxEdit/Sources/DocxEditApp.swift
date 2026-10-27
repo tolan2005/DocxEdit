@@ -1389,6 +1389,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
                 model = r.0; report = r.1
             }
             let openMs = Date().timeIntervalSince(openStart) * 1000.0
+            // v1.10.5: позиция курсора с прошлого раза — читаем до загрузки (загрузка её перезапишет).
+            let savedCaret = CaretMemory.location(for: url)
             let bridge = NSDocumentBridge(model: model, fileURL: url)
             bridge.isDirty = false
             session?.replace(with: bridge)
@@ -1396,6 +1398,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             session?.mode = DocumentMode.from(url: url)
             if session?.mode == .markdown, let raw = try? String(contentsOf: url, encoding: .utf8) {
                 session?.loadMarkdownSource(raw)
+            }
+            if let savedCaret, savedCaret > 0, let session {
+                // После раскладки документа: переход как из навигатора (курсор + прокрутка).
+                // Контроллер берём в момент перехода — при холодном старте окно ещё создаётся.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak session] in
+                    session?.attachedController?.goToHeading(location: savedCaret)
+                }
             }
             session?.lastImportReport = report
             session?.lastMetrics.lastOpenMs = openMs

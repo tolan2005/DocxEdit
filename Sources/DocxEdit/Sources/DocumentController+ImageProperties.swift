@@ -636,7 +636,8 @@ extension DocumentController {
     }
 
     /// v1.10.5: текст выделения для счётчика «N из M»; пустой — счётчик всего документа.
-    func updateSelectedText(_ text: String) {
+    func updateSelectedText(_ text: String, at location: Int) {
+        if let url = session?.bridge.fileURL { CaretMemory.remember(url, location) }
         guard text != statusSelection else { return }
         statusSelection = text
         refreshStatus()

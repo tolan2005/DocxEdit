@@ -106,7 +106,7 @@ struct DocumentWindowView: View {
                         baseURL: session.bridge.fileURL?.deletingLastPathComponent(),
                         onChange: { session.applyMarkdownSource($0) },
                         onAttach: { controller.markdownTextView = $0 },
-                        onSelection: { controller.updateSelectedText($0) },
+                        onSelection: { controller.updateSelectedText($0, at: $1) },
                         onCaret: { st in
                             controller.isBold = st.bold
                             controller.isItalic = st.italic
@@ -2564,7 +2564,8 @@ struct TextEditorRepresentable: NSViewRepresentable {
             guard !isInternalUpdate else { return }
             controller.refreshSelectionState()
             if let tv = notification.object as? NSTextView {
-                controller.updateSelectedText((tv.string as NSString).substring(with: tv.selectedRange()))
+                controller.updateSelectedText((tv.string as NSString).substring(with: tv.selectedRange()),
+                                              at: tv.selectedRange().location)
             }
             updateImageResizeOverlay()
             // v1.7.4: mini-toolbar над выделением (Word/Notion-паттерн).
