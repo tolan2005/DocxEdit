@@ -331,6 +331,8 @@ struct MarkdownSourceView: NSViewRepresentable {
         var hybrid = false
         var baseURL: URL?
         var onCaret: ((MarkdownEditing.CaretState) -> Void)?
+        /// Свёрнутые разделы гибрида — по тексту строки заголовка.
+        var folded: Set<String> = []
         private var lastCaret: MarkdownEditing.CaretState?
         private var lastActive = NSRange(location: NSNotFound, length: 0)
         let onChange: (String) -> Void
@@ -353,7 +355,7 @@ struct MarkdownSourceView: NSViewRepresentable {
                                                                selection: tv.selectedRange())
                 let maxWidth = max(100, (tv.textContainer?.size.width ?? 600) - 2 * (tv.textContainer?.lineFragmentPadding ?? 0))
                 MarkdownHybridRenderer.render(storage, baseFont: font, active: lastActive,
-                                              baseURL: baseURL, maxImageWidth: maxWidth)
+                                              baseURL: baseURL, maxImageWidth: maxWidth, folded: folded)
                 tv.typingAttributes = [.font: font, .foregroundColor: NSColor.labelColor]
             } else {
                 // Сброс атрибутов гибрида (glyphKey, link, отступы) — подсветка только добавляет свои.
@@ -413,6 +415,14 @@ struct MarkdownSourceView: NSViewRepresentable {
 
         /// Клик по чекбоксу задачи: «[ ]» ⇄ «[x]» обычной правкой текста (с undo).
         func textView(_ tv: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
+            if (link as? URL)?.scheme == MarkdownHybridRenderer.foldScheme {
+                let ns = tv.string as NSString
+                let line = ns.substring(with: ns.lineRange(for: NSRange(location: charIndex, length: 0)))
+                    .trimmingCharacters(in: .newlines)
+                if folded.remove(line) == nil { folded.insert(line) }
+                restyle()
+                return true
+            }
             guard (link as? URL)?.scheme == MarkdownHybridRenderer.taskScheme else { return false }
             let r = NSRange(location: charIndex, length: 1)
             let done = (tv.string as NSString).substring(with: r) != " "

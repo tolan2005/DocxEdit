@@ -25,7 +25,8 @@ final class MarkdownHybridRendererTests: XCTestCase {
 
     func testHeadingOutsideCaretHidesMarkerAndEnlarges() {
         let s = render("# Заголовок\n\nтекст", caret: 14)
-        XCTAssertTrue(isHidden(s, 0))
+        // v1.10.5: первый «#» рисуется треугольником сворачивания ▾.
+        XCTAssertEqual(s.attribute(MarkdownHybridRenderer.glyphKey, at: 0, effectiveRange: nil) as? String, "▾")
         XCTAssertTrue(isHidden(s, 1))
         XCTAssertGreaterThan(font(s, 2).pointSize, base.pointSize * 1.5)
         XCTAssertTrue(font(s, 2).fontDescriptor.symbolicTraits.contains(.bold))
@@ -220,5 +221,29 @@ final class MarkdownHybridTableTests: XCTestCase {
         let s = NSTextStorage(string: "| просто текст |\n\nx")
         MarkdownHybridRenderer.render(s, baseFont: .systemFont(ofSize: 15), active: NSRange(location: 18, length: 0))
         XCTAssertNil(s.attribute(MarkdownHybridRenderer.tableKey, at: 0, effectiveRange: nil))
+    }
+
+    func testFoldedSectionIsHiddenUntilCaretEntersIt() {
+        let text = "# A\nтекст a\n## B\nтекст b\n# C\nтекст c"
+        let ns = text as NSString
+        func render(_ active: Int) -> NSTextStorage {
+            let s = NSTextStorage(string: text)
+            MarkdownHybridRenderer.render(s, baseFont: .systemFont(ofSize: 15),
+                                          active: NSRange(location: active, length: 0), folded: ["# A"])
+            return s
+        }
+        let s = render(ns.length)                          // курсор в «# C»-разделе
+        let hidden = { (sub: String) in
+            (s.attribute(.foregroundColor, at: ns.range(of: sub).location, effectiveRange: nil) as? NSColor) == .clear }
+        XCTAssertTrue(hidden("текст a")); XCTAssertTrue(hidden("## B")); XCTAssertTrue(hidden("текст b"))
+        XCTAssertFalse(hidden("текст c")); XCTAssertFalse(hidden("C"))
+        XCTAssertEqual(s.attribute(MarkdownHybridRenderer.glyphKey, at: 0, effectiveRange: nil) as? String, "▸")
+        XCTAssertEqual(s.attribute(MarkdownHybridRenderer.glyphKey, at: ns.range(of: "# C").location,
+                                   effectiveRange: nil) as? String, "▾")
+        XCTAssertEqual(s.string, text)                     // текст не меняется
+        // Курсор внутри свёрнутого раздела (поиск, стрелки) — раздел раскрыт.
+        let open = render(ns.range(of: "текст b").location)
+        XCTAssertNotEqual(open.attribute(.foregroundColor, at: ns.range(of: "текст a").location,
+                                         effectiveRange: nil) as? NSColor, .clear)
     }
 }

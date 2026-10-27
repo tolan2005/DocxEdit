@@ -21,6 +21,8 @@ enum MarkdownHybridRenderer {
     static let glyphKey = NSAttributedString.Key("docxEditMarkdownGlyph")
     /// URL-схема клика по чекбоксу задачи (`- [ ]`).
     static let taskScheme = "docxedit-task"
+    /// URL-схема клика по треугольнику сворачивания раздела (v1.10.5).
+    static let foldScheme = "docxedit-fold"
     /// NSImage, которое текстовый вид рисует поверх скрытой строки `![…](…)`.
     static let imageKey = NSAttributedString.Key("docxEditMarkdownImage")
     private static let imageCache = NSCache<NSURL, NSImage>()
@@ -115,8 +117,9 @@ enum MarkdownHybridRenderer {
         return text.paragraphRange(for: NSRange(location: loc, length: min(selection.length, text.length - loc)))
     }
 
+    /// `folded` — строки заголовков (`## Текст`), чьи разделы свёрнуты.
     static func render(_ storage: NSTextStorage, baseFont: NSFont, active: NSRange,
-                       baseURL: URL? = nil, maxImageWidth: CGFloat = 600) {
+                       baseURL: URL? = nil, maxImageWidth: CGFloat = 600, folded: Set<String> = []) {
         let full = NSRange(location: 0, length: storage.length)
         guard full.length > 0 else { return }
         let text = storage.string as NSString
@@ -154,8 +157,10 @@ enum MarkdownHybridRenderer {
         func inCode(_ r: NSRange) -> Bool { codeRanges.contains { NSIntersectionRange($0, r).length > 0 } }
 
         // Заголовки ATX.
+        var headings: [(range: NSRange, level: Int)] = []
         matches(#"(?m)^(#{1,6})([ \t]+)(.*)$"#, text) { m in
             guard !inCode(m.range) else { return }
+            headings.append((m.range, m.range(at: 1).length))
             let level = m.range(at: 1).length
             let size = baseFont.pointSize * headingScale[level - 1]
             let font = NSFontManager.shared.convert(NSFont(descriptor: baseFont.fontDescriptor, size: size) ?? baseFont,
@@ -165,6 +170,13 @@ enum MarkdownHybridRenderer {
             let visible = isActive(m.range)
             if visible { storage.addAttribute(.font, value: font, range: prefix) }
             marker(prefix, visible: visible)
+            if !visible {   // треугольник сворачивания — глифом первого «#»
+                let symbols = NSFont(name: "Apple Symbols", size: baseFont.pointSize) ?? baseFont
+                storage.addAttributes([.font: symbols, .foregroundColor: NSColor.secondaryLabelColor,
+                                       glyphKey: folded.contains(text.substring(with: m.range)) ? "▸" : "▾",
+                                       .link: URL(string: "\(foldScheme)://toggle")!],
+                                      range: NSRange(location: m.range.location, length: 1))
+            }
         }
 
         // Цитаты.
@@ -295,6 +307,22 @@ enum MarkdownHybridRenderer {
         inline(#"(\[)([^\]\n]+)(\]\([^)\n]+\))"#) { r in
             storage.addAttributes([.foregroundColor: NSColor.linkColor,
                                    .underlineStyle: NSUnderlineStyle.single.rawValue], range: r)
+        }
+
+        // Свёрнутые разделы — последними (перекрывают отступы картинок/таблиц):
+        // от конца строки заголовка до следующего заголовка того же или старшего уровня.
+        // Курсор/выделение внутри раздела раскрывают его.
+        for (i, h) in headings.enumerated() where folded.contains(text.substring(with: h.range)) {
+            let start = NSMaxRange(text.lineRange(for: h.range))
+            let end = headings[(i + 1)...].first { $0.level <= h.level }?.range.location ?? text.length
+            let section = NSRange(location: start, length: end - start)
+            guard section.length > 0, !isActive(section) else { continue }
+            let ps = NSMutableParagraphStyle()
+            ps.minimumLineHeight = 0.01
+            ps.maximumLineHeight = 0.01
+            for key in [imageKey, tableKey, ruleKey, glyphKey, .link] { storage.removeAttribute(key, range: section) }
+            storage.addAttributes(hiddenAttributes, range: section)
+            storage.addAttribute(.paragraphStyle, value: ps, range: section)
         }
 
         storage.endEditing()
