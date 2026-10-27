@@ -176,6 +176,8 @@ final class MarkdownTextView: NSTextView {
         } else if pb.string(forType: .string) == nil, let image = NSImage(pasteboard: pb) {
             guard let baseURL else { return Self.askToSave() }
             MarkdownEditing.insertImageData(self, image, baseURL: baseURL)
+        } else if let text = pb.string(forType: .string), MarkdownEditing.pasteTable(self, tsv: text) {
+            return
         } else if let text = pb.string(forType: .string), MarkdownEditing.linkSelection(self, url: text) {
             return
         } else {

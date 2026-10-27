@@ -235,4 +235,19 @@ final class MarkdownEditingTests: XCTestCase {
         XCTAssertNil(MarkdownEditing.resolveLink("a.md", baseURL: nil))
         XCTAssertEqual(MarkdownEditing.slug("Итоги года: 2026!"), "итоги-года-2026")
     }
+
+    func testPasteSpreadsheetBecomesAlignedTable() {
+        XCTAssertNil(MarkdownEditing.markdownTable(fromTSV: "просто текст\nбез табов"))
+        XCTAssertNil(MarkdownEditing.markdownTable(fromTSV: "одна\tстрока"))
+        let tv = textView("до", NSRange(location: 2, length: 0))
+        XCTAssertTrue(MarkdownEditing.pasteTable(tv, tsv: "Имя\tЦена\r\nЯблоко\t5\r\na|b\t\n"))
+        XCTAssertEqual(tv.string, """
+        до
+        | Имя    | Цена |
+        | ------ | ---- |
+        | Яблоко | 5    |
+        | a\\|b   |      |
+
+        """)
+    }
 }

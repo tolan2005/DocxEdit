@@ -358,6 +358,31 @@ enum MarkdownEditing {
             .filter { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }
     }
 
+    /// Таблица из буфера (Excel/Numbers/браузер — строки через табуляцию) → GFM-таблица.
+    /// `nil` — не таблица: меньше двух строк или строка без табуляции.
+    static func markdownTable(fromTSV text: String) -> String? {
+        let lines = text.replacingOccurrences(of: "\r\n", with: "\n")
+            .split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+        guard lines.count >= 2, lines.allSatisfy({ $0.contains("\t") }) else { return nil }
+        let rows = lines.map { $0.components(separatedBy: "\t").map {
+            $0.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "|", with: "\\|") } }
+        let cols = rows.map(\.count).max() ?? 0
+        func row(_ cells: [String]) -> String {
+            "| " + (0..<cols).map { $0 < cells.count ? cells[$0] : "" }.joined(separator: " | ") + " |"
+        }
+        return ([row(rows[0]), row(Array(repeating: "---", count: cols))] + rows.dropFirst().map(row))
+            .joined(separator: "\n") + "\n"
+    }
+
+    /// Вставить таблицу из TSV и выровнять её. `false` — в буфере не таблица.
+    static func pasteTable(_ tv: NSTextView, tsv: String) -> Bool {
+        guard let table = markdownTable(fromTSV: tsv) else { return false }
+        insertBlock(tv, table)
+        tv.setSelectedRange(NSRange(location: tv.selectedRange().location - 2, length: 0))
+        formatTable(tv)
+        return true
+    }
+
     // MARK: - Внутреннее
 
     /// Вставить блок с начала строки (если курсор не в начале — перенос перед блоком).
