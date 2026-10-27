@@ -191,6 +191,35 @@ public enum MarkdownIO {
 
     // MARK: - Экспорт
 
+    /// Что из документа не переносится в Markdown (v1.10.5) — строки для отчёта после экспорта.
+    /// Подчёркивание и выделение цветом не входят: они пишутся как `<u>` и `==…==`.
+    public static func exportLosses(_ document: DocumentModel) -> [String] {
+        var colored = 0, aligned = 0, revisions = 0
+        func walk(_ blocks: [Block]) {
+            for block in blocks {
+                switch block {
+                case .paragraph(let p):
+                    if p.attributes.alignment != .left, p.runs.contains(where: { !$0.text.isEmpty }) { aligned += 1 }
+                    for r in p.runs where !r.text.isEmpty {
+                        if r.attributes.textColor != nil { colored += 1 }
+                        if r.insertion != nil || r.deletion != nil { revisions += 1 }
+                    }
+                case .table(let t):
+                    for row in t.rows { for cell in row.cells { walk(cell.blocks) } }
+                }
+            }
+        }
+        document.sections.forEach { walk($0.blocks) }
+        var out: [String] = []
+        if colored > 0 { out.append("цвет текста — \(colored) фрагм.") }
+        if aligned > 0 { out.append("выравнивание по центру/справа/ширине — \(aligned) абз.") }
+        if !document.headerFooter.isEmpty { out.append("колонтитулы") }
+        if !document.footnotes.isEmpty { out.append("сноски — \(document.footnotes.count)") }
+        if !document.comments.isEmpty { out.append("комментарии — \(document.comments.count)") }
+        if revisions > 0 { out.append("отслеживаемые правки — \(revisions) фрагм.") }
+        return out
+    }
+
     public static func exportMarkdown(_ document: DocumentModel, prettyTables: Bool = false) -> String {
         let blocks = document.sections.flatMap { $0.blocks }
         var out: [String] = []

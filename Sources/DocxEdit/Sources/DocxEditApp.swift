@@ -1464,6 +1464,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
                         try session.markdownSource.write(to: url, atomically: true, encoding: .utf8)
                     } else {
                         try MarkdownIO.exportMarkdown(session.bridge.model, to: url)
+                        // v1.10.5: что не перенеслось — коротким отчётом.
+                        let losses = MarkdownIO.exportLosses(session.bridge.model)
+                        if !losses.isEmpty {
+                            let alert = NSAlert()
+                            alert.messageText = "Часть оформления не перенеслась в Markdown"
+                            alert.informativeText = losses.map { "• " + $0 }.joined(separator: "\n")
+                            alert.addButton(withTitle: "Понятно")
+                            alert.runModal()
+                        }
                     }
                 case .rtf:      try RtfIO.exportRTF(session.bridge.model, to: url)
                 case .txt:      try exportPlainText(session.bridge.model, to: url, encoding: selectedTxtEncoding)

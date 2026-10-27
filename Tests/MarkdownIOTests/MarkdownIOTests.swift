@@ -328,4 +328,28 @@ final class MarkdownIOTests: XCTestCase {
         }.joined()
         XCTAssertTrue(texts.contains("[[не-ссылка]]"), texts)
     }
+
+    // v1.10.5: отчёт о потерях при экспорте в Markdown.
+    func testExportLossesReportsUnsupportedFormatting() {
+        var red = CharacterAttributes(); red.textColor = CodableColor(red: 1, green: 0, blue: 0)
+        var centered = ParagraphAttributes(); centered.alignment = .center
+        var revised = Run(text: "вставка", attributes: .init()); revised.insertion = "a|2026-01-01|1"
+        var underlined = CharacterAttributes(); underlined.underline = .single
+        var doc = DocumentModel()
+        doc.sections = [DocumentSection(blocks: [
+            .paragraph(Paragraph(runs: [Run(text: "красный", attributes: red), revised])),
+            .paragraph(Paragraph(runs: [Run(text: "центр", attributes: underlined)], attributes: centered)),
+            .paragraph(Paragraph(runs: [], attributes: centered)),   // пустой абзац не считается
+        ])]
+        doc.headerFooter.footerText = "{page}"
+        doc.footnotes = [Footnote(id: "1", text: "сноска")]
+        XCTAssertEqual(MarkdownIO.exportLosses(doc), [
+            "цвет текста — 1 фрагм.",
+            "выравнивание по центру/справа/ширине — 1 абз.",
+            "колонтитулы",
+            "сноски — 1",
+            "отслеживаемые правки — 1 фрагм.",
+        ])
+        XCTAssertEqual(MarkdownIO.exportLosses(DocumentModel()), [])
+    }
 }
