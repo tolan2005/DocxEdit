@@ -98,7 +98,7 @@
 |---|---|
 | [DocumentWindowView.swift](Sources/DocxEdit/Sources/DocumentWindowView.swift) | Окно, TextEditorRepresentable, DocxTextView (drawBackground листов + MD-«ленты»), Coordinator, applyPageViewStyle (guard'ы equality-check против layout-loop, ADR-060), updateFloatingImages, StatusBar (клик по версии → проверка обновлений) |
 | [MarkdownSourceView.swift](Sources/DocxEdit/Sources/MarkdownSourceView.swift) | Source- и гибридный режим MD (TextKit 1): подсветка, Typora-поведение, `MarkdownTextView` рисует картинки/таблицы/линию, подмена глифов «•»/☐/☑, клик по задаче |
-| [MarkdownEditing.swift](Sources/DocxEdit/Sources/MarkdownEditing.swift) | Команды ленты в гибридном MD: вставка/снятие разметки в исходнике (жирный, списки, заголовки, цитата, код, ссылка, таблица, картинка), v1.10.3; v1.10.4 — Enter/Tab в списках, картинки из буфера/перетаскиванием в `images/`, URL поверх выделения → ссылка, `caretState` для подсветки ленты |
+| [MarkdownEditing.swift](Sources/DocxEdit/Sources/MarkdownEditing.swift) | Команды ленты в гибридном MD: вставка/снятие разметки в исходнике (жирный, списки, заголовки, цитата, код, ссылка, таблица, картинка), v1.10.3; v1.10.4 — Enter/Tab в списках, картинки из буфера/перетаскиванием в `images/`, URL поверх выделения → ссылка, `caretState` для подсветки ленты; v1.10.5 — `headings` (навигатор), `formatTable` (⌥⌘T) |
 | [MarkdownHybridRenderer.swift](Sources/DocxEdit/Sources/MarkdownHybridRenderer.swift) | Гибридный рендер MD (Typora, ADR-063): скрытие разметки вне блока с курсором, списки/задачи, картинки, таблицы GFM (`MarkdownTable`: ширины колонок и высоты строк с переносом текста, v1.10.1), линия |
 | [MarkdownPasteSupport.swift](Sources/DocxEdit/Sources/MarkdownPasteSupport.swift) | Умная вставка MD (Typora-паттерн, v1.6.6): looksLikeMarkdown + sanitize |
 
@@ -117,7 +117,7 @@
 #### Сайдбары / панели
 | Файл | Назначение |
 |---|---|
-| [NavigatorSidebarView.swift](Sources/DocxEdit/Sources/NavigatorSidebarView.swift) | Навигатор по заголовкам + drag-and-drop разделов (v1.6.5) |
+| [NavigatorSidebarView.swift](Sources/DocxEdit/Sources/NavigatorSidebarView.swift) | Навигатор по заголовкам + drag-and-drop разделов (v1.6.5); для .md — заголовки `#` из исходника (v1.10.5) |
 | [StylesSidebarView.swift](Sources/DocxEdit/Sources/StylesSidebarView.swift) | Панель стилей (справа) |
 | [CommentsSidebarView.swift](Sources/DocxEdit/Sources/CommentsSidebarView.swift) | Панель комментариев (R06) |
 | [FootnotesSidebarView.swift](Sources/DocxEdit/Sources/FootnotesSidebarView.swift) | Панель сносок (R07) |
