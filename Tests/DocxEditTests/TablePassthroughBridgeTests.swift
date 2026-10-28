@@ -26,4 +26,15 @@ final class TablePassthroughBridgeTests: XCTestCase {
         XCTAssertEqual(t.rows[0].cells[0].textDirection, "tbRl")
         XCTAssertEqual(t.rows[0].cells[0].extraProperties?["w:vAlign"], "<w:vAlign w:val=\"center\"></w:vAlign>")
     }
+
+    func testBookmarkInCellSurvivesBridge() {
+        let cell = TableCell(blocks: [.paragraph(Paragraph(runs: [Run(text: "Цель", bookmark: "target")]))], width: 100)
+        var m = DocumentModel()
+        m.sections = [DocumentSection(blocks: [.table(TableBlock(rows: [TableRow(cells: [cell])], columnWidths: [100]))])]
+        let back = DocumentModel.from(attributed: m.toAttributedString())
+        guard case .table(let t)? = back.sections.first?.blocks.first(where: { if case .table = $0 { return true }; return false }),
+              case .paragraph(let p)? = t.rows.first?.cells.first?.blocks.first
+        else { return XCTFail("нет таблицы") }
+        XCTAssertEqual(p.runs.first?.bookmark, "target")
+    }
 }

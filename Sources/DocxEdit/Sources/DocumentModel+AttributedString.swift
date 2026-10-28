@@ -1327,6 +1327,7 @@ func appendTable(_ t: TableBlock,
                     attrs[.paragraphStyle] = ps
                     if let url = run.hyperlink { attrs[.link] = url }
                     if let cid = run.commentId { attrs[.docxEditCommentId] = cid }
+                    if let bm = run.bookmark { attrs[.docxEditBookmark] = bm }
                     if row.isHeader { attrs[.docxEditRowHeader] = true }
                     if let rh = row.height, rh > 0 { attrs[.docxEditRowHeight] = rh }
                     result.append(NSAttributedString(string: run.text, attributes: attrs))
