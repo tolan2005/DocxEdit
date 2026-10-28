@@ -414,9 +414,25 @@ final class OoxmlDocumentSerializer {
                     s += "<w:sdt><w:sdtPr><w:docPartObj>"
                     s += "<w:docPartGallery w:val=\"Table of Contents\"/><w:docPartUnique/>"
                     s += "</w:docPartObj></w:sdtPr><w:sdtContent>"
+                    var group = ""
                     for k in i..<j {
-                        if case .paragraph(let p) = section.blocks[k] { s += renderParagraph(p) }
+                        if case .paragraph(let p) = section.blocks[k] { group += renderParagraph(p) }
                     }
+                    // Оглавление из Word: поле TOC (инструкция — в tocBlock) охватывает
+                    // все абзацы блока — begin в первом, end в последнем.
+                    if let instr = p0.runs.compactMap(\.tocBlock).first, instr.hasPrefix("TOC") {
+                        let begin = "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r>"
+                            + "<w:r><w:instrText xml:space=\"preserve\"> \(escapeXml(instr)) </w:instrText></w:r>"
+                            + "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>"
+                        let pPrEnd = group.range(of: "</w:pPr>")
+                        let firstEnd = group.range(of: "</w:p>")
+                        let at = (pPrEnd != nil && pPrEnd!.lowerBound < firstEnd!.lowerBound)
+                            ? pPrEnd!.upperBound : group.index(group.startIndex, offsetBy: "<w:p>".count)
+                        group.insert(contentsOf: begin, at: at)
+                        let last = group.range(of: "</w:p>", options: .backwards)!
+                        group.insert(contentsOf: "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>", at: last.lowerBound)
+                    }
+                    s += group
                     s += "</w:sdtContent></w:sdt>"
                     i = j
                 } else {

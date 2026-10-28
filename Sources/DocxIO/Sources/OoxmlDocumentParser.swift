@@ -187,6 +187,10 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
     private var fieldInstrBuffer = ""
     private var inInstrText = false
     private var pendingFieldInstr: String? = nil
+    /// Многоабзацное поле TOC открыто: его инструкция идёт в `Run.tocBlock`
+    /// всех ранов результата; значение tocBlock до поля — для восстановления.
+    private var tocFieldOpen = false
+    private var tocBlockBeforeField: String? = nil
 
     /// v1.6.1: OMML-формулы (m:oMath/m:oMathPara). Импортируем текст формулы
     /// (m:t) как обычный текст — раньше содержимое формул терялось целиком.
@@ -807,12 +811,21 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
                 fieldDepth += 1
                 if fieldDepth == 1 { fieldInstrBuffer = "" }
             case "separate":
-                if fieldDepth >= 1 {
-                    pendingFieldInstr = fieldInstrBuffer.trimmingCharacters(in: .whitespaces)
+                let instr = fieldInstrBuffer.trimmingCharacters(in: .whitespaces)
+                if fieldDepth == 1, instr.hasPrefix("TOC") {
+                    tocFieldOpen = true
+                    tocBlockBeforeField = activeTocBlock
+                    activeTocBlock = instr
+                } else if fieldDepth >= 1 {
+                    pendingFieldInstr = instr
                 }
             case "end":
                 fieldDepth = max(0, fieldDepth - 1)
                 if fieldDepth == 0 { pendingFieldInstr = nil }
+                if fieldDepth == 0, tocFieldOpen {
+                    tocFieldOpen = false
+                    activeTocBlock = tocBlockBeforeField
+                }
             default: break
             }
         case "w:instrText":
@@ -1069,7 +1082,12 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
         case "w:p":
             // v1.5.6: поле пересекло границу абзаца (TOC и т.п.) — не
             // round-trip'им, результат остаётся текстом; пишем в отчёт.
-            if fieldDepth > 0 || pendingFieldInstr != nil {
+            if tocFieldOpen {
+                // TOC продолжается в следующем абзаце; незакрытые вложенные — сброс.
+                fieldDepth = 1
+                pendingFieldInstr = nil
+                inInstrText = false
+            } else if fieldDepth > 0 || pendingFieldInstr != nil {
                 note("w:fldChar")
                 fieldDepth = 0
                 pendingFieldInstr = nil

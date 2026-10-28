@@ -29,3 +29,25 @@ final class TabCharacterRoundTripTests: XCTestCase {
         XCTAssertEqual(text2.filter { $0 == "\t" }.count, text.filter { $0 == "\t" }.count)
     }
 }
+
+/// Оглавление-поле TOC из Word (fldChar через несколько абзацев) остаётся полем.
+final class TocFieldRoundTripTests: XCTestCase {
+    func testFixtureTocFieldSurvives() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/21.docx")
+        let m = try DocxIO.importDocx(url: url)
+        let paras = m.sections.flatMap(\.blocks).compactMap { b -> Paragraph? in
+            if case .paragraph(let p) = b { return p } else { return nil }
+        }
+        let toc = paras.filter { $0.runs.contains { $0.tocBlock?.hasPrefix("TOC") == true } }
+        XCTAssertGreaterThanOrEqual(toc.count, 10, "строки оглавления помечены инструкцией поля")
+        let again = try DocxIO.importDocx(data: try DocxIO.exportDocx(m))
+        let toc2 = again.sections.flatMap(\.blocks).compactMap { b -> Paragraph? in
+            if case .paragraph(let p) = b { return p } else { return nil }
+        }.filter { $0.runs.contains { $0.tocBlock?.hasPrefix("TOC") == true } }
+        XCTAssertEqual(toc2.count, toc.count)
+        XCTAssertEqual(toc2.first?.runs.filter { !$0.text.isEmpty }.compactMap(\.tocBlock).first,
+                       toc.first?.runs.filter { !$0.text.isEmpty }.compactMap(\.tocBlock).first)
+        XCTAssertEqual(toc2.flatMap(\.runs).compactMap(\.fieldInstr).filter { $0.hasPrefix("PAGEREF") }.count,
+                       toc.flatMap(\.runs).compactMap(\.fieldInstr).filter { $0.hasPrefix("PAGEREF") }.count)
+    }
+}
