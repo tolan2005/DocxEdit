@@ -1623,6 +1623,7 @@ struct TextEditorRepresentable: NSViewRepresentable {
         /// (например, удаление сохранено как пометка вместо реального delete).
         func textView(_ view: NSTextView, shouldChangeTextIn affectedCharRange: NSRange,
                       replacementString: String?) -> Bool {
+            controller.noteListStructureChange(range: affectedCharRange, replacement: replacementString)
             guard controller.trackChanges.isRecording else { return true }
             return controller.trackChanges.interceptChange(range: affectedCharRange,
                                                          replacementString: replacementString)
@@ -1680,9 +1681,7 @@ struct TextEditorRepresentable: NSViewRepresentable {
                 if controller.handleReturnOnEmptyMarkdownStructure() { return true }
                 // Return в списке добавляет новый пункт — после вставки абзаца
                 // перенумеровываем блок (новый пункт получает свой номер, следующие
-                // сдвигаются). Удаление НЕ перехватываем: маркеры — литеральный текст,
-                // и Backspace у начала содержимого «съедал» бы символы маркера
-                // (числа после удаления пункта обновятся при следующей операции списка).
+                // сдвигаются). Удаление пунктов — через noteListStructureChange.
                 if controller.caretInListBlock() { controller.pendingListRenumber = true }
             default: break
             }

@@ -606,6 +606,22 @@ final class DocumentController: ObservableObject {
         return insertMarkdownText(text)
     }
 
+    /// Правка затрагивает границу абзаца в списке (удаление пункта, склейка
+    /// пунктов Backspace/Delete, вырезание) — после неё перенумеровать блок.
+    /// Удаление внутри текста пункта (и самих символов маркера) не трогаем.
+    func noteListStructureChange(range: NSRange, replacement: String?) {
+        guard !isRenumberingList, range.length > 0, !(replacement ?? "").contains("\n"),
+              let storage = textView?.textStorage, NSMaxRange(range) <= storage.length else { return }
+        let ns = storage.string as NSString
+        guard ns.substring(with: range).contains("\n") else { return }
+        let first = ns.paragraphRange(for: NSRange(location: range.location, length: 0))
+        let last = ns.paragraphRange(for: NSRange(location: min(NSMaxRange(range), storage.length), length: 0))
+        if listInfo(at: first.location, in: storage) != nil
+            || (last.location < storage.length && listInfo(at: last.location, in: storage) != nil) {
+            pendingListRenumber = true
+        }
+    }
+
     /// Курсор (или его абзац) находится внутри блока списка?
     func caretInListBlock() -> Bool {
         guard let textView, let storage = textView.textStorage, storage.length > 0 else { return false }
