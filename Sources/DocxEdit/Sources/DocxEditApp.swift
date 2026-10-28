@@ -79,6 +79,9 @@ struct DocxEditApp: App {
                     Button("RTF…")     { appDelegate.exportRTF() }
                     Button("ODT…")     { appDelegate.exportODT() }
                     Button("Обычный текст (TXT)…") { appDelegate.exportTXT() }
+                    Divider()
+                    Button("Копия PDF рядом с файлом")  { appDelegate.exportSibling(.pdf) }
+                    Button("Копия DOCX рядом с файлом") { appDelegate.exportSibling(.docx) }
                 }
 
                 Divider()
@@ -1464,7 +1467,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         } catch { presentError(error) }
     }
 
-    private func exportDocument(format: ExportFormat) {
+    /// Копия рядом с файлом документа одной командой: то же имя, другое
+    /// расширение, без диалога (существующая копия перезаписывается).
+    func exportSibling(_ format: ExportFormat) {
+        let ext = format == .pdf ? "pdf" : "docx"
+        guard let src = session?.bridge.fileURL, let url = Self.siblingURL(of: src, ext: ext) else {
+            NSSound.beep(); return
+        }
+        exportDocument(format: format, to: url)
+    }
+
+    /// nil — документ не сохранён в файл или копия совпала бы с ним самим.
+    static func siblingURL(of src: URL, ext: String) -> URL? {
+        let url = src.deletingPathExtension().appendingPathExtension(ext)
+        return url.standardizedFileURL == src.standardizedFileURL ? nil : url
+    }
+
+    private func exportDocument(format: ExportFormat, to fixedURL: URL? = nil) {
         guard let session else { return }
         let panel = NSSavePanel()
         panel.nameFieldStringValue = format.defaultFilename(for: session.bridge)
@@ -1481,7 +1500,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         if format == .txt {
             panel.accessoryView = txtEncodingAccessoryView { selectedTxtEncoding = $0 }
         }
-        if panel.runModal() == .OK, let url = panel.url {
+        if let url = fixedURL ?? (panel.runModal() == .OK ? panel.url : nil) {
             do {
                 switch format {
                 case .pdf:
