@@ -3,6 +3,17 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.10.8] — 2026-10-28 — Lossless DOCX
+
+### Изменения
+- DOCX без потерь: закладки, табуляции, свойства таблиц, фигуры и надписи, поле оглавления
+- вставка таблицы из Excel/Numbers в Markdown
+
+### Артефакты
+- `build/v1.10.8/DocxEdit-1.10.8.dmg`
+- `build/v1.10.8/DocxEdit-1.10.8.app.zip`
+- `build/v1.10.8/SHA256SUMS`
+
 ## [1.10.7] — 2026-10-27 — Safe Save
 
 ### Изменения
