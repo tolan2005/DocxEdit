@@ -1,4 +1,5 @@
 import XCTest
+import ZIPFoundation
 @testable import DocxCore
 @testable import DocxIO
 
@@ -39,5 +40,25 @@ final class BookmarkRoundTripTests: XCTestCase {
         let pipe = Pipe(); p.standardOutput = pipe
         try p.run(); let d = pipe.fileHandleForReading.readDataToEndOfFile(); p.waitUntilExit()
         return d
+    }
+
+    /// Наложенные закладки (`_Toc…` поверх пользовательской) — сохраняются обе.
+    func testOverlappingBookmarksSurvive() throws {
+        var m = DocumentModel()
+        m.sections = [DocumentSection(blocks: [.paragraph(Paragraph(runs: [
+            Run(text: "Глава ", bookmark: "user"),
+            Run(text: "один", bookmark: "user _Toc1"),
+            Run(text: " хвост", bookmark: "_Toc1"),
+        ]))])]
+        let data = try DocxIO.exportDocx(m)
+        let archive = try Archive(data: data, accessMode: .read)
+        var x = Data(); _ = try archive.extract(archive["word/document.xml"]!) { x.append($0) }
+        let xml = String(decoding: x, as: UTF8.self)
+        XCTAssertTrue(xml.contains("w:name=\"user\""))
+        XCTAssertTrue(xml.contains("w:name=\"_Toc1\""))
+        XCTAssertFalse(xml.contains("_Toc1 user"))
+        let r = try DocxIO.importDocx(data: data)
+        guard case .paragraph(let p) = r.sections[0].blocks[0] else { return XCTFail() }
+        XCTAssertEqual(p.runs.map(\.bookmark), ["user", "user _Toc1", "_Toc1"])
     }
 }

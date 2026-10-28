@@ -204,6 +204,10 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
     private var activeCrossRef: String? = nil
     /// Открытые закладки: w:id → w:name (служебная `_GoBack` Word'а не берётся).
     private var activeBookmarks: [(id: String, name: String)] = []
+    /// Все открытые закладки через пробел (`Run.bookmark`); nil — нет.
+    private var activeBookmarkNames: String? {
+        activeBookmarks.isEmpty ? nil : activeBookmarks.map(\.name).joined(separator: " ")
+    }
 
     /// v0.5.8 (R08): активная ревизия атрибутов текущего `<w:r>`. Формат
     /// "author|date|id"; вычитывается из `<w:rPrChange>` в rPr.
@@ -1018,7 +1022,7 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
                     return nil
                 }()
                 if let raw = currentRunRawObject {
-                    var run = Run(text: "\u{FFFC}", attributes: finalCharAttrs, bookmark: activeBookmarks.last?.name)
+                    var run = Run(text: "\u{FFFC}", attributes: finalCharAttrs, bookmark: activeBookmarkNames)
                     run.rawObject = raw
                     if currentParagraph == nil {
                         currentParagraph = Paragraph(runs: [], attributes: currentParagraphAttributes())
@@ -1034,7 +1038,7 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
                                   commentId: commentId, insertion: insertion, deletion: deletion,
                                   footnoteId: footnoteId, crossRef: crossRef, tocBlock: tocBlock,
                                   attributeRevision: attrRev, fieldInstr: fieldInstr, endnoteId: endnoteId,
-                                  bookmark: activeBookmarks.last?.name)
+                                  bookmark: activeBookmarkNames)
                     if currentParagraph == nil {
                         currentParagraph = Paragraph(runs: [], attributes: currentParagraphAttributes())
                     }
@@ -1047,7 +1051,7 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
                                   commentId: commentId, insertion: insertion, deletion: deletion,
                                   footnoteId: footnoteId, crossRef: crossRef, tocBlock: tocBlock,
                                   attributeRevision: attrRev, fieldInstr: fieldInstr, endnoteId: endnoteId,
-                                  bookmark: activeBookmarks.last?.name)
+                                  bookmark: activeBookmarkNames)
                     if currentParagraph == nil {
                         currentParagraph = Paragraph(runs: [], attributes: currentParagraphAttributes())
                     }

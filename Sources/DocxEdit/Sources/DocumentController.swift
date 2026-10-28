@@ -1198,7 +1198,11 @@ final class DocumentController: ObservableObject {
         }
         guard tv.shouldChangeText(in: range, replacementString: nil) else { return }
         storage.beginEditing()
-        storage.addAttribute(.docxEditBookmark, value: name, range: range)
+        // Поверх существующих закладок — добавляем имя (имена через пробел).
+        storage.enumerateAttribute(.docxEditBookmark, in: range) { v, r, _ in
+            let names = (v as? String).map { $0 + " " + name } ?? name
+            storage.addAttribute(.docxEditBookmark, value: names, range: r)
+        }
         storage.endEditing()
         tv.didChangeText()
         notifyModelChange()
@@ -1211,7 +1215,7 @@ final class DocumentController: ObservableObject {
         storage.enumerateAttribute(.docxEditBookmark,
                                     in: NSRange(location: 0, length: storage.length),
                                     options: []) { val, r, _ in
-            if let name = val as? String { out.append((name, r)) }
+            for name in (val as? String)?.split(separator: " ") ?? [] { out.append((String(name), r)) }
         }
         return out
     }
@@ -1237,7 +1241,10 @@ final class DocumentController: ObservableObject {
         guard tv.shouldChangeText(in: union, replacementString: nil) else { return }
         storage.beginEditing()
         for b in all {
-            storage.removeAttribute(.docxEditBookmark, range: b.range)
+            let rest = ((storage.attribute(.docxEditBookmark, at: b.range.location, effectiveRange: nil) as? String) ?? "")
+                .split(separator: " ").filter { $0 != name }.joined(separator: " ")
+            if rest.isEmpty { storage.removeAttribute(.docxEditBookmark, range: b.range) }
+            else { storage.addAttribute(.docxEditBookmark, value: rest, range: b.range) }
         }
         storage.endEditing()
         tv.didChangeText()

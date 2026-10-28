@@ -1645,7 +1645,9 @@ struct TextEditorRepresentable: NSViewRepresentable {
                 let name = String(urlStr.dropFirst())
                 var target: Int?
                 storage.enumerateAttribute(.docxEditBookmark, in: NSRange(location: 0, length: storage.length)) { v, r, stop in
-                    if (v as? String) == name { target = r.location; stop.pointee = true }
+                    if let names = v as? String, names.split(separator: " ").contains(Substring(name)) {
+                        target = r.location; stop.pointee = true
+                    }
                 }
                 guard let loc = target else { NSSound.beep(); return true }
                 view.setSelectedRange(NSRange(location: loc, length: 0))

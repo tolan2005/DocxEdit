@@ -546,6 +546,7 @@ final class OoxmlDocumentSerializer {
         // Группируем подряд идущие runs с одинаковым hyperlink URL / crossRef —
         // hyperlink уходит в `<w:hyperlink r:id="…">…</w:hyperlink>`,
         // crossRef (v0.5.5, R07) — в `<w:fldSimple w:instr=" REF <name> \h ">…</w:fldSimple>`.
+        var openBookmarks: [String: Int] = [:]
         var i = 0
         while i < p.runs.count {
             let url = p.runs[i].hyperlink
@@ -558,11 +559,12 @@ final class OoxmlDocumentSerializer {
                     && p.runs[j].crossRef == xref
                     && p.runs[j].bookmark == bm { j += 1 }
             // Закладка: имя в документе уникально — пишем только первый её фрагмент.
-            var bookmarkId: Int?
-            if let name = bm, !name.isEmpty, !writtenBookmarks.contains(name) {
+            // Наложенные закладки (имена через пробел) — каждая своим start/end.
+            for name in (bm ?? "").split(separator: " ").map(String.init)
+                where !writtenBookmarks.contains(name) {
                 writtenBookmarks.insert(name)
-                bookmarkId = writtenBookmarks.count
-                s += "<w:bookmarkStart w:id=\"\(bookmarkId!)\" w:name=\"\(escapeXml(name))\"/>"
+                openBookmarks[name] = writtenBookmarks.count
+                s += "<w:bookmarkStart w:id=\"\(writtenBookmarks.count)\" w:name=\"\(escapeXml(name))\"/>"
             }
             // Смена commentId между группами.
             if cid != activeCommentId {
@@ -591,7 +593,11 @@ final class OoxmlDocumentSerializer {
             } else {
                 s += renderRuns()
             }
-            if let id = bookmarkId { s += "<w:bookmarkEnd w:id=\"\(id)\"/>" }
+            let next = j < p.runs.count ? Set((p.runs[j].bookmark ?? "").split(separator: " ").map(String.init)) : []
+            for (name, id) in openBookmarks.sorted(by: { $0.value > $1.value }) where !next.contains(name) {
+                s += "<w:bookmarkEnd w:id=\"\(id)\"/>"
+                openBookmarks[name] = nil
+            }
             i = j
         }
         if let old = activeCommentId { s += closeComment(old) }
