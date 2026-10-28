@@ -52,6 +52,8 @@ extension NSAttributedString.Key {
     /// v0.2.4: имя закладки (String) на диапазоне (или 0-длина в позиции курсора).
     /// DOCX round-trip: `<w:bookmarkStart w:name="…"/>` перед и `<w:bookmarkEnd/>` после.
     static let docxEditBookmark = NSAttributedString.Key("docxEditBookmark")
+    /// Сырой XML фигуры/надписи (`Run.rawObject`) на заглушке-аттачменте U+FFFC.
+    static let docxEditRawObject = NSAttributedString.Key("docxEditRawObject")
     /// v0.4.4 (R06): id треда комментария (`CommentThread.id`). Живёт на
     /// диапазоне текста в NSAttributedString; переживает пересборку модели
     /// `from(attributed:)`. Содержимое треда — в `DocumentModel.comments`.
@@ -755,6 +757,18 @@ extension DocumentModel {
                         result.append(NSAttributedString(string: carrier, attributes: attrs))
                     }
                     for run in p.runs {
+                        // Фигура/надпись — заглушка; объект пишется обратно как есть.
+                        if let raw = run.rawObject {
+                            var attrs = run.attributes.nsAttributes(defaultFont: defaultFont, fallbackFontName: fallbackFontName)
+                            attrs[.paragraphStyle] = paraStyle
+                            if let sid = p.attributes.styleId { attrs[.docxEditStyleId] = sid }
+                            attrs[.docxEditRawObject] = raw
+                            if let bm = run.bookmark { attrs[.docxEditBookmark] = bm }
+                            let m = NSMutableAttributedString(attachment: rawObjectPlaceholder(raw))
+                            m.addAttributes(attrs, range: NSRange(location: 0, length: m.length))
+                            result.append(m)
+                            continue
+                        }
                         // Inline-изображение — через NSTextAttachment (v0.1.52).
                         if let img = run.image {
                             var attrs = run.attributes.nsAttributes(defaultFont: defaultFont, fallbackFontName: fallbackFontName)
@@ -1032,6 +1046,12 @@ extension DocumentModel {
                                         deletion: deletion, endnoteId: eid))
                         return
                     }
+                    if let raw = attrs[.docxEditRawObject] as? String, text == "\u{FFFC}" {
+                        var run = Run(text: text, attributes: charAttrs, bookmark: bookmark)
+                        run.rawObject = raw
+                        runs.append(run)
+                        return
+                    }
                     // Inline-изображение: если в атрибутах есть .attachment — извлекаем
                     // InlineImage и создаём отдельный Run (не сливаем с текстовыми).
                     if let att = attrs[.attachment] as? NSTextAttachment,
@@ -1063,7 +1083,7 @@ extension DocumentModel {
                         return
                     }
                     if var last = runs.last, last.attributes == charAttrs,
-                       last.image == nil, last.hyperlink == hyperlink, last.commentId == commentId,
+                       last.image == nil, last.rawObject == nil, last.hyperlink == hyperlink, last.commentId == commentId,
                        last.insertion == insertion, last.deletion == deletion,
                        last.footnoteId == nil, last.endnoteId == nil, last.crossRef == crossRef, last.tocBlock == tocBlock,
                        last.attributeRevision == attributeRevision,
@@ -1374,4 +1394,29 @@ extension Encodable {
 func decodePassthrough<T: Decodable>(_ type: T.Type, _ value: Any?) -> T? {
     guard let s = value as? String, let d = s.data(using: .utf8) else { return nil }
     return try? JSONDecoder().decode(type, from: d)
+}
+
+/// Заглушка фигуры/надписи: рамка с текстом надписи (или «Фигура»).
+func rawObjectPlaceholder(_ raw: String) -> NSTextAttachment {
+    let texts = (try? NSRegularExpression(pattern: "<w:t(?: [^>]*)?>([^<]*)</w:t>"))
+        .map { re in re.matches(in: raw, range: NSRange(raw.startIndex..., in: raw))
+            .compactMap { Range($0.range(at: 1), in: raw).map { String(raw[$0]) } } } ?? []
+    var label = texts.joined().trimmingCharacters(in: .whitespacesAndNewlines)
+    if label.count > 40 { label = String(label.prefix(40)) + "…" }
+    label = "▭ " + (label.isEmpty ? "Фигура" : "Надпись: " + label)
+    let font = NSFont.systemFont(ofSize: 11)
+    let textAttrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.secondaryLabelColor]
+    let size = (label as NSString).size(withAttributes: textAttrs)
+    let box = NSSize(width: ceil(size.width) + 12, height: ceil(size.height) + 6)
+    let image = NSImage(size: box, flipped: false) { r in
+        let path = NSBezierPath(roundedRect: r.insetBy(dx: 0.5, dy: 0.5), xRadius: 3, yRadius: 3)
+        path.setLineDash([3, 2], count: 2, phase: 0)
+        NSColor.tertiaryLabelColor.setStroke(); path.stroke()
+        (label as NSString).draw(at: NSPoint(x: 6, y: 3), withAttributes: textAttrs)
+        return true
+    }
+    let att = NSTextAttachment()
+    att.image = image
+    att.bounds = NSRect(x: 0, y: -4, width: box.width, height: box.height)
+    return att
 }

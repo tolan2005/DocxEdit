@@ -662,6 +662,11 @@ public struct Run: Codable, Equatable, Sendable {
     /// раны с одинаковым именем при сериализации оборачиваются в bookmarkStart/End.
     public var bookmark: String?
 
+    /// Фигура/надпись, которую редактор не разбирает: сырой XML объекта
+    /// (`mc:AlternateContent`, `w:pict`, `w:drawing`) пишется обратно как есть.
+    /// Ран — заглушка U+FFFC.
+    public var rawObject: String?
+
     public init(text: String, attributes: CharacterAttributes = .init(),
                 image: InlineImage? = nil, hyperlink: String? = nil,
                 commentId: String? = nil,
@@ -691,7 +696,7 @@ public struct Run: Codable, Equatable, Sendable {
 
     // decodeIfPresent — backward-compat со старыми JSON.
     private enum CodingKeys: String, CodingKey {
-        case text, attributes, image, hyperlink, commentId, insertion, deletion, footnoteId, crossRef, tocBlock, attributeRevision, fieldInstr, endnoteId, bookmark
+        case text, attributes, image, hyperlink, commentId, insertion, deletion, footnoteId, crossRef, tocBlock, attributeRevision, fieldInstr, endnoteId, bookmark, rawObject
     }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -709,6 +714,7 @@ public struct Run: Codable, Equatable, Sendable {
         fieldInstr = try c.decodeIfPresent(String.self, forKey: .fieldInstr)
         endnoteId = try c.decodeIfPresent(String.self, forKey: .endnoteId)
         bookmark = try c.decodeIfPresent(String.self, forKey: .bookmark)
+        rawObject = try c.decodeIfPresent(String.self, forKey: .rawObject)
     }
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
@@ -726,6 +732,7 @@ public struct Run: Codable, Equatable, Sendable {
         try c.encodeIfPresent(fieldInstr, forKey: .fieldInstr)
         try c.encodeIfPresent(endnoteId, forKey: .endnoteId)
         try c.encodeIfPresent(bookmark, forKey: .bookmark)
+        try c.encodeIfPresent(rawObject, forKey: .rawObject)
     }
 }
 

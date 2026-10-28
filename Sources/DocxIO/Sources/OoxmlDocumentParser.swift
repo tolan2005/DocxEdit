@@ -67,6 +67,19 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
     private var tableCurrentTblLook: String?
     /// scope: "cell" | "row" | "tbl" — куда положить захваченный XML.
     private var cellExtraCapture: (name: String, depth: Int, xml: String, scope: String)?
+    /// Фигуры и надписи (mc:AlternateContent, w:pict, w:drawing без картинки) —
+    /// сырой XML целиком, в ран-заглушку U+FFFC (`Run.rawObject`). Только объекты
+    /// без ссылок `r:` (иначе нужны их части пакета) — остальные идут старым путём.
+    private var objectCapture: (depth: Int, xml: String)?
+    private var currentRunRawObject: String?
+    /// По порядку объектов верхнего уровня: можно ли сохранить как есть.
+    private var rawObjectEligible: [Bool] = []
+    private var rawObjectIndex = 0
+    /// Глубина внутри объекта, оставленного старому пути (вложенные не считаем).
+    private var skippedObjectDepth = 0
+    /// xmlns:* и mc:Ignorable корня — объявляются на захваченном объекте.
+    private var rootNamespaces: [String: String] = [:]
+    static let rawObjectElements: Set<String> = ["mc:AlternateContent", "w:pict", "w:drawing"]
     private static let capturedCellProperties: Set<String> =
         ["w:tcBorders", "w:noWrap", "w:tcMar", "w:tcFitText", "w:vAlign", "w:hideMark"]
     private static let capturedRowProperties: Set<String> =
@@ -75,6 +88,8 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
         let attrs = a.sorted { $0.key < $1.key }.map { k, v in
             let e = v.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "\"", with: "&quot;")
                 .replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;")
+                .replacingOccurrences(of: "\r", with: "&#13;").replacingOccurrences(of: "\n", with: "&#10;")
+                .replacingOccurrences(of: "\t", with: "&#9;")
             return " \(k)=\"\(e)\""
         }.joined()
         return "<\(el)\(attrs)>"
@@ -260,6 +275,7 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
 
     func parse(documentXml: Data, corePropsXml: Data?) throws -> DocumentModel {
         if let corePropsXml { parseCoreProps(corePropsXml) }
+        rawObjectEligible = Self.scanRawObjects(documentXml)
         let parser = XMLParser(data: documentXml)
         parser.delegate = self
         parser.parse()
@@ -270,10 +286,46 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
         return DocumentModel(metadata: metadata, pageSettings: pageSettings, sections: sections)
     }
 
+    /// Объекты верхнего уровня в порядке появления. Вложенный AlternateContent
+    /// сбивает порядок — тогда не сохраняем ничего.
+    static func scanRawObjects(_ data: Data) -> [Bool] {
+        guard let xml = String(data: data, encoding: .utf8),
+              let re = try? NSRegularExpression(pattern:
+                #"<mc:AlternateContent\b.*?</mc:AlternateContent>|<w:pict\b.*?</w:pict>|<w:drawing\b.*?</w:drawing>"#,
+                options: [.dotMatchesLineSeparators]) else { return [] }
+        let ns = xml as NSString
+        var out: [Bool] = []
+        for m in re.matches(in: xml, range: NSRange(location: 0, length: ns.length)) {
+            let seg = ns.substring(with: m.range)
+            if seg.dropFirst().contains("<mc:AlternateContent") { return [] }
+            out.append(seg.range(of: #"\sr:[A-Za-z]+="#, options: .regularExpression) == nil)
+        }
+        return out
+    }
+
     // MARK: XMLParserDelegate
 
     func parser(_ p: XMLParser, didStartElement el: String, namespaceURI: String?,
                 qualifiedName: String?, attributes a: [String: String]) {
+        if var cap = objectCapture {
+            cap.xml += Self.rawStart(el, a); cap.depth += 1; objectCapture = cap
+            return
+        }
+        if el == "w:document" {
+            // Префиксы, которые сериализатор объявляет сам, не дублируем.
+            let own: Set = ["xmlns:w", "xmlns:r", "xmlns:wp", "xmlns:a", "xmlns:pic"]
+            rootNamespaces = a.filter { ($0.key.hasPrefix("xmlns:") && !own.contains($0.key)) || $0.key == "mc:Ignorable" }
+        }
+        if Self.rawObjectElements.contains(el) {
+            if skippedObjectDepth == 0 {
+                let i = rawObjectIndex; rawObjectIndex += 1
+                if inRun, i < rawObjectEligible.count, rawObjectEligible[i] {
+                    objectCapture = (1, Self.rawStart(el, a.merging(rootNamespaces) { own, _ in own }))
+                    return
+                }
+            }
+            skippedObjectDepth += 1
+        }
         // Сырой захват неразбираемых свойств ячейки (вместе с вложенными элементами).
         if var cap = cellExtraCapture {
             cap.xml += Self.rawStart(el, a); cap.depth += 1; cellExtraCapture = cap
@@ -839,6 +891,12 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
     }
 
     func parser(_ p: XMLParser, didEndElement el: String, namespaceURI: String?, qualifiedName: String?) {
+        if var cap = objectCapture {
+            cap.xml += "</\(el)>"; cap.depth -= 1
+            if cap.depth == 0 { currentRunRawObject = cap.xml; objectCapture = nil } else { objectCapture = cap }
+            return
+        }
+        if Self.rawObjectElements.contains(el), skippedObjectDepth > 0 { skippedObjectDepth -= 1 }
         if var cap = cellExtraCapture {
             cap.xml += "</\(el)>"; cap.depth -= 1
             if cap.depth == 0 {
@@ -946,7 +1004,19 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
                     }
                     return nil
                 }()
-                if let img = currentRunImage {
+                if let raw = currentRunRawObject {
+                    var run = Run(text: "\u{FFFC}", attributes: finalCharAttrs, bookmark: activeBookmarks.last?.name)
+                    run.rawObject = raw
+                    if currentParagraph == nil {
+                        currentParagraph = Paragraph(runs: [], attributes: currentParagraphAttributes())
+                    }
+                    currentParagraph?.runs.append(run)
+                    // Текст рана вне объекта (редко) — отдельным раном.
+                    if !currentRunText.isEmpty {
+                        currentParagraph?.runs.append(Run(text: currentRunText, attributes: finalCharAttrs))
+                    }
+                    currentRunRawObject = nil
+                } else if let img = currentRunImage {
                     let run = Run(text: "\u{FFFC}", attributes: finalCharAttrs, image: img, hyperlink: currentHyperlinkURL,
                                   commentId: commentId, insertion: insertion, deletion: deletion,
                                   footnoteId: footnoteId, crossRef: crossRef, tocBlock: tocBlock,
@@ -1121,6 +1191,11 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
     }
 
     func parser(_ p: XMLParser, foundCharacters string: String) {
+        if objectCapture != nil {
+            objectCapture!.xml += string.replacingOccurrences(of: "&", with: "&amp;")
+                .replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;")
+            return
+        }
         // v1.6.1: текст OMML-формулы (m:t внутри m:oMath[Para]).
         if mathDepth > 0 { mathBuffer += string }
         // v1.5.12: значение wp:posOffset (позиция якоря плавающей картинки).
@@ -1138,6 +1213,7 @@ final class OoxmlDocumentParser: NSObject, XMLParserDelegate {
     }
 
     func parser(_ p: XMLParser, foundCDATA CDATABlock: Data) {
+        if objectCapture != nil { return }
         if inRun && inText && mcFallbackDepth == 0, let s = String(data: CDATABlock, encoding: .utf8) {
             currentRunText += s
         }

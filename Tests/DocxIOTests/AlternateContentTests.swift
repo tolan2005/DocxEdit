@@ -70,7 +70,8 @@ final class AlternateContentTests: XCTestCase {
         ])
     }
 
-    /// Текстбокс в mc:Choice + его VML-дубль в mc:Fallback → текст один раз.
+    /// Текстбокс в mc:Choice + его VML-дубль в mc:Fallback → один объект-заглушка
+    /// (сохраняется как есть), текст в поток не уходит и не дублируется.
     func testFallbackTextNotDuplicated() throws {
         let body = """
             <w:p><w:r><mc:AlternateContent>
@@ -88,7 +89,7 @@ final class AlternateContentTests: XCTestCase {
             if case .paragraph(let p) = block { return p.runs.map(\.text).joined() }
             return nil
         }.joined()
-        XCTAssertEqual(allText, "Оригинал", "текст Fallback не должен дублироваться")
+        XCTAssertEqual(allText, "\u{FFFC}", "текст Fallback не должен дублироваться")
     }
 
     /// SmartArt/диаграмма: в mc:Fallback лежит v:imagedata-превью → картинка.

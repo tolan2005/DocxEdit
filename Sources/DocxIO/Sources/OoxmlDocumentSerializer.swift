@@ -730,6 +730,7 @@ final class OoxmlDocumentSerializer {
     }
 
     private func renderRun(_ run: Run) -> String {
+        if let raw = run.rawObject { return "<w:r>\(raw)</w:r>" }
         // Inline-изображение (v0.1.53): `<w:r><w:drawing><wp:inline>...</wp:inline></w:drawing></w:r>`
         // со ссылкой на rId в document.xml.rels; сами байты — в word/media/imageN.ext.
         if run.image != nil {
