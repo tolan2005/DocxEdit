@@ -644,6 +644,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     /// Замыкание, открывающее новое SwiftUI-окно (устанавливается любым живым окном
     /// через `DocumentWindowRoot.onAppear`). Используется для ⌘N / ⌘O flow.
     private var openWindowAction: (() -> Void)?
+    /// Сессии всех открытых окон (weak) — чтобы не открывать файл второй раз.
+    private let attachedSessions = NSHashTable<DocumentSession>.weakObjects()
     /// Однажды выполняем инициализацию (openInitialDocumentFromCommandLine и др.).
     private var didPerformInitialWindowActions = false
 
@@ -658,6 +660,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     /// currentSession сразу (до момента, как система пошлёт didBecomeMain), и мы
     /// выполняем разовую инициализацию (CLI-open и т. п.).
     func attachSession(_ session: DocumentSession) {
+        attachedSessions.add(session)
         if currentSession == nil { currentSession = session }
         if !didPerformInitialWindowActions {
             didPerformInitialWindowActions = true
@@ -1356,7 +1359,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         ["docx", "doc", "rtf", "md", "markdown", "txt", "odt"].contains(url.pathExtension.lowercased())
     }
 
+    /// Окно, в котором этот файл уже открыт (сравнение по реальному пути).
+    static func session(showing url: URL, among sessions: [DocumentSession]) -> DocumentSession? {
+        let path = url.standardizedFileURL.resolvingSymlinksInPath().path
+        return sessions.first { $0.bridge.fileURL?.standardizedFileURL.resolvingSymlinksInPath().path == path }
+    }
+
     func loadFromURL(_ url: URL) {
+        // Файл уже открыт — показываем его окно вместо второй копии.
+        if let open = Self.session(showing: url, among: attachedSessions.allObjects),
+           let c = open.attachedController, let window = c.textView?.window ?? c.markdownTextView?.window {
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
         // v1.3.0 multi-doc:
         // 1. Нет ни одного окна (Finder→app до старта UI) — буферим до attachSession.
         // 2. Текущее окно ПУСТОЕ — грузим в него.

@@ -19,7 +19,9 @@ final class NSDocumentBridge {
         self.fileURL = fileURL
     }
 
-    static let empty = NSDocumentBridge(model: DocumentModel())
+    /// Каждый раз новый: общий экземпляр делили все новые окна — сохранение
+    /// одного приписывало его путь остальным.
+    static var empty: NSDocumentBridge { NSDocumentBridge(model: DocumentModel()) }
 }
 
 extension NSDocumentBridge {
