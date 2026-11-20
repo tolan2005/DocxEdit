@@ -117,7 +117,45 @@ enum MarkdownSyntaxHighlighter {
 
 /// Текстовый вид MD: в гибриде рисует картинки поверх скрытых строк `![…](…)`.
 final class MarkdownTextView: NSTextView {
+    /// Полоски изменённых на диске строк слева от текста: зелёная — новая,
+    /// синяя — изменённая, красный треугольник — здесь удалены строки.
+    private func drawChangeMarks(_ lm: NSLayoutManager) {
+        guard !changeMarks.isEmpty else { return }
+        let ns = string as NSString
+        var starts = [0]
+        var loc = 0
+        while loc < ns.length {
+            let r = ns.lineRange(for: NSRange(location: loc, length: 0))
+            loc = NSMaxRange(r)
+            if loc < ns.length || ns.hasSuffix("\n") { starts.append(loc) }
+        }
+        let x = max(1, textContainerOrigin.x - 9)
+        func rect(ofLine i: Int) -> NSRect? {
+            guard i < starts.count else { return nil }
+            let r = ns.lineRange(for: NSRange(location: min(starts[i], ns.length), length: 0))
+            let g = lm.glyphRange(forCharacterRange: r, actualCharacterRange: nil)
+            guard let tc = textContainer else { return nil }
+            let b = g.length > 0 ? lm.boundingRect(forGlyphRange: g, in: tc) : lm.extraLineFragmentRect
+            guard b.height >= 1 else { return nil }   // свёрнутый раздел
+            return b.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y)
+        }
+        for (i, kind) in changeMarks.lines {
+            guard let r = rect(ofLine: i) else { continue }
+            (kind == .added ? NSColor.systemGreen : NSColor.systemBlue).setFill()
+            NSRect(x: x, y: r.minY, width: 3, height: r.height).fill()
+        }
+        NSColor.systemRed.setFill()
+        for i in changeMarks.deletedBefore {
+            let y: CGFloat
+            if let r = rect(ofLine: i) { y = r.minY } else if let r = rect(ofLine: i - 1) { y = r.maxY } else { continue }
+            let tri = NSBezierPath()
+            tri.move(to: NSPoint(x: x, y: y - 4)); tri.line(to: NSPoint(x: x + 5, y: y)); tri.line(to: NSPoint(x: x, y: y + 4))
+            tri.close(); tri.fill()
+        }
+    }
+
     var onWidthChange: (() -> Void)?
+    var changeMarks = ChangeMarks()
     /// Папка документа: сюда (в `images/`) сохраняются вставленные картинки.
     var baseURL: URL?
 
@@ -211,6 +249,11 @@ final class MarkdownTextView: NSTextView {
         let changed = abs(newSize.width - frame.width) > 1
         super.setFrameSize(newSize)
         if changed { onWidthChange?() }
+    }
+
+    override func drawBackground(in rect: NSRect) {
+        super.drawBackground(in: rect)
+        if let lm = layoutManager { drawChangeMarks(lm) }
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -314,6 +357,8 @@ struct MarkdownSourceView: NSViewRepresentable {
     /// Текст выделения — счётчик «N из M» в статусбаре.
     var onSelection: ((String, Int) -> Void)? = nil
     var onCaret: ((MarkdownEditing.CaretState) -> Void)? = nil
+    /// Полоски изменённых на диске строк на левом поле.
+    var changeMarks = ChangeMarks()
 
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = NSScrollView()
@@ -377,6 +422,10 @@ struct MarkdownSourceView: NSViewRepresentable {
             context.coordinator.restyle()
         } else if modeChanged {
             context.coordinator.restyle()
+        }
+        if let mtv = tv as? MarkdownTextView, mtv.changeMarks != changeMarks {
+            mtv.changeMarks = changeMarks
+            mtv.needsDisplay = true
         }
     }
 

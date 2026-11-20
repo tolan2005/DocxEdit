@@ -84,6 +84,7 @@ final class DocumentSession: ObservableObject {
     /// v1.8.3: если открыт split-режим, дополнительно обновляем attributedText
     /// — превью справа переверстается в реальном времени по мере правок слева.
     func applyMarkdownSource(_ text: String) {
+        changeMarks.applyOwnEdit(old: markdownSource, new: text)
         markdownSource = text
         markdownSourceIsCurrent = true
         if let model = try? MarkdownIO.importMarkdown(string: text) {
@@ -223,6 +224,8 @@ final class DocumentSession: ObservableObject {
     private var fileWatcher: FileWatcher?
     /// Время изменения файла, которое документ уже «знает» (открыл или сам записал).
     private var knownModificationDate: Date?
+    /// Строки .md, изменённые на диске с момента «прочитано» (полоски на полях).
+    @Published var changeMarks = ChangeMarks()
 
     /// Следить за файлом документа (после открытия и каждого сохранения).
     func watchFile() {
@@ -254,6 +257,8 @@ final class DocumentSession: ObservableObject {
         let oldText = tv?.string ?? ""
         let caret = tv?.selectedRange().location ?? 0
         let origin = tv?.enclosingScrollView?.contentView.bounds.origin
+        var marks = changeMarks
+        if let raw = markdownRaw { marks.applyDiskChange(old: markdownSource, new: raw) }
         let newBridge = NSDocumentBridge(model: model, fileURL: bridge.fileURL)
         if isMarkdownSourceMode {
             objectWillChange.send()
@@ -267,6 +272,7 @@ final class DocumentSession: ObservableObject {
             c?.pendingInitialFit = false   // масштаб не трогаем
         }
         if let raw = markdownRaw { loadMarkdownSource(raw) }
+        changeMarks = marks
         knownModificationDate = bridge.fileURL.flatMap(Self.modificationDate)
         diskChange = nil
         // Вью применят новый текст в ближайшем проходе SwiftUI — затем позиция и подсветка.
@@ -317,6 +323,7 @@ final class DocumentSession: ObservableObject {
         isMarkdownHybrid = false
         markdownSource = ""
         markdownSourceIsCurrent = false
+        changeMarks = ChangeMarks()
         self.attributedText = bridge.model.toAttributedString(
             defaultFont: preferredDefaultFont(),
             fallbackFontName: AppPreferences.shared.favoriteFonts.first,

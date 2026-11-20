@@ -122,7 +122,8 @@ struct DocumentWindowView: View {
                             controller.isStrikethrough = st.strike
                             controller.currentListType = st.list
                             controller.currentStyleId = st.styleId
-                        }
+                        },
+                        changeMarks: session.changeMarks
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -495,6 +496,16 @@ struct StatusBar: View {
             if session.mode == .markdown {
                 Divider().frame(height: 12)
                 MarkdownViewPicker(session: session)
+            }
+            // Места, изменённые на диске с момента «прочитано».
+            if session.isMarkdownSourceMode, !session.changeMarks.isEmpty {
+                Divider().frame(height: 12)
+                Button("Изменений: \(session.changeMarks.groupStarts.count)") { controller.goToNextChange() }
+                    .buttonStyle(.plain).font(.caption).foregroundStyle(.blue)
+                    .help("Перейти к следующему изменённому месту")
+                Button { session.changeMarks = ChangeMarks() } label: { Image(systemName: "checkmark.circle") }
+                    .buttonStyle(.plain).font(.caption)
+                    .help("Отметить всё прочитанным — убрать полоски изменений")
             }
             Spacer()
             // v0.4.6 (R06): индикатор track-changes в статусбаре.

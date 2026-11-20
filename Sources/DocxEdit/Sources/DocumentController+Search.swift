@@ -380,6 +380,24 @@ extension DocumentController {
     func showReplaceBar() { performFinder(.showReplaceInterface) }
     func showGoToDialog() { NotificationCenter.default.post(name: .docxEditShowGoTo, object: nil) }
 
+    /// Курсор — на начало следующего места, изменённого на диске (по кругу).
+    func goToNextChange() {
+        guard let tv = markdownTextView, let starts = session?.changeMarks.groupStarts, !starts.isEmpty else { return }
+        let ns = tv.string as NSString
+        let caretLine = ns.substring(to: min(tv.selectedRange().location, ns.length))
+            .reduce(0) { $1 == "\n" ? $0 + 1 : $0 }
+        let target = starts.first { $0 > caretLine } ?? starts[0]
+        var loc = 0
+        for _ in 0..<target {
+            let r = ns.lineRange(for: NSRange(location: loc, length: 0))
+            guard NSMaxRange(r) <= ns.length, NSMaxRange(r) > loc else { break }
+            loc = NSMaxRange(r)
+        }
+        tv.setSelectedRange(NSRange(location: min(loc, ns.length), length: 0))
+        tv.scrollRangeToVisible(NSRange(location: min(loc, ns.length), length: 0))
+        tv.window?.makeFirstResponder(tv)
+    }
+
     // MARK: - Расширенный поиск/замена (v0.1.96)
 
     /// Редактор, в котором ищем: в Markdown (гибрид/исходник) — редактор исходника,
