@@ -1477,6 +1477,9 @@ final class DocumentController: ObservableObject {
 
     // MARK: - Stored properties, перенесённые из extension-файлов (v1.6.5)
 
+    /// Окно «Найти и заменить» (было в Coordinator — в Markdown его нет).
+    var findReplaceWindow: NSWindow?
+
     /// Индекс текущего выделения среди всех совпадений (для «3 из 17»).
     /// nil — выделение не совпадает ни с одним вхождением.
     @Published var findCurrentIndex: Int? = nil

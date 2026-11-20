@@ -1143,8 +1143,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     // MARK: Действия меню — правка
 
-    func findInDocument()    { NotificationCenter.default.post(name: .docxEditShowFind,    object: nil) }
-    func replaceInDocument() { NotificationCenter.default.post(name: .docxEditShowReplace, object: nil) }
+    // Прямой вызов: в Markdown нет Coordinator визуального редактора, слушающего уведомления.
+    func findInDocument()    { currentSession?.attachedController?.showFindBar() }
+    func replaceInDocument() { currentSession?.attachedController?.showReplaceBar() }
     func showGoTo()          { NotificationCenter.default.post(name: .docxEditShowGoTo,    object: nil) }
 
     // MARK: Действия меню — формат
@@ -1182,7 +1183,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     func tableToggleHeaderRow() { NotificationCenter.default.post(name: .docxEditTableEdit, object: NSString(string: "toggleHeaderRow")) }
     func tableShowRowHeight()   { NotificationCenter.default.post(name: .docxEditShowRowHeight, object: nil) }
     func showParagraphIndents() { NotificationCenter.default.post(name: .docxEditShowParagraphIndents, object: nil) }
-    func showFindReplace()      { NotificationCenter.default.post(name: .docxEditShowFindReplace, object: nil) }
+    func showFindReplace()      { currentSession?.attachedController?.showFindReplaceWindow() }
     /// v1.8.0: командная палитра (⌘⇧P). Контроллер берётся из
     /// currentSession.attachedController (ставится в DocumentController.attach).
     func showCommandPalette() {

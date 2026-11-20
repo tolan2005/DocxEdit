@@ -327,6 +327,8 @@ struct MarkdownSourceView: NSViewRepresentable {
         tv.layoutManager?.delegate = context.coordinator
         tv.linkTextAttributes = [.cursor: NSCursor.pointingHand]
         tv.isRichText = false
+        tv.usesFindBar = true
+        tv.isIncrementalSearchingEnabled = true
         tv.importsGraphics = false
         tv.allowsUndo = true
         tv.isAutomaticQuoteSubstitutionEnabled = false

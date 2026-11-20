@@ -1552,7 +1552,6 @@ struct TextEditorRepresentable: NSViewRepresentable {
         var importReportWindow: NSWindow?
         var rowHeightWindow: NSWindow?
         var paragraphIndentsWindow: NSWindow?
-        var findReplaceWindow: NSWindow?
         var imageCropWindow: NSWindow?
         var documentPropertiesWindow: NSWindow?
         var bookmarksWindow: NSWindow?
@@ -2439,29 +2438,7 @@ struct TextEditorRepresentable: NSViewRepresentable {
             window.makeKeyAndOrderFront(nil)
         }
 
-        @objc private func onShowFindReplace() {
-            if let existing = findReplaceWindow, existing.isVisible {
-                NSApp.activate(ignoringOtherApps: true)
-                existing.makeKeyAndOrderFront(nil)
-                return
-            }
-            let view = FindReplaceView(controller: controller, onClose: { [weak self] in
-                self?.findReplaceWindow?.close()
-            })
-            let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 560, height: 220),
-                styleMask: [.titled, .closable],
-                backing: .buffered,
-                defer: false
-            )
-            window.title = "Найти и заменить"
-            window.contentView = NSHostingView(rootView: view)
-            window.isReleasedWhenClosed = false
-            window.center()
-            findReplaceWindow = window
-            NSApp.activate(ignoringOtherApps: true)
-            window.makeKeyAndOrderFront(nil)
-        }
+        @objc private func onShowFindReplace() { controller.showFindReplaceWindow() }
 
         @objc private func onShowParagraphIndents() {
             if let existing = paragraphIndentsWindow, existing.isVisible {

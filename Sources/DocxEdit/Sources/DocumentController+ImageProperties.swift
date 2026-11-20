@@ -372,10 +372,10 @@ extension DocumentController {
     }
 
     func performFinder(_ action: NSTextFinder.Action) {
-        guard let textView else { return }
+        guard let tv = searchTextView else { return }
         let item = NSMenuItem()
         item.tag = Int(action.rawValue)
-        textView.performTextFinderAction(item)
+        tv.performTextFinderAction(item)
     }
 
     func setZoom(_ level: Double) { zoomLevel = max(0.25, min(4.0, level)) }

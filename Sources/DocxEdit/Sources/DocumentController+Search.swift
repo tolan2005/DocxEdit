@@ -7,6 +7,7 @@
 //
 
 import AppKit
+import SwiftUI
 import DocxCore
 
 extension DocumentController {
@@ -381,6 +382,54 @@ extension DocumentController {
 
     // MARK: - Расширенный поиск/замена (v0.1.96)
 
+    /// Редактор, в котором ищем: в Markdown (гибрид/исходник) — редактор исходника,
+    /// визуального редактора в окне тогда нет.
+    var searchTextView: NSTextView? {
+        session?.isMarkdownSourceMode == true ? markdownTextView : textView
+    }
+
+    /// Подсветка всех вхождений: визуальный редактор рисует её сам
+    /// (DocxLayoutManager), в Markdown — временный атрибут фона.
+    private func setFindHighlights(_ ranges: [NSRange]) {
+        guard let tv = searchTextView, let lm = tv.layoutManager else { return }
+        if let docx = lm as? DocxLayoutManager {
+            docx.findHighlights = ranges
+        } else {
+            let all = NSRange(location: 0, length: tv.textStorage?.length ?? 0)
+            lm.removeTemporaryAttribute(.backgroundColor, forCharacterRange: all)
+            for r in ranges where NSMaxRange(r) <= all.length {
+                lm.addTemporaryAttribute(.backgroundColor, value: NSColor.findHighlightColor.withAlphaComponent(0.5),
+                                         forCharacterRange: r)
+            }
+        }
+        tv.needsDisplay = true
+    }
+
+    /// Окно «Найти и заменить» этого документа.
+    func showFindReplaceWindow() {
+        if let existing = findReplaceWindow, existing.isVisible {
+            NSApp.activate(ignoringOtherApps: true)
+            existing.makeKeyAndOrderFront(nil)
+            return
+        }
+        let view = FindReplaceView(controller: self, onClose: { [weak self] in
+            self?.findReplaceWindow?.close()
+        })
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 560, height: 220),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Найти и заменить"
+        window.contentView = NSHostingView(rootView: view)
+        window.isReleasedWhenClosed = false
+        window.center()
+        findReplaceWindow = window
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
     struct SearchOptions {
         var useRegex: Bool
         var caseSensitive: Bool
@@ -392,7 +441,7 @@ extension DocumentController {
     @discardableResult
     func findNext(pattern: String, options: SearchOptions) -> Bool {
         currentPattern = pattern
-        guard let tv = textView, let storage = tv.textStorage, !pattern.isEmpty else { return false }
+        guard let tv = searchTextView, let storage = tv.textStorage, !pattern.isEmpty else { return false }
         let full = NSRange(location: 0, length: storage.length)
         let start = min(tv.selectedRange().upperBound, storage.length)
         // Первый проход — от текущей позиции до конца; если ничего — с начала.
@@ -412,7 +461,7 @@ extension DocumentController {
     @discardableResult
     func replaceCurrent(pattern: String, replacement: String, options: SearchOptions) -> Bool {
         currentPattern = pattern
-        guard let tv = textView, let storage = tv.textStorage, !pattern.isEmpty else { return false }
+        guard let tv = searchTextView, let storage = tv.textStorage, !pattern.isEmpty else { return false }
         let sel = tv.selectedRange()
         if sel.length > 0 {
             // Совпадает ли текущее выделение с pattern? — сверяем через regex/plain.
@@ -423,7 +472,7 @@ extension DocumentController {
                 let replaced = expandReplacement(replacement, matchRange: match, in: storage.string, options: options)
                 storage.replaceCharacters(in: match, with: replaced)
                 tv.didChangeText()
-                notifyModelChange()
+                if tv === textView { notifyModelChange() }
                 // Курсор — после вставки; ищем дальше.
                 let newLoc = match.location + (replaced as NSString).length
                 tv.setSelectedRange(NSRange(location: newLoc, length: 0))
@@ -436,7 +485,7 @@ extension DocumentController {
     @discardableResult
     func replaceAll(pattern: String, replacement: String, options: SearchOptions) -> Int {
         currentPattern = pattern
-        guard let tv = textView, let storage = tv.textStorage, !pattern.isEmpty else { return 0 }
+        guard let tv = searchTextView, let storage = tv.textStorage, !pattern.isEmpty else { return 0 }
         let ranges = allMatches(in: storage.string, pattern: pattern, options: options,
                                 range: NSRange(location: 0, length: storage.length))
         guard !ranges.isEmpty else { return 0 }
@@ -451,15 +500,14 @@ extension DocumentController {
         }
         storage.endEditing()
         tv.didChangeText()
-        notifyModelChange()
-        refreshSelectionState()
+        if tv === textView { notifyModelChange(); refreshSelectionState() }
         return ranges.count
     }
 
     /// v0.3.3: количество совпадений в документе — для отображения в диалоге
     /// поиска. Не двигает выделение.
     func countMatches(pattern: String, options: SearchOptions) -> Int {
-        guard let storage = textView?.textStorage, !pattern.isEmpty else { return 0 }
+        guard let storage = searchTextView?.textStorage, !pattern.isEmpty else { return 0 }
         return allMatches(in: storage.string, pattern: pattern, options: options,
                           range: NSRange(location: 0, length: storage.length)).count
     }
@@ -469,7 +517,7 @@ extension DocumentController {
 
     /// Все диапазоны совпадений (порядок документа).
     func matchRanges(pattern: String, options: SearchOptions) -> [NSRange] {
-        guard let storage = textView?.textStorage, !pattern.isEmpty else { return [] }
+        guard let storage = searchTextView?.textStorage, !pattern.isEmpty else { return [] }
         return allMatches(in: storage.string, pattern: pattern, options: options,
                           range: NSRange(location: 0, length: storage.length))
     }
@@ -477,23 +525,21 @@ extension DocumentController {
     /// Включает/обновляет подсветку всех вхождений (рисует DocxLayoutManager).
     func showFindHighlights(pattern: String, options: SearchOptions) {
         let ranges = matchRanges(pattern: pattern, options: options)
-        (textView?.layoutManager as? DocxLayoutManager)?.findHighlights = ranges
+        setFindHighlights(ranges)
         findHighlightsActive = !ranges.isEmpty
-        textView?.needsDisplay = true
         updateFindCurrentIndex(pattern: pattern, options: options)
     }
 
     /// Снимает подсветку.
     func clearFindHighlights() {
-        (textView?.layoutManager as? DocxLayoutManager)?.findHighlights = []
+        setFindHighlights([])
         findHighlightsActive = false
         findCurrentIndex = nil
-        textView?.needsDisplay = true
     }
 
     /// Индекс текущего выделения в списке совпадений.
     private func updateFindCurrentIndex(pattern: String, options: SearchOptions) {
-        guard let tv = textView else { return }
+        guard let tv = searchTextView else { return }
         let sel = tv.selectedRange()
         let ranges = matchRanges(pattern: pattern, options: options)
         findCurrentIndex = ranges.firstIndex(of: sel).map { $0 + 1 }
