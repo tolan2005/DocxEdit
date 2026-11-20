@@ -70,8 +70,10 @@
 | Файл | Назначение |
 |---|---|
 | [DocxEditApp.swift](Sources/DocxEdit/Sources/DocxEditApp.swift) | Entry point, AppDelegate, меню, Notification-имена, About, session.marker (ADR-055) |
-| [DocumentSession.swift](Sources/DocxEdit/Sources/DocumentSession.swift) | ObservableObject поверх NSDocumentBridge; mode DOCX/MD; source/split (ADR-059); attachedController weak (ADR-058); lastSavedAt (ADR-056) |
-| [NSDocumentBridge.swift](Sources/DocxEdit/Sources/NSDocumentBridge.swift) | Модель + URL + isDirty + мутаторы (markSaved/markDirty) |
+| [DocumentSession.swift](Sources/DocxEdit/Sources/DocumentSession.swift) | ObservableObject поверх NSDocumentBridge; mode DOCX/MD; source/split (ADR-059); attachedController weak (ADR-058); lastSavedAt (ADR-056); слежение за файлом `watchFile`/`reloadFromDisk`/`diskChange`, `changeMarks` (после v1.10.9) |
+| [FileWatcher.swift](Sources/DocxEdit/Sources/FileWatcher.swift) | Слежение за файлом документа на диске (DispatchSource, переподписка после атомарной замены, задержка 0.3 с) |
+| [ChangeMarks.swift](Sources/DocxEdit/Sources/ChangeMarks.swift) | Отметки строк .md, изменённых на диске с момента «прочитано» (построчный diff, свои правки сдвигают) |
+| [NSDocumentBridge.swift](Sources/DocxEdit/Sources/NSDocumentBridge.swift) | Модель + URL + isDirty + мутаторы (markSaved/markDirty); `empty` — каждый раз новый экземпляр |
 | [DocumentMode.swift](Sources/DocxEdit/Sources/DocumentMode.swift) | Enum DOCX/Markdown (ADR-049) |
 | [AppPreferences.swift](Sources/DocxEdit/Sources/AppPreferences.swift) | UserDefaults: шрифты, страница, колонка MD, обновления; `CaretMemory` — позиция курсора по файлу (v1.10.6); `AutoSaveMode` — автосохранение (v1.10.7) |
 | [L10n.swift](Sources/DocxEdit/Sources/L10n.swift) | Локализация (R09/10, RU/EN) |
@@ -83,7 +85,7 @@
 | [DocumentController+Tables.swift](Sources/DocxEdit/Sources/DocumentController+Tables.swift) | Операции таблиц (ADR-035 распил v1.6.5) |
 | [DocumentController+Images.swift](Sources/DocxEdit/Sources/DocumentController+Images.swift) | Вставка inline-изображений + rotate/flip |
 | [DocumentController+ImageProperties.swift](Sources/DocxEdit/Sources/DocumentController+ImageProperties.swift) | Свойства/crop/wrap + zoom (setZoom/zoomIn/fitPageWidth) |
-| [DocumentController+Search.swift](Sources/DocxEdit/Sources/DocumentController+Search.swift) | Find/Replace, regex, «Перейти к» |
+| [DocumentController+Search.swift](Sources/DocxEdit/Sources/DocumentController+Search.swift) | Find/Replace, regex, «Перейти к»; `searchTextView` (в MD — редактор исходника), окно `showFindReplaceWindow`, `goToNextChange` |
 | [DocumentController+References.swift](Sources/DocxEdit/Sources/DocumentController+References.swift) | Гиперссылки, закладки, cross-ref, TOC |
 | [DocumentController+Notes.swift](Sources/DocxEdit/Sources/DocumentController+Notes.swift) | Сноски/концевые сноски (R07) |
 
@@ -97,7 +99,7 @@
 | Файл | Назначение |
 |---|---|
 | [DocumentWindowView.swift](Sources/DocxEdit/Sources/DocumentWindowView.swift) | Окно, TextEditorRepresentable, DocxTextView (drawBackground листов + MD-«ленты»), Coordinator, applyPageViewStyle (guard'ы equality-check против layout-loop, ADR-060), updateFloatingImages, StatusBar (клик по версии → проверка обновлений) |
-| [MarkdownSourceView.swift](Sources/DocxEdit/Sources/MarkdownSourceView.swift) | Source- и гибридный режим MD (TextKit 1): подсветка, Typora-поведение, `MarkdownTextView` рисует картинки/таблицы/линию, подмена глифов «•»/☐/☑/▾, клик по задаче и сворачивание раздела; ⌘B/⌘I/⌘K, ⌘V/drop картинок, ⌘-клик по ссылке, плашка front matter, `exportHybridPDF` |
+| [MarkdownSourceView.swift](Sources/DocxEdit/Sources/MarkdownSourceView.swift) | Source- и гибридный режим MD (TextKit 1): подсветка, Typora-поведение, `MarkdownTextView` рисует картинки/таблицы/линию, подмена глифов «•»/☐/☑/▾, клик по задаче и сворачивание раздела; ⌘B/⌘I/⌘K, ⌘V/drop картинок, ⌘-клик по ссылке, плашка front matter, `exportHybridPDF`; полоски изменений на поле (`drawChangeMarks` в `drawBackground`), полоса ⌘F |
 | [MarkdownEditing.swift](Sources/DocxEdit/Sources/MarkdownEditing.swift) | Команды ленты в гибридном MD: вставка/снятие разметки в исходнике (жирный, списки, заголовки, цитата, код, ссылка, таблица, картинка), v1.10.3; v1.10.4 — Enter/Tab в списках, картинки из буфера/перетаскиванием в `images/`, URL поверх выделения → ссылка, `caretState` для подсветки ленты; v1.10.5 — `headings` (навигатор), `formatTable` (⌥⌘T); `link`/`resolveLink`/`slug` — ⌘-клик по ссылке; `markdownTable(fromTSV:)`/`pasteTable` — вставка таблицы из Excel |
 | [MarkdownHybridRenderer.swift](Sources/DocxEdit/Sources/MarkdownHybridRenderer.swift) | Гибридный рендер MD (Typora, ADR-063): скрытие разметки вне блока с курсором, списки/задачи, картинки, таблицы GFM (`MarkdownTable`: ширины колонок и высоты строк с переносом текста, v1.10.1), линия |
 | [MarkdownPasteSupport.swift](Sources/DocxEdit/Sources/MarkdownPasteSupport.swift) | Умная вставка MD (Typora-паттерн, v1.6.6): looksLikeMarkdown + sanitize |
@@ -168,10 +170,10 @@
 | Каталог | Что тестирует |
 |---|---|
 | DocxCoreTests/ | Модель, encoding, Codable, edge-cases |
-| DocxIOTests/ | DOCX round-trip, fuzz, реальный корпус (21-24.docx); RoundTripLossDiagnostics (что теряется при open→save, env `DOCX_RT_OUT`), BookmarkRoundTripTests, TabCharacterRoundTripTests, TableCellExtrasRoundTripTests |
+| DocxIOTests/ | DOCX round-trip, fuzz, реальный корпус (21-24.docx); RoundTripLossDiagnostics (что теряется при open→save, env `DOCX_RT_OUT`), BookmarkRoundTripTests (в т.ч. наложенные), ShapeRoundTripTests (фигуры/надписи), TocFieldRoundTripTests, TabCharacterRoundTripTests, TableCellExtrasRoundTripTests |
 | RtfIOTests/ | RTF импорт/экспорт |
 | MarkdownIOTests/ | MD импорт/экспорт |
-| DocxEditTests/ | TablePassthroughBridgeTests (свойства таблиц через редактор), SaveFormatTests (формат по расширению), AutoSaveTests (v1.10.7), HybridPDFTests (PDF из MD), CaretMemoryTests, StatusLineTests (v1.10.6); мост NSAttributedString, property-based, snapshot, SmartMarkdownPaste, гибридный рендер MD (MarkdownHybridRendererTests), команды ленты в гибриде (MarkdownEditingTests), исходник .md без потерь и гибрид по умолчанию (MarkdownSourceFidelityTests), «Не сохранять» не оставляет автосейв (AutorecoverDiscardTests) |
+| DocxEditTests/ | DiskReloadTests (слежение за файлом), ChangeMarksTests, MarkdownSearchTests, OpenExistingWindowTests, SiblingExportTests, ListDeleteRenumberTests, RawObjectBridgeTests, TablePassthroughBridgeTests (свойства таблиц и закладки в ячейках через редактор), SaveFormatTests (формат по расширению), AutoSaveTests (v1.10.7), HybridPDFTests (PDF из MD), CaretMemoryTests, StatusLineTests (v1.10.6); мост NSAttributedString, property-based, snapshot, SmartMarkdownPaste, гибридный рендер MD (MarkdownHybridRendererTests), команды ленты в гибриде (MarkdownEditingTests), исходник .md без потерь и гибрид по умолчанию (MarkdownSourceFidelityTests), «Не сохранять» не оставляет автосейв (AutorecoverDiscardTests) |
 | [UITests/](UITests/) | XCUITest: `project.yml` (XcodeGen → DocxEditUI.xcodeproj, в git не хранится), `run-ui-tests.sh` (SwiftPM-сборка с bundle id `…uitestspm`), `DocxEditUITests/` — cold-start с файлом = 1 окно, набор текста, второе окно; `AppShim/` (Bundle.module для Xcode-таргета), `AppInfo.plist` |
 
 ## Скрипты (scripts/)
