@@ -263,6 +263,50 @@ enum MarkdownEditing {
         return out
     }
 
+    static let tocStart = "<!-- toc -->", tocEnd = "<!-- /toc -->"
+
+    /// Оглавление Markdown: список ссылок на заголовки, отступ — по уровню.
+    static func tocBlock(_ text: String) -> String {
+        let hs = headings(text)
+        let minLevel = hs.map(\.level).min() ?? 1
+        let items = hs.map { String(repeating: "  ", count: $0.level - minLevel) + "- [\($0.text)](#\(slug($0.text)))" }
+        return ([tocStart] + items + [tocEnd]).joined(separator: "\n")
+    }
+
+    /// Вставить оглавление под курсором или обновить уже вставленное (между `<!-- toc -->`).
+    /// `insertIfMissing: false` — только обновление (при сохранении). Курсор остаётся на месте.
+    @discardableResult
+    static func insertOrUpdateTOC(_ tv: NSTextView, insertIfMissing: Bool = true) -> Bool {
+        let ns = tv.string as NSString
+        let block = tocBlock(tv.string)
+        var range: NSRange
+        let start = ns.range(of: tocStart)
+        if start.location != NSNotFound {
+            let end = ns.range(of: tocEnd, range: NSRange(location: start.location, length: ns.length - start.location))
+            guard end.location != NSNotFound else { return false }
+            range = NSRange(location: start.location, length: NSMaxRange(end) - start.location)
+            guard ns.substring(with: range) != block else { return true }
+        } else {
+            guard insertIfMissing else { return false }
+            range = NSRange(location: tv.selectedRange().location, length: 0)
+        }
+        let sel = tv.selectedRange()
+        guard tv.shouldChangeText(in: range, replacementString: block) else { return false }
+        tv.textStorage?.replaceCharacters(in: range, with: block)
+        tv.didChangeText()
+        let delta = (block as NSString).length - range.length
+        if start.location == NSNotFound {
+            tv.setSelectedRange(NSRange(location: range.location + (block as NSString).length, length: 0))
+        } else if sel.location >= NSMaxRange(range) {
+            tv.setSelectedRange(NSRange(location: sel.location + delta, length: sel.length))
+        } else if sel.location > range.location {
+            tv.setSelectedRange(NSRange(location: range.location, length: 0))
+        } else {
+            tv.setSelectedRange(sel)
+        }
+        return true
+    }
+
     /// Выровнять GFM-таблицу под курсором пробелами (v1.10.5). `false` — курсор не в таблице.
     @discardableResult
     static func formatTable(_ tv: NSTextView) -> Bool {

@@ -1201,8 +1201,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     func showHyperlink()       { NotificationCenter.default.post(name: .docxEditShowHyperlink, object: nil) }
     func insertFootnote()      { NotificationCenter.default.post(name: .docxEditInsertFootnote, object: nil) }
     func insertEndnote()       { NotificationCenter.default.post(name: .docxEditInsertEndnote, object: nil) }
-    func insertTOC()           { NotificationCenter.default.post(name: .docxEditInsertTOC, object: nil) }
-    func updateTOC()           { NotificationCenter.default.post(name: .docxEditUpdateTOC, object: nil) }
+    func insertTOC() {
+        // Markdown: оглавление ссылками в исходнике (визуального редактора в окне нет).
+        if let s = session, s.isMarkdownSourceMode, let tv = s.attachedController?.markdownTextView {
+            MarkdownEditing.insertOrUpdateTOC(tv); return
+        }
+        NotificationCenter.default.post(name: .docxEditInsertTOC, object: nil)
+    }
+    func updateTOC() {
+        if let s = session, s.isMarkdownSourceMode, let tv = s.attachedController?.markdownTextView {
+            MarkdownEditing.insertOrUpdateTOC(tv, insertIfMissing: false); return
+        }
+        NotificationCenter.default.post(name: .docxEditUpdateTOC, object: nil)
+    }
     func showCrossReference()  { NotificationCenter.default.post(name: .docxEditShowCrossReference, object: nil) }
     func showSymbol()          { NotificationCenter.default.post(name: .docxEditShowSymbol, object: nil) }
     /// Тег: "date" / "time" / "datetime"
@@ -1502,6 +1513,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             case .docx:     try Self.writeDocument(session.bridge.model, to: url)
             case .markdown:
                 if session.isMarkdownSourceMode {
+                    if let tv = session.attachedController?.markdownTextView {
+                        MarkdownEditing.insertOrUpdateTOC(tv, insertIfMissing: false)
+                    }
                     try session.markdownSource.write(to: url, atomically: true, encoding: .utf8)
                 } else {
                     try MarkdownIO.exportMarkdown(session.bridge.model,
