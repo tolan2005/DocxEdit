@@ -3,6 +3,16 @@
 Все значимые изменения документируются здесь. Формат основан на [Keep a Changelog](https://keepachangelog.com/),
 проект придерживается [Semantic Versioning](https://semver.org/).
 
+## [1.10.11] — 2026-11-21 — Markdown Margin
+
+### Изменения
+- Полоски изменений на полях MD, подсветка синтаксиса в блоках кода, оглавление Markdown
+
+### Артефакты
+- `build/v1.10.11/DocxEdit-1.10.11.dmg`
+- `build/v1.10.11/DocxEdit-1.10.11.app.zip`
+- `build/v1.10.11/SHA256SUMS`
+
 ## [1.10.10] — 2026-11-20 — Live File
 
 ### Изменения
