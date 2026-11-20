@@ -65,6 +65,15 @@ struct DocumentWindowView: View {
                 RibbonView(controller: controller, prefs: prefs, appDelegate: appDelegate, session: session)
                 Divider()
             }
+            // v1.10.10: файл изменён/удалён на диске, а перечитать молча нельзя.
+            if let change = session.diskChange {
+                DiskChangeBanner(
+                    change: change,
+                    onReload: { appDelegate.reloadFromDisk(session) },
+                    onKeep: { session.diskChange = nil }
+                )
+                Divider()
+            }
             // v1.7.2: баннер «Шрифт по умолчанию изменён — применить к этому документу?».
             if let font = pendingDefaultFont {
                 DefaultFontChangedBanner(
@@ -818,6 +827,40 @@ private struct SaveToastView: View {
 
 /// v1.7.2: баннер «Шрифт по умолчанию изменён» — предлагает применить к
 /// текущему документу. Единственное действие + кнопка закрыть.
+/// v1.10.10: файл документа изменили на диске при несохранённых правках
+/// (или с выключенным автоперечитыванием), либо удалили.
+private struct DiskChangeBanner: View {
+    let change: DocumentSession.DiskChange
+    let onReload: () -> Void
+    let onKeep: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: change == .deleted ? "trash" : "arrow.triangle.2.circlepath")
+                .foregroundStyle(.orange)
+            Text(change == .deleted
+                 ? "Файл удалён или перемещён на диске. Текст в окне можно сохранить заново."
+                 : "Файл изменён на диске другой программой.")
+                .font(.callout)
+                .lineLimit(2)
+            Spacer()
+            if change == .modified {
+                Button("Перечитать", action: onReload)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .help("Загрузить версию с диска — несохранённые правки в окне пропадут")
+                Button("Оставить мои", action: onKeep)
+                    .controlSize(.small)
+                    .help("При сохранении файл на диске будет перезаписан")
+            } else {
+                Button("Понятно", action: onKeep).controlSize(.small)
+            }
+        }
+        .padding(.horizontal, 12).padding(.vertical, 6)
+        .background(Color.orange.opacity(0.1))
+    }
+}
+
 private struct DefaultFontChangedBanner: View {
     let fontName: String
     let onApply: () -> Void

@@ -95,6 +95,10 @@ struct PreferencesView: View {
                 Text("Изменения записываются прямо в файл .docx/.md. Новый документ сначала нужно сохранить вручную (⌘S).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Toggle("Подхватывать изменения файла с диска автоматически", isOn: $prefs.reloadFromDisk)
+                Text("Если файл изменила другая программа, а в окне нет несохранённых правок, документ перечитывается на месте, изменённые строки коротко подсвечиваются.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Section("Обновления") {
                 Picker("Проверять обновления", selection: $prefs.updateCheckFrequency) {

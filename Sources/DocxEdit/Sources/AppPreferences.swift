@@ -103,6 +103,11 @@ final class AppPreferences: ObservableObject {
         didSet { UserDefaults.standard.set(autoSaveMode.rawValue, forKey: Keys.autoSaveMode) }
     }
 
+    /// v1.10.10: подхватывать изменения файла с диска, если в окне нет своих правок.
+    @Published var reloadFromDisk: Bool {
+        didSet { UserDefaults.standard.set(reloadFromDisk, forKey: Keys.reloadFromDisk) }
+    }
+
     // MARK: - Автообновление (v1.1.0, REQUIREMENTS_AUTOUPDATE.md §4.2)
 
     /// Частота автоматической проверки обновлений.
@@ -209,6 +214,7 @@ final class AppPreferences: ObservableObject {
             updateCheckFrequency = .onLaunch
         }
         autoSaveMode = ud.string(forKey: Keys.autoSaveMode).flatMap(AutoSaveMode.init(rawValue:)) ?? .off
+        reloadFromDisk = ud.object(forKey: Keys.reloadFromDisk) as? Bool ?? true
         lastUpdateCheck = ud.object(forKey: Keys.lastUpdateCheck) as? Date
         skippedUpdateVersion = ud.string(forKey: Keys.skippedUpdateVersion)
         hiddenRibbonGroups = Set(ud.stringArray(forKey: Keys.hiddenRibbonGroups) ?? [])
@@ -229,6 +235,7 @@ final class AppPreferences: ObservableObject {
 
     private enum Keys {
         static let autoSaveMode       = "pref.autoSaveMode"
+        static let reloadFromDisk     = "pref.reloadFromDisk"
         static let favoriteFonts      = "pref.favoriteFonts"
         static let recentFonts        = "pref.recentFonts"
         static let defaultFontName    = "pref.defaultFontName"

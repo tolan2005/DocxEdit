@@ -188,6 +188,7 @@ final class DocumentSession: ObservableObject {
         bridge.fileURL = url
         bridge.isDirty = false
         lastSavedAt = Date()
+        watchFile()
     }
 
     /// Помечает документ гряным (например, после правки `bridge.model.styles`
@@ -212,6 +213,100 @@ final class DocumentSession: ObservableObject {
         objectWillChange.send()
         bridge.isDirty = true
         scheduleAutoSave()
+    }
+
+    // MARK: - Изменения файла на диске (v1.10.10)
+
+    enum DiskChange { case modified, deleted }
+    /// Файл изменён/удалён на диске, а перечитать молча нельзя — полоса над текстом.
+    @Published var diskChange: DiskChange?
+    private var fileWatcher: FileWatcher?
+    /// Время изменения файла, которое документ уже «знает» (открыл или сам записал).
+    private var knownModificationDate: Date?
+
+    /// Следить за файлом документа (после открытия и каждого сохранения).
+    func watchFile() {
+        guard let url = bridge.fileURL else { fileWatcher = nil; return }
+        knownModificationDate = Self.modificationDate(url)
+        diskChange = nil
+        if fileWatcher?.url != url {
+            fileWatcher = FileWatcher(url: url) { [weak self] in self?.fileChangedOnDisk() }
+        }
+    }
+
+    static func modificationDate(_ url: URL) -> Date? {
+        (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
+    }
+
+    private func fileChangedOnDisk() {
+        guard let url = bridge.fileURL else { return }
+        guard FileManager.default.fileExists(atPath: url.path) else { diskChange = .deleted; return }
+        // Собственное сохранение: время записи уже учтено в markSaved.
+        guard Self.modificationDate(url) != knownModificationDate else { return }
+        AppDelegate.shared?.diskFileChanged(self)
+    }
+
+    /// Перечитанный с диска документ: режим просмотра, курсор и прокрутка
+    /// остаются, изменённые строки коротко подсвечиваются.
+    func reloadFromDisk(model: DocumentModel, markdownRaw: String?) {
+        let c = attachedController
+        let tv: NSTextView? = isMarkdownSourceMode ? c?.markdownTextView : c?.textView
+        let oldText = tv?.string ?? ""
+        let caret = tv?.selectedRange().location ?? 0
+        let origin = tv?.enclosingScrollView?.contentView.bounds.origin
+        let newBridge = NSDocumentBridge(model: model, fileURL: bridge.fileURL)
+        if isMarkdownSourceMode {
+            objectWillChange.send()
+            bridge = newBridge
+            attributedText = model.toAttributedString(
+                defaultFont: preferredDefaultFont(),
+                fallbackFontName: AppPreferences.shared.favoriteFonts.first,
+                usableWidth: model.pageSettings.usableWidthInPoints)
+        } else {
+            replace(with: newBridge)
+            c?.pendingInitialFit = false   // масштаб не трогаем
+        }
+        if let raw = markdownRaw { loadMarkdownSource(raw) }
+        knownModificationDate = bridge.fileURL.flatMap(Self.modificationDate)
+        diskChange = nil
+        // Вью применят новый текст в ближайшем проходе SwiftUI — затем позиция и подсветка.
+        DispatchQueue.main.async { [weak tv] in
+            guard let tv else { return }
+            let len = (tv.string as NSString).length
+            tv.setSelectedRange(NSRange(location: min(caret, len), length: 0))
+            if let origin, let clip = tv.enclosingScrollView?.contentView {
+                clip.scroll(to: origin)
+                tv.enclosingScrollView?.reflectScrolledClipView(clip)
+            }
+            if let r = Self.changedRange(old: oldText, new: tv.string) { Self.flash(r, in: tv) }
+        }
+    }
+
+    /// Изменённый участок нового текста: всё между общим началом и общим концом.
+    static func changedRange(old: String, new: String) -> NSRange? {
+        let a = Array(old.utf16), b = Array(new.utf16)
+        guard a != b else { return nil }
+        var p = 0
+        while p < a.count, p < b.count, a[p] == b[p] { p += 1 }
+        var s = 0
+        while s < a.count - p, s < b.count - p, a[a.count - 1 - s] == b[b.count - 1 - s] { s += 1 }
+        return NSRange(location: p, length: b.count - p - s)
+    }
+
+    /// Подсветка строк изменённого участка на 2.5 с (временный атрибут — модель не трогается).
+    private static func flash(_ range: NSRange, in tv: NSTextView) {
+        guard let lm = tv.layoutManager else { return }
+        let ns = tv.string as NSString
+        guard range.location <= ns.length else { return }
+        let lines = ns.paragraphRange(for: NSRange(location: range.location,
+                                                   length: min(range.length, ns.length - range.location)))
+        guard lines.length > 0 else { return }
+        lm.addTemporaryAttribute(.backgroundColor, value: NSColor.systemYellow.withAlphaComponent(0.3),
+                                 forCharacterRange: lines)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak lm] in
+            guard let lm, NSMaxRange(lines) <= (lm.textStorage?.length ?? 0) else { return }
+            lm.removeTemporaryAttribute(.backgroundColor, forCharacterRange: lines)
+        }
     }
 
     /// Заменяет документ целиком (при open / new). Пересчитывает attributedText.

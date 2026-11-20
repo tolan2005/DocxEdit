@@ -68,6 +68,7 @@ struct DocxEditApp: App {
                     .keyboardShortcut("s", modifiers: .command)
                 Button("Сохранить как…") { appDelegate.saveDocumentAs() }
                     .keyboardShortcut("s", modifiers: [.command, .shift])
+                Button("Перечитать с диска") { appDelegate.reloadCurrentFromDisk() }
 
                 Divider()
 
@@ -1365,6 +1366,67 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         return sessions.first { $0.bridge.fileURL?.standardizedFileURL.resolvingSymlinksInPath().path == path }
     }
 
+    /// Чтение документа с диска по расширению (открытие и перечитывание).
+    private func importModel(url: URL) throws -> (DocumentModel, ImportReport) {
+        let ext = url.pathExtension.lowercased()
+        let model: DocumentModel
+        var report = ImportReport()
+        switch ext {
+        case "docx", "doc":
+            let r = try DocxIO.importDocxWithReport(url: url)
+            model = r.0; report = r.1
+        case "rtf":
+            model = try RtfIO.importRTF(url: url)
+        case "odt":
+            model = try OdtIO.importODT(url: url)
+        case "md", "markdown":
+            model = try MarkdownIO.importMarkdown(url: url)
+        case "txt":
+            let data = try Data(contentsOf: url)
+            let encoding = EncodingDetector.detect(data: data)
+            let text = EncodingDetector.decode(data, using: encoding)
+            model = plainTextToDocument(text)
+        default:
+            let r = try DocxIO.importDocxWithReport(url: url)
+            model = r.0; report = r.1
+        }
+        return (model, report)
+    }
+
+    /// Файл документа изменён на диске другой программой.
+    func diskFileChanged(_ s: DocumentSession) {
+        if !s.bridge.isDirty && AppPreferences.shared.reloadFromDisk {
+            reloadFromDisk(s)
+        } else {
+            s.diskChange = .modified
+        }
+    }
+
+    /// Перечитать документ с диска (своих несохранённых правок не спрашивает —
+    /// это делает вызывающий).
+    func reloadFromDisk(_ s: DocumentSession) {
+        guard let url = s.bridge.fileURL else { return }
+        do {
+            let (model, _) = try importModel(url: url)
+            let raw = s.mode == .markdown ? try? String(contentsOf: url, encoding: .utf8) : nil
+            s.reloadFromDisk(model: model, markdownRaw: raw)
+        } catch { presentError(error) }
+    }
+
+    /// Файл → «Перечитать с диска».
+    func reloadCurrentFromDisk() {
+        guard let s = session, s.bridge.fileURL != nil else { NSSound.beep(); return }
+        if s.bridge.isDirty {
+            let alert = NSAlert()
+            alert.messageText = "Перечитать документ с диска?"
+            alert.informativeText = "Несохранённые правки в этом окне пропадут."
+            alert.addButton(withTitle: "Перечитать")
+            alert.addButton(withTitle: "Отмена")
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+        }
+        reloadFromDisk(s)
+    }
+
     func loadFromURL(_ url: URL) {
         // Файл уже открыт — показываем его окно вместо второй копии.
         if let open = Self.session(showing: url, among: attachedSessions.allObjects),
@@ -1388,31 +1450,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             return
         }
         do {
-            let ext = url.pathExtension.lowercased()
-            let model: DocumentModel
-            var report: ImportReport = ImportReport()
             // v0.5.7 (R08): замер длительности open + размер файла.
             let fileSize = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
             let openStart = Date()
-            switch ext {
-            case "docx", "doc":
-                let r = try DocxIO.importDocxWithReport(url: url)
-                model = r.0; report = r.1
-            case "rtf":
-                model = try RtfIO.importRTF(url: url)
-            case "odt":
-                model = try OdtIO.importODT(url: url)
-            case "md", "markdown":
-                model = try MarkdownIO.importMarkdown(url: url)
-            case "txt":
-                let data = try Data(contentsOf: url)
-                let encoding = EncodingDetector.detect(data: data)
-                let text = EncodingDetector.decode(data, using: encoding)
-                model = plainTextToDocument(text)
-            default:
-                let r = try DocxIO.importDocxWithReport(url: url)
-                model = r.0; report = r.1
-            }
+            let (model, report) = try importModel(url: url)
             let openMs = Date().timeIntervalSince(openStart) * 1000.0
             // v1.10.5: позиция курсора с прошлого раза — читаем до загрузки (загрузка её перезапишет).
             let savedCaret = CaretMemory.location(for: url)
@@ -1431,6 +1472,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
                     session?.attachedController?.goToHeading(location: savedCaret)
                 }
             }
+            session?.watchFile()
             session?.lastImportReport = report
             session?.lastMetrics.lastOpenMs = openMs
             session?.lastMetrics.lastOpenBytes = fileSize
