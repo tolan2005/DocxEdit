@@ -176,6 +176,9 @@ enum MarkdownHybridRenderer {
             storage.addAttributes([.font: mono, .backgroundColor: codeBg], range: m.range)
             marker(m.range(at: 1), visible: visible)
             marker(m.range(at: 3), visible: visible)
+            if let lang = CodeHighlighter.language(fromFence: text.substring(with: m.range(at: 1))) {
+                CodeHighlighter.highlight(storage, body: m.range(at: 2), language: lang)
+            }
         }
         func inCode(_ r: NSRange) -> Bool { codeRanges.contains { NSIntersectionRange($0, r).length > 0 } }
 

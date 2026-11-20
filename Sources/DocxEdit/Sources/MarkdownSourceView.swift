@@ -88,6 +88,9 @@ enum MarkdownSyntaxHighlighter {
             storage.addAttribute(.foregroundColor, value: NSColor.systemIndigo, range: m.range)
         }
 
+        // Подсветка языка в блоках ```язык — последней, поверх правил Markdown.
+        CodeHighlighter.highlightFences(storage)
+
         storage.endEditing()
     }
 
